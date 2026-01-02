@@ -62,3 +62,9 @@
   color: #333333;
   font-weight: bold;
 }
+
+#scheda_generale_riduttori .thumbnail .lat,
+#scheda_generale_riduttori .thumbnail .long{
+  display: none;
+  opacity: 0;
+}
