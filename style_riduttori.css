@@ -2,7 +2,9 @@
   background: #e6e6e6;
 }
 
-#scheda_riduttori .row_1{}
+#scheda_riduttori .row_1{
+  padding: 10px 20px;
+}
 
 #scheda_riduttori .row_hidden{
   display: none !important;
@@ -15,4 +17,12 @@
   padding: 10px;
   margin-bottom: 10px;
   box-shadow: 1px 1px 5px #b3b3b3;
+}
+
+#scheda_riduttori .cont_1 h4{
+  margin: 0;
+  padding: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333333;
 }
