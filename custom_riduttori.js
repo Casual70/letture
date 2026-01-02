@@ -3,8 +3,10 @@
 document.addEventListener("DOMContentLoaded", function() {
     console.log('DOM completamente caricato e analizzato');
     if (document.getElementById('scheda_riduttori')) {
-        alert('Elemento "scheda_riduttori" trovato!');
-    } else {
-        console.log('Elemento "scheda_riduttori" non trovato.');
+        console.log('Elemento "scheda_riduttori" trovato!');
+        //Sono delle pagine di un riduttore
+    }
+    if (document.getElementById('scheda_generale_riduttori')){
+        console.log('Elemento "scheda_generale_riduttori" trovato!');
     }
 });

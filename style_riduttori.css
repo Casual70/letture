@@ -1,3 +1,18 @@
 #scheda_riduttori{
   background: #e6e6e6;
 }
+
+#scheda_riduttori .row_1{}
+
+#scheda_riduttori .row_hidden{
+  display: none !important;
+  opacity: 0;
+}
+
+#scheda_riduttori .cont_1{
+  background: #f2f2f2;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-shadow: 1px 1px 5px #b3b3b3;
+}
