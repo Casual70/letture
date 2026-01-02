@@ -3,7 +3,8 @@
 }
 
 #scheda_riduttori .row_1{
-  padding: 0px 20px;
+  padding: 5px 0px;
+  margin: 0px 20px;
   border-bottom: 1px solid #525252;
   display: flex;
   align-items: center;
@@ -42,6 +43,7 @@
 #scheda_riduttori #mappa{
   border-radius: 20px;
   box-shadow: 2px 2px 10px #b3b3b3;
+  padding: 0px !important;
 }
 
 #scheda_riduttori .gallery_img_riduttori{
