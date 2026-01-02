@@ -5,6 +5,10 @@
 #scheda_riduttori .row_1{
   padding: 0px 20px;
   border-bottom: 1px solid #525252;
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  gap: 10px;
 }
 
 #scheda_riduttori .row_hidden{
@@ -24,6 +28,7 @@
   font-size: 18px;
   color: #4d4d4d;
   line-height: 1.6em;
+  margin: 0px !important;
 }
 
 #scheda_riduttori .cont_1 h4{
@@ -47,7 +52,7 @@
 #scheda_generale_riduttori .thumbnail{
   border-radius: 10px;
   box-shadow: 1px 1px 5px #b3b3b3;
-  padding: 20px;
+  padding: 10px;
 }
 
 #scheda_generale_riduttori .thumbnail .caption{
@@ -66,7 +71,13 @@
   font-size: 18px;
   color: #333333;
   font-weight: bold;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+}
+
+#scheda_generale_riduttori .thumbnail .data_installazione{
+  font-size: 16px;
+  color: #666666;
+  margin-bottom: 10px;
 }
 
 #scheda_generale_riduttori .thumbnail .lat,
