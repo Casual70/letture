@@ -3,7 +3,8 @@
 }
 
 #scheda_riduttori .row_1{
-  padding: 10px 20px;
+  padding: 0px 20px;
+  border-bottom: 1px solid #525252;
 }
 
 #scheda_riduttori .row_hidden{
@@ -14,9 +15,15 @@
 #scheda_riduttori .cont_1{
   background: #f2f2f2;
   border-radius: 10px;
-  padding: 10px;
+  padding: 20px 30px;
   margin-bottom: 10px;
   box-shadow: 1px 1px 5px #b3b3b3;
+}
+
+#scheda_riduttori .cont_1 p{
+  font-size: 18px;
+  color: #4d4d4d;
+  line-height: 1.6em;
 }
 
 #scheda_riduttori .cont_1 h4{
@@ -24,5 +31,5 @@
   padding: 0;
   font-size: 24px;
   font-weight: bold;
-  color: #ec0000;
+  color: #333333;
 }
