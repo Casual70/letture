@@ -87,3 +87,10 @@
   display: none;
   opacity: 0;
 }
+
+#scheda_generale_riduttori #casella_ricerca{
+  font-size: 26px;
+  margin-bottom: 10px;
+  width: 100%;
+  border-radius: 5px;
+}

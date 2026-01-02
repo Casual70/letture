@@ -21,7 +21,7 @@ function creaCasellaRicerca(classe) {
     var input = document.createElement("input");
     input.type = "text";
     input.id = "casella_ricerca";
-    input.placeholder = "Cerca...";
+    input.placeholder = "Cerca nome o codice...";
 
     // Aggiungi un listener per l'evento di input
     input.addEventListener("input", function() {
