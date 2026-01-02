@@ -43,7 +43,7 @@ function creaCasellaRicerca(classe) {
     });
 
     // Aggiungi l'input al corpo del documento o a un elemento specifico
-    var container = document.getElementById("container_ricerca");
+    var container = document.getElementsByClassName("ricerca_dpc")[0];
     if (container) {
         container.appendChild(input);
     } else {
