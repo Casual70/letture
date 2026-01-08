@@ -401,6 +401,7 @@
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
                     const existingDate = existingPDR ? (existingPDR.data_completamento || "") : "";
+                    const existingAvviso = existingPDR ? (existingPDR.avviso || false) : false; // Preserve avviso
 
                     const newData = {
                         pdr: pdr,
@@ -415,7 +416,8 @@
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus, 
-                        data_completamento: existingDate 
+                        data_completamento: existingDate,
+                        avviso: existingAvviso
                     };
                     
                     allData[pdr] = newData;
@@ -467,10 +469,11 @@
             }
 
             const rows = [];
-            rows.push(["PDR", "NOME", "ZONA", "NOME ZONA", "INDIRIZZO", "ULTIMA LETTURA", "TELEFONO", "LAT", "LON", "MATRICOLA", "ANNO", "STATO", "DATA COMPLETAMENTO"]);
+            rows.push(["PDR", "NOME", "ZONA", "NOME ZONA", "INDIRIZZO", "ULTIMA LETTURA", "TELEFONO", "LAT", "LON", "MATRICOLA", "ANNO", "STATO", "AVVISO INVIATO", "DATA COMPLETAMENTO"]);
 
             Object.values(allData).forEach(item => {
                 const status = item.fatto ? "FATTO" : "DA FARE";
+                const avviso = item.avviso ? "SI" : "NO";
                 rows.push([
                     `"${item.pdr || ''}"`, 
                     `"${item.nominativo || ''}"`,
@@ -484,6 +487,7 @@
                     `"${item.matricola || ''}"`,
                     item.anno || '',
                     status,
+                    avviso,
                     `"${item.data_completamento || ''}"`
                 ]);
             });
@@ -498,7 +502,7 @@
             document.body.removeChild(link);
         }
 
-        // --- TOGGLE STATUS FUNCTION ---
+        // --- TOGGLE STATUS FUNCTIONS ---
         window.togglePdrStatus = async function(pdr) {
             const item = allData[pdr];
             if (!item) return;
@@ -507,7 +511,6 @@
             const completionDate = newStatus ? new Date().toLocaleString('it-IT') : "";
 
             if (isCloudMode) {
-                // Usiamo globalAppId invece di ricalcolarlo
                 const appId = globalAppId;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                 try {
@@ -522,6 +525,31 @@
             } else {
                 item.fatto = newStatus;
                 item.data_completamento = completionDate;
+                allData[pdr] = item;
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+                refreshUIComponents(); 
+            }
+        };
+
+        window.togglePdrNotice = async function(pdr) {
+            const item = allData[pdr];
+            if (!item) return;
+
+            const newNoticeStatus = !item.avviso; 
+
+            if (isCloudMode) {
+                const appId = globalAppId;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
+                try {
+                    await updateDoc(docRef, { 
+                        avviso: newNoticeStatus
+                    });
+                } catch(e) {
+                    console.error(e);
+                    alert("Errore aggiornamento avviso cloud");
+                }
+            } else {
+                item.avviso = newNoticeStatus;
                 allData[pdr] = item;
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
                 refreshUIComponents(); 
@@ -595,11 +623,17 @@
                 
                 // Popup Interattivo
                 const isDone = item.fatto === true;
+                const isNoticeSent = item.avviso === true;
+
                 const btnClass = isDone 
                     ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" 
                     : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
-                
                 const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
+
+                const noticeBtnClass = isNoticeSent
+                    ? "bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200"
+                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
+                const noticeBtnText = isNoticeSent ? '<i class="fa-solid fa-check-double"></i> Avviso Inviato' : '<i class="fa-brands fa-whatsapp"></i> Invia Avviso/WA';
 
                 const popupContent = `
                     <div class="font-sans">
@@ -621,11 +655,18 @@
                         </div>
                         
                         <div class="flex flex-col gap-2">
-                            <!-- Toggle Button -->
-                            <button onclick="window.togglePdrStatus('${item.pdr}')" 
-                                class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">
-                                ${btnText}
-                            </button>
+                            <div class="grid grid-cols-2 gap-2">
+                                <!-- Status Button -->
+                                <button onclick="window.togglePdrStatus('${item.pdr}')" 
+                                    class="py-1.5 rounded text-xs font-bold border transition ${btnClass}">
+                                    ${btnText}
+                                </button>
+                                <!-- Notice Button -->
+                                <button onclick="window.togglePdrNotice('${item.pdr}')" 
+                                    class="py-1.5 rounded text-xs font-bold border transition ${noticeBtnClass}">
+                                    ${noticeBtnText}
+                                </button>
+                            </div>
 
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
                                class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50">
@@ -709,7 +750,10 @@
                         const isVisible = activeYears.has(m.anno);
                         const statusHtml = isVisible ? '' : '<span class="text-red-400 ml-1">(Nascosto)</span>';
                         
-                        div.innerHTML = `<b>${m.nominativo}</b> <br> ${m.pdr} ${statusHtml}`;
+                        // Add icon if notice sent
+                        const noticeIcon = m.avviso ? '<i class="fa-solid fa-envelope text-orange-500 ml-1" title="Avviso Inviato"></i>' : '';
+
+                        div.innerHTML = `<b>${m.nominativo}</b> ${noticeIcon} <br> ${m.pdr} ${statusHtml}`;
                         div.onclick = () => {
                             if (!isVisible) {
                                 alert(`Anno ${m.anno} attualmente nascosto dai filtri.`);
