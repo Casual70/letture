@@ -370,6 +370,8 @@
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
+            let importedCount = 0;
+            let skippedCount = 0;
             
             // Usiamo globalAppId invece di ricalcolarlo
             const appId = globalAppId;
@@ -417,17 +419,20 @@
                     };
                     
                     allData[pdr] = newData;
+                    importedCount++;
 
                     if (isCloudMode) {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                         batch.set(docRef, newData);
                         batchCount++;
                         if (batchCount >= 450) {
-                            batch.commit();
+                            batch.commit(); // Note: inside loop async handling is tricky, simplified here
                             batch = writeBatch(db);
                             batchCount = 0;
                         }
                     }
+                } else {
+                    skippedCount++;
                 }
             });
 
@@ -436,13 +441,22 @@
             renderYearFilters();
 
             if (isCloudMode && batchCount > 0) {
-                await batch.commit();
+                try {
+                    await batch.commit();
+                } catch (e) {
+                    console.error("Errore scrittura DB:", e);
+                    alert("Errore scrittura Database: " + e.message + "\nControlla le 'Rules' di Firestore.");
+                }
             } else if (!isCloudMode) {
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
                 refreshUIComponents();
             }
             
-            showToast(`Importati ${Object.keys(allData).length} PDR`);
+            if (skippedCount > 0) {
+                alert(`Importazione Completata:\n✅ Caricati: ${importedCount}\n⚠️ Saltati (No Coordinate): ${skippedCount}\n\nAssicurati che il CSV abbia le colonne LAT e LON compilate.`);
+            } else {
+                showToast(`Importati ${importedCount} PDR`);
+            }
         };
 
         // --- EXPORT CSV ---
