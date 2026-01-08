@@ -282,7 +282,11 @@
 
         function refreshUIComponents() {
             const container = document.getElementById('yearFiltersContainer');
-            renderYearFilters();
+            // MODIFICA: Ridisegna i filtri solo se non ci sono checkbox o se c'è il messaggio placeholder.
+            // Questo impedisce il reset della selezione ogni volta che cambia un dato.
+            if (container.querySelectorAll('input').length === 0 || container.querySelector('.italic')) {
+                renderYearFilters();
+            }
             updateMapAndUI();
         }
 
