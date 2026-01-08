@@ -661,9 +661,10 @@
             }).addTo(map);
 
             markersCluster = L.markerClusterGroup({
-                disableClusteringAtZoom: 16,
-                spiderfyOnMaxZoom: true,
-                showCoverageOnHover: false
+                maxClusterRadius: 30, // Raggio piccolo per separare bene i punti vicini
+                spiderfyOnMaxZoom: true, // Fondamentale: apre a ventaglio i punti identici
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true
             });
             map.addLayer(markersCluster);
 
