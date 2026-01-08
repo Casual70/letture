@@ -178,6 +178,25 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- CONFIGURAZIONE FIREBASE PERSONALE ---
+        // ISTRUZIONI:
+        // 1. Crea progetto su firebase.google.com
+        // 2. Attiva Firestore Database e Authentication (Anonymous)
+        // 3. Incolla qui sotto la configurazione (da Project Settings)
+        
+        const MANUAL_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
+            authDomain: "letture-asimultiservices.firebaseapp.com",
+            projectId: "letture-asimultiservices",
+            storageBucket: "letture-asimultiservices.firebasestorage.app",
+            messagingSenderId: "412990381286",
+            appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+        };
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+
         // --- GLOBAL STATE ---
         let db, auth, user;
         let map, markersCluster;
@@ -186,19 +205,36 @@
         let availableYears = new Set(); 
         let isCloudMode = false;
         const COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+        let globalAppId = 'default-app-id'; // ID predefinito per il database
         
         async function initApp() {
+            let firebaseConfig = null;
+            let useCustomToken = false;
+
             try {
+                // 1. Cerca Configurazione Ambiente (Preview interna)
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    const firebaseConfig = JSON.parse(__firebase_config);
+                    firebaseConfig = JSON.parse(__firebase_config);
+                    if (typeof __app_id !== 'undefined') globalAppId = __app_id;
+                    useCustomToken = true;
+                } 
+                // 2. Cerca Configurazione Manuale (Uso esterno/GitHub Pages)
+                else if (MANUAL_FIREBASE_CONFIG) {
+                    firebaseConfig = MANUAL_FIREBASE_CONFIG;
+                    globalAppId = 'pdr-shared-db'; // ID fisso per il DB condiviso manuale
+                }
+
+                if (firebaseConfig) {
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     db = getFirestore(app);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    // Autenticazione
+                    if (useCustomToken && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          await signInWithCustomToken(auth, __initial_auth_token); 
                     } else {
+                        // Fallback per uso esterno: Login Anonimo
+                        // Assicurati di aver abilitato "Anonymous" in Firebase Console -> Auth
                         await signInAnonymously(auth);
                     }
 
@@ -207,11 +243,12 @@
                             user = u;
                             isCloudMode = true;
                             document.getElementById('statusMessage').innerHTML = '<span class="text-green-600"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>';
-                            startCloudListener(appId);
+                            // Importante: Passiamo l'appId corretto al listener
+                            startCloudListener(globalAppId);
                         }
                     });
                 } else {
-                    throw new Error("No Config");
+                    throw new Error("Nessuna configurazione Firebase trovata. Inserisci MANUAL_FIREBASE_CONFIG nel codice.");
                 }
             } catch (e) {
                 console.error("Errore inizializzazione:", e);
@@ -238,7 +275,7 @@
             }, (error) => {
                 console.error("Errore listener Firestore:", error);
                 if (error.code === 'permission-denied') {
-                    showToast("Errore permessi: Ricarica la pagina.");
+                    showToast("Errore permessi: Controlla le Regole Firestore.");
                 }
             });
         }
@@ -256,8 +293,6 @@
 
         function refreshUIComponents() {
             const container = document.getElementById('yearFiltersContainer');
-            // Re-render filters if year count changes or container empty
-            // Simplified check: always re-render to ensure categories are correct
             renderYearFilters();
             updateMapAndUI();
         }
@@ -336,10 +371,8 @@
             const checkboxes = document.querySelectorAll('#yearFiltersContainer input[type="checkbox"]');
             checkboxes.forEach(cb => {
                 cb.checked = true;
-                // Trigger change manually or just reset activeYears based on available
                 cb.dispatchEvent(new Event('change'));
             });
-            // Brute force reset
             availableYears.forEach(y => activeYears.add(y));
             updateMapAndUI();
         }
@@ -348,7 +381,9 @@
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            // Usiamo globalAppId invece di ricalcolarlo
+            const appId = globalAppId;
 
             csvData.forEach(row => {
                 const pdr = String(row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
@@ -409,7 +444,6 @@
 
             availableYears.forEach(y => activeYears.add(y));
             
-            // Re-render filters immediately after import to show new categories
             renderYearFilters();
 
             if (isCloudMode && batchCount > 0) {
@@ -470,7 +504,8 @@
             const completionDate = newStatus ? new Date().toLocaleString('it-IT') : "";
 
             if (isCloudMode) {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                // Usiamo globalAppId invece di ricalcolarlo
+                const appId = globalAppId;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                 try {
                     await updateDoc(docRef, { 
