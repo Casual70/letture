@@ -561,16 +561,57 @@
         };
 
         window.clearData = async function() {
-            if(confirm("Sei sicuro di voler cancellare i dati della mappa?")) {
+            const confirmMsg = isCloudMode 
+                ? "SEI SICURO? Questa azione cancellerà PERMANENTEMENTE tutti i dati dal DATABASE CONDIVISO (Cloud). Non si può annullare." 
+                : "Sei sicuro di voler cancellare i dati locali della mappa?";
+
+            if(confirm(confirmMsg)) {
+                if (isCloudMode) {
+                    const appId = globalAppId;
+                    const idsToDelete = Object.keys(allData);
+                    
+                    if (idsToDelete.length === 0) {
+                        alert("Nessun dato da cancellare.");
+                        return;
+                    }
+
+                    showToast(`Cancellazione di ${idsToDelete.length} record in corso...`);
+
+                    let batch = writeBatch(db);
+                    let counter = 0;
+
+                    try {
+                        for (const pdr of idsToDelete) {
+                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
+                            batch.delete(docRef);
+                            counter++;
+
+                            if (counter >= 400) { 
+                                await batch.commit();
+                                batch = writeBatch(db);
+                                counter = 0;
+                            }
+                        }
+                        
+                        if (counter > 0) {
+                            await batch.commit();
+                        }
+                        showToast("Cancellazione completata.");
+                    } catch (e) {
+                        console.error("Errore cancellazione:", e);
+                        alert("Errore durante la cancellazione: " + e.message);
+                    }
+                } 
+                
+                // Clear local storage regardless
                 localStorage.removeItem('pdr_data_riepilogo');
-                if(!isCloudMode) {
+                
+                if (!isCloudMode) {
                     allData = {};
                     availableYears.clear();
                     activeYears.clear();
                     refreshUIComponents();
                     location.reload();
-                } else {
-                    alert("Per cancellare dati in cloud, contattare amministratore o usare console.");
                 }
             }
         }
