@@ -179,11 +179,6 @@
         import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURAZIONE FIREBASE PERSONALE ---
-        // ISTRUZIONI:
-        // 1. Crea progetto su firebase.google.com
-        // 2. Attiva Firestore Database e Authentication (Anonymous)
-        // 3. Incolla qui sotto la configurazione (da Project Settings)
-        
         const MANUAL_FIREBASE_CONFIG = {
             apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
             authDomain: "letture-asimultiservices.firebaseapp.com",
@@ -192,10 +187,6 @@
             messagingSenderId: "412990381286",
             appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
         };
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
 
         // --- GLOBAL STATE ---
         let db, auth, user;
@@ -205,7 +196,7 @@
         let availableYears = new Set(); 
         let isCloudMode = false;
         const COLLECTION_NAME = 'letture_pdr_riepilogo'; 
-        let globalAppId = 'default-app-id'; // ID predefinito per il database
+        let globalAppId = 'default-app-id'; 
         
         async function initApp() {
             let firebaseConfig = null;
@@ -233,8 +224,6 @@
                     if (useCustomToken && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          await signInWithCustomToken(auth, __initial_auth_token); 
                     } else {
-                        // Fallback per uso esterno: Login Anonimo
-                        // Assicurati di aver abilitato "Anonymous" in Firebase Console -> Auth
                         await signInAnonymously(auth);
                     }
 
@@ -248,7 +237,7 @@
                         }
                     });
                 } else {
-                    throw new Error("Nessuna configurazione Firebase trovata. Inserisci MANUAL_FIREBASE_CONFIG nel codice.");
+                    throw new Error("Nessuna configurazione Firebase trovata.");
                 }
             } catch (e) {
                 console.error("Errore inizializzazione:", e);
