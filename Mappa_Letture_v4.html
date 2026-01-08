@@ -101,17 +101,21 @@
                      <div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
                      <span class="text-[10px] font-bold text-blue-700">FATTO</span>
                 </div>
+                <div class="p-2 bg-emerald-100 border border-emerald-300 rounded">
+                    <div class="w-3 h-3 bg-emerald-800 rounded-full mx-auto mb-1"></div>
+                    <span class="text-[10px] font-bold text-emerald-900">2026</span>
+                </div>
                 <div class="p-2 bg-green-50 border border-green-200 rounded">
                     <div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
                     <span class="text-[10px] font-bold text-green-700">2025</span>
                 </div>
-                <div class="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                <div class="p-2 bg-yellow-50 border border-yellow-200 rounded col-span-2">
                     <div class="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-yellow-700">2024</span>
+                    <span class="text-[10px] font-bold text-yellow-700">2010 - 2024</span>
                 </div>
                 <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2">
                     <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-red-700">≤ 2023 (Da Fare)</span>
+                    <span class="text-[10px] font-bold text-red-700">&lt; 2010</span>
                 </div>
             </div>
 
@@ -252,9 +256,9 @@
 
         function refreshUIComponents() {
             const container = document.getElementById('yearFiltersContainer');
-            if (container.children.length === 0 || container.querySelector('.italic') || availableYears.size !== container.querySelectorAll('input').length) {
-                renderYearFilters();
-            }
+            // Re-render filters if year count changes or container empty
+            // Simplified check: always re-render to ensure categories are correct
+            renderYearFilters();
             updateMapAndUI();
         }
 
@@ -267,40 +271,76 @@
                 return;
             }
 
-            const sortedYears = Array.from(availableYears).sort().reverse();
+            // Categorize Years
+            const cats = {
+                '2026': [],
+                '2025': [],
+                '2010-2024': [],
+                'old': []
+            };
 
-            sortedYears.forEach(year => {
+            availableYears.forEach(y => {
+                const yi = parseInt(y);
+                if (isNaN(yi)) {
+                    cats['old'].push(y); // Treat N/D as old
+                } else if (yi === 2026) {
+                    cats['2026'].push(y);
+                } else if (yi === 2025) {
+                    cats['2025'].push(y);
+                } else if (yi >= 2010 && yi <= 2024) {
+                    cats['2010-2024'].push(y);
+                } else {
+                    cats['old'].push(y);
+                }
+            });
+
+            // Helper to create checkbox
+            const createCb = (label, yearsArr, colorClass) => {
+                if (yearsArr.length === 0) return;
+
                 const div = document.createElement('div');
                 div.className = 'year-checkbox';
                 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.value = year;
-                checkbox.checked = true; 
-                activeYears.add(year);
+                checkbox.checked = true; // Default checked
+                
+                // Add to active
+                yearsArr.forEach(y => activeYears.add(y));
 
                 checkbox.onchange = (e) => {
-                    if (e.target.checked) activeYears.add(year);
-                    else activeYears.delete(year);
+                    if (e.target.checked) {
+                        yearsArr.forEach(y => activeYears.add(y));
+                    } else {
+                        yearsArr.forEach(y => activeYears.delete(y));
+                    }
                     updateMapAndUI();
                 };
 
-                const label = document.createElement('span');
-                label.className = 'text-sm text-gray-700';
-                label.innerText = year;
+                const span = document.createElement('span');
+                span.className = `text-sm ${colorClass} font-medium`;
+                span.innerText = label + ` (${yearsArr.length})`;
 
                 div.appendChild(checkbox);
-                div.appendChild(label);
+                div.appendChild(span);
                 container.appendChild(div);
-            });
+            };
+
+            createCb('2026', cats['2026'], 'text-emerald-800');
+            createCb('2025', cats['2025'], 'text-green-700');
+            createCb('2010 - 2024', cats['2010-2024'], 'text-yellow-700');
+            createCb('< 2010', cats['old'], 'text-red-700');
         }
 
         window.selectAllYears = function() {
             const checkboxes = document.querySelectorAll('#yearFiltersContainer input[type="checkbox"]');
             checkboxes.forEach(cb => {
                 cb.checked = true;
-                activeYears.add(cb.value);
+                // Trigger change manually or just reset activeYears based on available
+                cb.dispatchEvent(new Event('change'));
             });
+            // Brute force reset
+            availableYears.forEach(y => activeYears.add(y));
             updateMapAndUI();
         }
 
@@ -332,7 +372,6 @@
                     
                     if(year) availableYears.add(year);
 
-                    // PRESERVE STATUS: Check if PDR exists and keep its 'fatto' status and 'data_completamento'
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
                     const existingDate = existingPDR ? (existingPDR.data_completamento || "") : "";
@@ -349,8 +388,8 @@
                         anno: year,
                         lat: lat,
                         lng: lng,
-                        fatto: existingStatus, // Preserve previous status
-                        data_completamento: existingDate // Preserve previous date
+                        fatto: existingStatus, 
+                        data_completamento: existingDate 
                     };
                     
                     allData[pdr] = newData;
@@ -369,6 +408,9 @@
             });
 
             availableYears.forEach(y => activeYears.add(y));
+            
+            // Re-render filters immediately after import to show new categories
+            renderYearFilters();
 
             if (isCloudMode && batchCount > 0) {
                 await batch.commit();
@@ -388,7 +430,6 @@
             }
 
             const rows = [];
-            // Header: Added DATA COMPLETAMENTO
             rows.push(["PDR", "NOME", "ZONA", "NOME ZONA", "INDIRIZZO", "ULTIMA LETTURA", "TELEFONO", "LAT", "LON", "MATRICOLA", "ANNO", "STATO", "DATA COMPLETAMENTO"]);
 
             Object.values(allData).forEach(item => {
@@ -406,7 +447,7 @@
                     `"${item.matricola || ''}"`,
                     item.anno || '',
                     status,
-                    `"${item.data_completamento || ''}"` // New field
+                    `"${item.data_completamento || ''}"`
                 ]);
             });
 
@@ -426,14 +467,12 @@
             if (!item) return;
 
             const newStatus = !item.fatto; // Toggle boolean
-            // Set completion date if done, otherwise clear it
             const completionDate = newStatus ? new Date().toLocaleString('it-IT') : "";
 
             if (isCloudMode) {
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                 try {
-                    // Update 'fatto' and 'data_completamento'
                     await updateDoc(docRef, { 
                         fatto: newStatus,
                         data_completamento: completionDate
@@ -443,12 +482,11 @@
                     alert("Errore aggiornamento stato cloud");
                 }
             } else {
-                // Local Update
                 item.fatto = newStatus;
                 item.data_completamento = completionDate;
                 allData[pdr] = item;
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                refreshUIComponents(); // Force UI refresh for local
+                refreshUIComponents(); 
             }
         };
 
@@ -483,21 +521,23 @@
                 if (item.fatto) countDone++;
                 
                 // --- LOGICA COLORI ---
-                let colorCode = '#dc2626'; 
-                
-                if (item.fatto === true) {
-                    colorCode = '#2563eb'; // BLU (Fatto)
-                } else {
-                    let yearInt = parseInt(item.anno);
-                    if (!isNaN(yearInt)) {
-                        if (yearInt === 2025) {
-                            colorCode = '#16a34a'; // Verde
-                        } else if (yearInt === 2024) {
-                            colorCode = '#eab308'; // Giallo
-                        }
+                let colorCode = '#dc2626'; // Default Rosso (< 2010)
+                let yearInt = parseInt(item.anno);
+
+                if (!isNaN(yearInt)) {
+                    if (yearInt === 2026) {
+                        colorCode = '#064e3b'; // Verde Scuro (Emerald 900)
+                    } else if (yearInt === 2025) {
+                        colorCode = '#16a34a'; // Verde (Green 600)
+                    } else if (yearInt >= 2010 && yearInt <= 2024) {
+                        colorCode = '#eab308'; // Giallo (Yellow 500)
                     }
                 }
                 
+                if (item.fatto === true) {
+                    colorCode = '#2563eb'; // BLU (Fatto) overrides everything
+                }
+
                 const iconHtml = `<div style="
                     background-color: ${colorCode};
                     width: 14px; height: 14px;
