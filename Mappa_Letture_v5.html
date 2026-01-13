@@ -377,6 +377,52 @@
             }
         }
 
+        // --- FILTRI UI FUNZIONI (Ripristinate) ---
+        function renderAccessFilters() {
+            const container = document.getElementById('accessFiltersContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const categories = [
+                { id: 'Accessibile', label: 'Accessibile', color: 'text-green-700' },
+                { id: 'Inaccessibile', label: 'Inaccessibile', color: 'text-orange-700' },
+                { id: 'Altro', label: 'Altro / N/D', color: 'text-red-700' }
+            ];
+
+            categories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'filter-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = cat.id;
+                checkbox.checked = activeAccess.has(cat.id);
+                
+                checkbox.onchange = (e) => {
+                    if(e.target.checked) activeAccess.add(cat.id);
+                    else activeAccess.delete(cat.id);
+                    updateMapAndUI();
+                };
+
+                const label = document.createElement('span');
+                label.className = `text-sm font-bold ${cat.color}`;
+                label.innerText = cat.label;
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+        window.selectAllAccess = function() {
+            const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                activeAccess.add(cb.value);
+            });
+            updateMapAndUI();
+        }
+
         // --- IMPORT CSV ---
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
