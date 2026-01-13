@@ -144,7 +144,6 @@
         </div>
 
         <div class="sidebar-footer">
-             <!-- FIX: Aggiunto py-2 per dare altezza esplicita al bottone -->
              <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Impostazioni">
                 <i class="fa-solid fa-gear"></i>
             </button>
@@ -191,12 +190,28 @@
         let allData = {}; 
         let isCloudMode = false;
         let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+
+        // --- CONFIGURAZIONE FALLBACK (INSERITA DAL UTENTE) ---
+        const HARDCODED_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
+            authDomain: "letture-asimultiservices.firebaseapp.com",
+            projectId: "letture-asimultiservices",
+            storageBucket: "letture-asimultiservices.firebasestorage.app",
+            messagingSenderId: "412990381286",
+            appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+        };
         
         async function initApp() {
             try {
                 // 1. Cerca Configurazione in Ambiente (Preview)
-                let firebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                let firebaseConfig = null;
+                let appId = 'default-app-id';
+
+                // Se siamo nell'ambiente di anteprima con variabili definite
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                     firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                     if (typeof __app_id !== 'undefined') appId = __app_id;
+                }
 
                 // 2. Cerca Configurazione in LocalStorage (Utente Manuale)
                 const localConfigStr = localStorage.getItem('custom_firebase_config');
@@ -210,9 +225,12 @@
                     } catch (e) {
                         console.error("Configurazione salvata non valida");
                     }
-                } else if (typeof firebaseConfig === 'string') {
-                    // Se arriva dall'ambiente come stringa
-                    firebaseConfig = JSON.parse(firebaseConfig);
+                }
+
+                // 3. Fallback alla configurazione hardcoded (Per uso locale)
+                if (!firebaseConfig) {
+                    console.log("Usando configurazione hardcoded (Fallback)");
+                    firebaseConfig = HARDCODED_FIREBASE_CONFIG;
                 }
 
                 if (firebaseConfig) {
@@ -222,7 +240,7 @@
                     
                     // --- AUTENTICAZIONE ---
                     try {
-                        // Prima prova Token Ambiente
+                        // Prima prova Token Ambiente (se esiste)
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token); 
                         } else {
@@ -235,7 +253,7 @@
                             await signInAnonymously(auth);
                         } catch(anonErr) {
                             console.error("Anche login anonimo fallito. Verifica Firebase Console.", anonErr);
-                            throw anonErr;
+                            // Non rilanciamo l'errore per permettere all'app di provare comunque a funzionare in readonly o mostrare la UI
                         }
                     }
 
@@ -243,8 +261,11 @@
                         if (u) {
                             user = u;
                             isCloudMode = true;
-                            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo (${appId})</span>`;
+                            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
                             startCloudListener(appId);
+                        } else {
+                             // Se non c'è utente, rimaniamo in locale o mostriamo errore
+                             console.warn("Nessun utente loggato.");
                         }
                     });
                 } else {
