@@ -534,7 +534,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             map = L.map('map').setView([43.30, 12.33], 10); 
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
-            markersCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16, spiderfyOnMaxZoom: true, showCoverageOnHover: false });
+            
+            // MODIFICATO: maxClusterRadius a 0 per aggregare SOLO i marker sovrapposti
+            markersCluster = L.markerClusterGroup({ 
+                maxClusterRadius: 0, // Raggruppa solo punti identici
+                spiderfyOnMaxZoom: true, 
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true
+            });
             map.addLayer(markersCluster);
 
             initApp();
