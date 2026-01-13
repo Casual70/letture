@@ -236,78 +236,77 @@
             try {
                 renderAccessFilters(); // Inizializza UI Filtri
 
-                // 1. Cerca Configurazione in Ambiente (Preview)
+                // 1. Cerca Configurazione
                 let firebaseConfig = null;
                 let appId = 'default-app-id';
 
-                // Se siamo nell'ambiente di anteprima con variabili definite
+                // Ambiente
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                      firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
                      if (typeof __app_id !== 'undefined') appId = __app_id;
                 }
 
-                // 2. Cerca Configurazione in LocalStorage (Utente Manuale)
+                // LocalStorage (Settings Manuali)
                 const localConfigStr = localStorage.getItem('custom_firebase_config');
                 const localAppId = localStorage.getItem('custom_app_id');
-
                 if (localConfigStr) {
                     try {
                         firebaseConfig = JSON.parse(localConfigStr);
                         if (localAppId) appId = localAppId;
-                        console.log("Usando configurazione manuale da LocalStorage");
-                    } catch (e) {
-                        console.error("Configurazione salvata non valida");
-                    }
+                    } catch (e) { console.error("Config locale errata"); }
                 }
 
-                // 3. Fallback alla configurazione hardcoded (Per uso locale)
+                // Fallback Hardcoded
                 if (!firebaseConfig) {
-                    console.log("Usando configurazione hardcoded (Fallback)");
+                    console.log("Uso config Hardcoded.");
                     firebaseConfig = HARDCODED_FIREBASE_CONFIG;
                 }
 
-                if (firebaseConfig) {
-                    const app = initializeApp(firebaseConfig);
-                    auth = getAuth(app);
-                    db = getFirestore(app);
-                    
-                    // --- AUTENTICAZIONE ---
-                    try {
-                        // Prima prova Token Ambiente (se esiste)
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token); 
-                        } else {
-                            // Fallback Anonimo (Richiede abilitazione su Firebase Console)
-                            await signInAnonymously(auth);
-                        }
-                    } catch (authErr) {
-                        console.warn("Login token fallito, fallback anonimo:", authErr);
-                        try {
-                            await signInAnonymously(auth);
-                        } catch(anonErr) {
-                            console.error("Anche login anonimo fallito. Verifica Firebase Console.", anonErr);
-                            // Non rilanciamo l'errore per permettere all'app di provare comunque a funzionare in readonly o mostrare la UI
-                        }
+                // Inizializzazione Firebase
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // --- AUTENTICAZIONE ---
+                try {
+                    // Prova token custom (ambiente preview)
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token); 
+                    } else {
+                        // Prova anonimo (ambiente locale)
+                        await signInAnonymously(auth);
                     }
-
-                    onAuthStateChanged(auth, (u) => {
-                        if (u) {
-                            user = u;
-                            isCloudMode = true;
-                            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
-                            startCloudListener(appId);
-                        } else {
-                             // Se non c'è utente, rimaniamo in locale o mostriamo errore
-                             console.warn("Nessun utente loggato.");
-                        }
-                    });
-                } else {
-                    throw new Error("Nessuna configurazione trovata");
+                } catch (authErr) {
+                    console.warn("Auth primaria fallita:", authErr);
+                    try {
+                        // Riprova anonimo come ultima spiaggia
+                        await signInAnonymously(auth);
+                    } catch(anonErr) {
+                        console.error("Auth Anonima fallita:", anonErr);
+                        // Mostriamo l'errore specifico all'utente
+                        throw new Error("Auth Fallita: " + anonErr.code);
+                    }
                 }
+
+                onAuthStateChanged(auth, (u) => {
+                    if (u) {
+                        user = u;
+                        isCloudMode = true;
+                        document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
+                        startCloudListener(appId);
+                    } else {
+                         throw new Error("Nessun utente loggato");
+                    }
+                });
+
             } catch (e) {
-                console.warn("Avvio in Modalità Locale:", e.message);
+                console.error("Errore Init:", e);
                 isCloudMode = false;
-                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500 cursor-pointer hover:underline" onclick="toggleSettings()"><i class="fa-solid fa-database"></i> Locale (Clicca per Configurare)</span>';
+                // Mostra l'errore specifico invece di un generico "Locale"
+                let errorText = "Locale (Offline)";
+                if (e.message && e.message.includes("Auth")) errorText = "Err Auth: Verifica Config";
+                
+                document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer hover:underline" onclick="toggleSettings()" title="${e.message}"><i class="fa-solid fa-triangle-exclamation"></i> ${errorText}</span>`;
                 loadLocalData();
             }
         }
@@ -316,12 +315,12 @@
         window.toggleSettings = function() {
             const modal = document.getElementById('settingsModal');
             if (modal.classList.contains('hidden')) {
-                // Carica valori esistenti
                 const savedConfig = localStorage.getItem('custom_firebase_config');
                 const savedAppId = localStorage.getItem('custom_app_id');
                 if (savedConfig) document.getElementById('firebaseConfigInput').value = savedConfig;
-                if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
+                else document.getElementById('firebaseConfigInput').value = JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2); // Precompila con hardcoded
                 
+                if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
                 modal.classList.remove('hidden');
             } else {
                 modal.classList.add('hidden');
