@@ -92,7 +92,7 @@
             <div class="mb-6 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                 <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
                 <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
-                <p class="text-[10px] text-gray-400 mt-2">CSV Richiesto: PDR, LAT, LON, MATRICOLA</p>
+                <p class="text-[10px] text-gray-400 mt-2">Supporta file CSV (Separatore ; o ,)</p>
             </div>
 
             <!-- Legend -->
@@ -101,21 +101,17 @@
                      <div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
                      <span class="text-[10px] font-bold text-blue-700">FATTO</span>
                 </div>
-                <div class="p-2 bg-emerald-100 border border-emerald-300 rounded">
-                    <div class="w-3 h-3 bg-emerald-800 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-emerald-900">2026</span>
-                </div>
                 <div class="p-2 bg-green-50 border border-green-200 rounded">
                     <div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
                     <span class="text-[10px] font-bold text-green-700">2025</span>
                 </div>
-                <div class="p-2 bg-yellow-50 border border-yellow-200 rounded col-span-2">
+                <div class="p-2 bg-yellow-50 border border-yellow-200 rounded">
                     <div class="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-yellow-700">2010 - 2024</span>
+                    <span class="text-[10px] font-bold text-yellow-700">2024</span>
                 </div>
                 <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2">
                     <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-red-700">&lt; 2010</span>
+                    <span class="text-[10px] font-bold text-red-700">≤ 2023 (Da Fare)</span>
                 </div>
             </div>
 
@@ -160,9 +156,6 @@
         </div>
 
         <div class="sidebar-footer space-y-2">
-            <button onclick="exportCSV()" class="w-full bg-green-50 hover:bg-green-100 text-green-700 text-xs py-2 px-4 rounded border border-green-200 transition">
-                <i class="fa-solid fa-file-csv mr-1"></i> Esporta Dati (CSV)
-            </button>
             <button onclick="clearData()" class="w-full bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
                 <i class="fa-solid fa-trash mr-1"></i> Reset Mappa
             </button>
@@ -178,16 +171,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CONFIGURAZIONE FIREBASE PERSONALE ---
-        const MANUAL_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
-            authDomain: "letture-asimultiservices.firebaseapp.com",
-            projectId: "letture-asimultiservices",
-            storageBucket: "letture-asimultiservices.firebasestorage.app",
-            messagingSenderId: "412990381286",
-            appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
-        };
-
         // --- GLOBAL STATE ---
         let db, auth, user;
         let map, markersCluster;
@@ -196,32 +179,17 @@
         let availableYears = new Set(); 
         let isCloudMode = false;
         const COLLECTION_NAME = 'letture_pdr_riepilogo'; 
-        let globalAppId = 'default-app-id'; 
         
         async function initApp() {
-            let firebaseConfig = null;
-            let useCustomToken = false;
-
             try {
-                // 1. Cerca Configurazione Ambiente (Preview interna)
                 if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    firebaseConfig = JSON.parse(__firebase_config);
-                    if (typeof __app_id !== 'undefined') globalAppId = __app_id;
-                    useCustomToken = true;
-                } 
-                // 2. Cerca Configurazione Manuale (Uso esterno/GitHub Pages)
-                else if (MANUAL_FIREBASE_CONFIG) {
-                    firebaseConfig = MANUAL_FIREBASE_CONFIG;
-                    globalAppId = 'pdr-shared-db'; // ID fisso per il DB condiviso manuale
-                }
-
-                if (firebaseConfig) {
+                    const firebaseConfig = JSON.parse(__firebase_config);
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     db = getFirestore(app);
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                    // Autenticazione
-                    if (useCustomToken && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                          await signInWithCustomToken(auth, __initial_auth_token); 
                     } else {
                         await signInAnonymously(auth);
@@ -232,12 +200,11 @@
                             user = u;
                             isCloudMode = true;
                             document.getElementById('statusMessage').innerHTML = '<span class="text-green-600"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>';
-                            // Importante: Passiamo l'appId corretto al listener
-                            startCloudListener(globalAppId);
+                            startCloudListener(appId);
                         }
                     });
                 } else {
-                    throw new Error("Nessuna configurazione Firebase trovata.");
+                    throw new Error("No Config");
                 }
             } catch (e) {
                 console.error("Errore inizializzazione:", e);
@@ -264,7 +231,7 @@
             }, (error) => {
                 console.error("Errore listener Firestore:", error);
                 if (error.code === 'permission-denied') {
-                    showToast("Errore permessi: Controlla le Regole Firestore.");
+                    showToast("Errore permessi: Ricarica la pagina.");
                 }
             });
         }
@@ -282,9 +249,7 @@
 
         function refreshUIComponents() {
             const container = document.getElementById('yearFiltersContainer');
-            // MODIFICA: Ridisegna i filtri solo se non ci sono checkbox o se c'è il messaggio placeholder.
-            // Questo impedisce il reset della selezione ogni volta che cambia un dato.
-            if (container.querySelectorAll('input').length === 0 || container.querySelector('.italic')) {
+            if (container.children.length === 0 || container.querySelector('.italic') || availableYears.size !== container.querySelectorAll('input').length) {
                 renderYearFilters();
             }
             updateMapAndUI();
@@ -299,98 +264,64 @@
                 return;
             }
 
-            // Categorize Years
-            const cats = {
-                '2026': [],
-                '2025': [],
-                '2010-2024': [],
-                'old': []
-            };
+            const sortedYears = Array.from(availableYears).sort().reverse();
 
-            availableYears.forEach(y => {
-                const yi = parseInt(y);
-                if (isNaN(yi)) {
-                    cats['old'].push(y); // Treat N/D as old
-                } else if (yi === 2026) {
-                    cats['2026'].push(y);
-                } else if (yi === 2025) {
-                    cats['2025'].push(y);
-                } else if (yi >= 2010 && yi <= 2024) {
-                    cats['2010-2024'].push(y);
-                } else {
-                    cats['old'].push(y);
-                }
-            });
-
-            // Helper to create checkbox
-            const createCb = (label, yearsArr, colorClass) => {
-                if (yearsArr.length === 0) return;
-
+            sortedYears.forEach(year => {
                 const div = document.createElement('div');
                 div.className = 'year-checkbox';
                 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.checked = true; // Default checked
-                
-                // Add to active
-                yearsArr.forEach(y => activeYears.add(y));
+                checkbox.value = year;
+                checkbox.checked = true; 
+                activeYears.add(year);
 
                 checkbox.onchange = (e) => {
-                    if (e.target.checked) {
-                        yearsArr.forEach(y => activeYears.add(y));
-                    } else {
-                        yearsArr.forEach(y => activeYears.delete(y));
-                    }
+                    if (e.target.checked) activeYears.add(year);
+                    else activeYears.delete(year);
                     updateMapAndUI();
                 };
 
-                const span = document.createElement('span');
-                span.className = `text-sm ${colorClass} font-medium`;
-                span.innerText = label + ` (${yearsArr.length})`;
+                const label = document.createElement('span');
+                label.className = 'text-sm text-gray-700';
+                label.innerText = year;
 
                 div.appendChild(checkbox);
-                div.appendChild(span);
+                div.appendChild(label);
                 container.appendChild(div);
-            };
-
-            createCb('2026', cats['2026'], 'text-emerald-800');
-            createCb('2025', cats['2025'], 'text-green-700');
-            createCb('2010 - 2024', cats['2010-2024'], 'text-yellow-700');
-            createCb('< 2010', cats['old'], 'text-red-700');
+            });
         }
 
         window.selectAllYears = function() {
             const checkboxes = document.querySelectorAll('#yearFiltersContainer input[type="checkbox"]');
             checkboxes.forEach(cb => {
                 cb.checked = true;
-                cb.dispatchEvent(new Event('change'));
+                activeYears.add(cb.value);
             });
-            availableYears.forEach(y => activeYears.add(y));
             updateMapAndUI();
         }
 
-        // --- IMPORT CSV ---
+        // --- IMPORT CSV ADATTATO AL NUOVO FORMATO ---
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
-            let importedCount = 0;
-            let skippedCount = 0;
-            
-            // Usiamo globalAppId invece di ricalcolarlo
-            const appId = globalAppId;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
             csvData.forEach(row => {
-                const pdr = String(row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
+                // Mappatura Colonne: Supporta sia il vecchio che il nuovo formato
+                // Nuovo: "Codice PDR", Vecchio: "PDR"
+                const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
                 
-                let rawLat = (row.LAT || row.lat || row.Lat || "").toString().replace(',', '.').replace(/"/g, '');
-                let rawLon = (row.LON || row.lon || row.Lon || "").toString().replace(',', '.').replace(/"/g, '');
+                // Mappatura Lat/Lon: Supporta , e . come separatore
+                let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
+                let rawLon = (row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, '');
                 
                 let lat = parseFloat(rawLat);
                 let lng = parseFloat(rawLon);
 
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    const dateStr = row['ULTIMA LETTURA'] || "";
+                    // Nuovo: "Data ultima lettura", Vecchio: "ULTIMA LETTURA"
+                    const dateStr = row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "";
                     let year = "N/D";
                     
                     if (dateStr.includes('/')) {
@@ -402,216 +333,93 @@
                     
                     if(year) availableYears.add(year);
 
+                    // PRESERVA STATO: Mantiene lo stato 'fatto' se esiste già
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
-                    const existingDate = existingPDR ? (existingPDR.data_completamento || "") : "";
-                    const existingAvviso = existingPDR ? (existingPDR.avviso || false) : false; // Preserve avviso
 
                     const newData = {
                         pdr: pdr,
-                        nominativo: row.NOME || row.Nominativo || 'Utente',
-                        indirizzo: row.INDIRIZZO || row.Indirizzo || '',
-                        zona: row['NOME ZONA'] || row.Citta || '',
-                        cap: row.ZONA || row.Zona || '', 
-                        telefono: row.TELEFONO || '',
-                        matricola: row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
+                        // Nuovo: "Nome utenza", Vecchio: "NOME"
+                        nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
+                        // Nuovo: "Indirizzo", Vecchio: "INDIRIZZO"
+                        indirizzo: row['Indirizzo'] || row.INDIRIZZO || row.Indirizzo || '',
+                        // Nuovo: "Cod. zona" (non c'è la città, usiamo codice), Vecchio: "NOME ZONA"
+                        zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
+                        // Nuovo: "Telefono", Vecchio: "TELEFONO"
+                        telefono: row['Telefono'] || row.TELEFONO || '',
+                        // Nuovo: "Matricola misuratore", Vecchio: "MATRICOLA"
+                        matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
                         data_riferimento: dateStr,
                         anno: year,
                         lat: lat,
                         lng: lng,
-                        fatto: existingStatus, 
-                        data_completamento: existingDate,
-                        avviso: existingAvviso
+                        fatto: existingStatus
                     };
                     
                     allData[pdr] = newData;
-                    importedCount++;
 
                     if (isCloudMode) {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                         batch.set(docRef, newData);
                         batchCount++;
                         if (batchCount >= 450) {
-                            batch.commit(); // Note: inside loop async handling is tricky, simplified here
+                            batch.commit();
                             batch = writeBatch(db);
                             batchCount = 0;
                         }
                     }
-                } else {
-                    skippedCount++;
                 }
             });
 
             availableYears.forEach(y => activeYears.add(y));
-            
-            renderYearFilters();
 
             if (isCloudMode && batchCount > 0) {
-                try {
-                    await batch.commit();
-                } catch (e) {
-                    console.error("Errore scrittura DB:", e);
-                    alert("Errore scrittura Database: " + e.message + "\nControlla le 'Rules' di Firestore.");
-                }
+                await batch.commit();
             } else if (!isCloudMode) {
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
                 refreshUIComponents();
             }
             
-            if (skippedCount > 0) {
-                alert(`Importazione Completata:\n✅ Caricati: ${importedCount}\n⚠️ Saltati (No Coordinate): ${skippedCount}\n\nAssicurati che il CSV abbia le colonne LAT e LON compilate.`);
-            } else {
-                showToast(`Importati ${importedCount} PDR`);
-            }
+            showToast(`Importati ${Object.keys(allData).length} PDR`);
         };
 
-        // --- EXPORT CSV ---
-        window.exportCSV = function() {
-            if (Object.keys(allData).length === 0) {
-                alert("Nessun dato da esportare.");
-                return;
-            }
-
-            const rows = [];
-            rows.push(["PDR", "NOME", "ZONA", "NOME ZONA", "INDIRIZZO", "ULTIMA LETTURA", "TELEFONO", "LAT", "LON", "MATRICOLA", "ANNO", "STATO", "AVVISO INVIATO", "DATA COMPLETAMENTO"]);
-
-            Object.values(allData).forEach(item => {
-                const status = item.fatto ? "FATTO" : "DA FARE";
-                const avviso = item.avviso ? "SI" : "NO";
-                rows.push([
-                    `"${item.pdr || ''}"`, 
-                    `"${item.nominativo || ''}"`,
-                    `"${item.cap || ''}"`,
-                    `"${item.zona || ''}"`,
-                    `"${item.indirizzo || ''}"`,
-                    `"${item.data_riferimento || ''}"`,
-                    `"${item.telefono || ''}"`,
-                    item.lat || '',
-                    item.lng || '',
-                    `"${item.matricola || ''}"`,
-                    item.anno || '',
-                    status,
-                    avviso,
-                    `"${item.data_completamento || ''}"`
-                ]);
-            });
-
-            const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "Riepilogo_PDR_Aggiornato.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // --- TOGGLE STATUS FUNCTIONS ---
+        // --- TOGGLE STATUS FUNCTION ---
         window.togglePdrStatus = async function(pdr) {
             const item = allData[pdr];
             if (!item) return;
 
             const newStatus = !item.fatto; // Toggle boolean
-            const completionDate = newStatus ? new Date().toLocaleString('it-IT') : "";
 
             if (isCloudMode) {
-                const appId = globalAppId;
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                 try {
-                    await updateDoc(docRef, { 
-                        fatto: newStatus,
-                        data_completamento: completionDate
-                    });
+                    // Update only the 'fatto' field
+                    await updateDoc(docRef, { fatto: newStatus });
                 } catch(e) {
                     console.error(e);
                     alert("Errore aggiornamento stato cloud");
                 }
             } else {
+                // Local Update
                 item.fatto = newStatus;
-                item.data_completamento = completionDate;
                 allData[pdr] = item;
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                refreshUIComponents(); 
-            }
-        };
-
-        window.togglePdrNotice = async function(pdr) {
-            const item = allData[pdr];
-            if (!item) return;
-
-            const newNoticeStatus = !item.avviso; 
-
-            if (isCloudMode) {
-                const appId = globalAppId;
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                try {
-                    await updateDoc(docRef, { 
-                        avviso: newNoticeStatus
-                    });
-                } catch(e) {
-                    console.error(e);
-                    alert("Errore aggiornamento avviso cloud");
-                }
-            } else {
-                item.avviso = newNoticeStatus;
-                allData[pdr] = item;
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                refreshUIComponents(); 
+                refreshUIComponents(); // Force UI refresh for local
             }
         };
 
         window.clearData = async function() {
-            const confirmMsg = isCloudMode 
-                ? "SEI SICURO? Questa azione cancellerà PERMANENTEMENTE tutti i dati dal DATABASE CONDIVISO (Cloud). Non si può annullare." 
-                : "Sei sicuro di voler cancellare i dati locali della mappa?";
-
-            if(confirm(confirmMsg)) {
-                if (isCloudMode) {
-                    const appId = globalAppId;
-                    const idsToDelete = Object.keys(allData);
-                    
-                    if (idsToDelete.length === 0) {
-                        alert("Nessun dato da cancellare.");
-                        return;
-                    }
-
-                    showToast(`Cancellazione di ${idsToDelete.length} record in corso...`);
-
-                    let batch = writeBatch(db);
-                    let counter = 0;
-
-                    try {
-                        for (const pdr of idsToDelete) {
-                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                            batch.delete(docRef);
-                            counter++;
-
-                            if (counter >= 400) { 
-                                await batch.commit();
-                                batch = writeBatch(db);
-                                counter = 0;
-                            }
-                        }
-                        
-                        if (counter > 0) {
-                            await batch.commit();
-                        }
-                        showToast("Cancellazione completata.");
-                    } catch (e) {
-                        console.error("Errore cancellazione:", e);
-                        alert("Errore durante la cancellazione: " + e.message);
-                    }
-                } 
-                
-                // Clear local storage regardless
+            if(confirm("Sei sicuro di voler cancellare i dati della mappa?")) {
                 localStorage.removeItem('pdr_data_riepilogo');
-                
-                if (!isCloudMode) {
+                if(!isCloudMode) {
                     allData = {};
                     availableYears.clear();
                     activeYears.clear();
                     refreshUIComponents();
                     location.reload();
+                } else {
+                    alert("Per cancellare dati in cloud, contattare amministratore o usare console.");
                 }
             }
         }
@@ -632,23 +440,23 @@
                 if (item.fatto) countDone++;
                 
                 // --- LOGICA COLORI ---
-                let colorCode = '#dc2626'; // Default Rosso (< 2010)
-                let yearInt = parseInt(item.anno);
-
-                if (!isNaN(yearInt)) {
-                    if (yearInt === 2026) {
-                        colorCode = '#064e3b'; // Verde Scuro (Emerald 900)
-                    } else if (yearInt === 2025) {
-                        colorCode = '#16a34a'; // Verde (Green 600)
-                    } else if (yearInt >= 2010 && yearInt <= 2024) {
-                        colorCode = '#eab308'; // Giallo (Yellow 500)
+                // Default Rosso (Da Fare / Vecchi)
+                let colorCode = '#dc2626'; 
+                
+                if (item.fatto === true) {
+                    colorCode = '#2563eb'; // BLU (Fatto)
+                } else {
+                    // Se non è fatto, usa i colori per anno
+                    let yearInt = parseInt(item.anno);
+                    if (!isNaN(yearInt)) {
+                        if (yearInt === 2025) {
+                            colorCode = '#16a34a'; // Verde
+                        } else if (yearInt === 2024) {
+                            colorCode = '#eab308'; // Giallo
+                        }
                     }
                 }
                 
-                if (item.fatto === true) {
-                    colorCode = '#2563eb'; // BLU (Fatto) overrides everything
-                }
-
                 const iconHtml = `<div style="
                     background-color: ${colorCode};
                     width: 14px; height: 14px;
@@ -668,17 +476,11 @@
                 
                 // Popup Interattivo
                 const isDone = item.fatto === true;
-                const isNoticeSent = item.avviso === true;
-
                 const btnClass = isDone 
                     ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" 
                     : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
+                
                 const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
-
-                const noticeBtnClass = isNoticeSent
-                    ? "bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200"
-                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50";
-                const noticeBtnText = isNoticeSent ? '<i class="fa-solid fa-check-double"></i> Avviso Inviato' : '<i class="fa-brands fa-whatsapp"></i> Invia Avviso/WA';
 
                 const popupContent = `
                     <div class="font-sans">
@@ -700,18 +502,11 @@
                         </div>
                         
                         <div class="flex flex-col gap-2">
-                            <div class="grid grid-cols-2 gap-2">
-                                <!-- Status Button -->
-                                <button onclick="window.togglePdrStatus('${item.pdr}')" 
-                                    class="py-1.5 rounded text-xs font-bold border transition ${btnClass}">
-                                    ${btnText}
-                                </button>
-                                <!-- Notice Button -->
-                                <button onclick="window.togglePdrNotice('${item.pdr}')" 
-                                    class="py-1.5 rounded text-xs font-bold border transition ${noticeBtnClass}">
-                                    ${noticeBtnText}
-                                </button>
-                            </div>
+                            <!-- Toggle Button -->
+                            <button onclick="window.togglePdrStatus('${item.pdr}')" 
+                                class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">
+                                ${btnText}
+                            </button>
 
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
                                class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50">
@@ -747,10 +542,9 @@
             }).addTo(map);
 
             markersCluster = L.markerClusterGroup({
-                maxClusterRadius: 30, // Raggio piccolo per separare bene i punti vicini
-                spiderfyOnMaxZoom: true, // Fondamentale: apre a ventaglio i punti identici
-                showCoverageOnHover: false,
-                zoomToBoundsOnClick: true
+                disableClusteringAtZoom: 16,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false
             });
             map.addLayer(markersCluster);
 
@@ -760,12 +554,28 @@
                 const file = e.target.files[0];
                 if (!file) return;
                 
+                // FIX: PapaParse configuration for Semicolon delimiter
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
+                    // Tentiamo di rilevare automaticamente, o usiamo ; se fallisce
                     complete: function(results) {
-                        if (results.data && results.data.length > 0) {
-                            window.importCSVData(results.data);
+                        // Se non ha trovato colonne (es. ha usato virgola invece di punto e virgola)
+                        if (results.meta.fields.length < 2) {
+                             Papa.parse(file, {
+                                header: true,
+                                delimiter: ";", // Forza punto e virgola
+                                skipEmptyLines: true,
+                                complete: function(res) {
+                                     if (res.data && res.data.length > 0) {
+                                        window.importCSVData(res.data);
+                                    }
+                                }
+                             });
+                        } else {
+                            if (results.data && results.data.length > 0) {
+                                window.importCSVData(results.data);
+                            }
                         }
                     }
                 });
@@ -795,10 +605,7 @@
                         const isVisible = activeYears.has(m.anno);
                         const statusHtml = isVisible ? '' : '<span class="text-red-400 ml-1">(Nascosto)</span>';
                         
-                        // Add icon if notice sent
-                        const noticeIcon = m.avviso ? '<i class="fa-solid fa-envelope text-orange-500 ml-1" title="Avviso Inviato"></i>' : '';
-
-                        div.innerHTML = `<b>${m.nominativo}</b> ${noticeIcon} <br> ${m.pdr} ${statusHtml}`;
+                        div.innerHTML = `<b>${m.nominativo}</b> <br> ${m.pdr} ${statusHtml}`;
                         div.onclick = () => {
                             if (!isVisible) {
                                 alert(`Anno ${m.anno} attualmente nascosto dai filtri.`);
