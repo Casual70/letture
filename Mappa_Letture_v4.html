@@ -157,23 +157,29 @@
         
         async function initApp() {
             try {
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                    const firebaseConfig = JSON.parse(__firebase_config);
+                // FIX: Verifica robusta della configurazione
+                const configExists = typeof __firebase_config !== 'undefined' && __firebase_config;
+                
+                if (configExists) {
+                    // FIX: Gestisce sia stringa JSON che oggetto
+                    const firebaseConfig = typeof __firebase_config === 'string' 
+                        ? JSON.parse(__firebase_config) 
+                        : __firebase_config;
+                        
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     db = getFirestore(app);
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
                     // --- AUTENTICAZIONE ROBUSTA ---
-                    // Tenta di usare il token custom (più permessi), se fallisce usa l'anonimo.
                     try {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token); 
                         } else {
-                            throw new Error("No token provided");
+                            throw new Error("Token non fornito, fallback anonimo");
                         }
                     } catch (authErr) {
-                        console.warn("Login con token fallito, tento fallback anonimo:", authErr);
+                        console.warn("Login con token fallito o assente, tento fallback anonimo:", authErr);
                         await signInAnonymously(auth);
                     }
 
@@ -186,12 +192,12 @@
                         }
                     });
                 } else {
-                    throw new Error("Configurazione Firebase mancante");
+                    throw new Error("Configurazione Firebase mancante (Modalità Offline)");
                 }
             } catch (e) {
-                console.error("Errore Critico Inizializzazione:", e);
+                console.warn("Avvio in Modalità Locale:", e.message);
                 isCloudMode = false;
-                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500"><i class="fa-solid fa-database"></i> Modalità Locale (Err Init)</span>';
+                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500"><i class="fa-solid fa-database"></i> Modalità Locale</span>';
                 loadLocalData();
             }
         }
