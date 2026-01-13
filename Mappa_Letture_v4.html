@@ -224,6 +224,18 @@
             let batch = isCloudMode ? writeBatch(db) : null;
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+            // 1. RILEVAMENTO DINAMICO COLONNA ACCESSIBILITÀ
+            // Questo risolve il problema dei caratteri accentati (à) o codifiche diverse
+            let colAccessibilita = null;
+            if (csvData.length > 0) {
+                const keys = Object.keys(csvData[0]);
+                // Cerca una colonna che contenga "ccessibilit" (ignora la A e l'accento) oppure "gruppi misura"
+                colAccessibilita = keys.find(k => 
+                    k.toLowerCase().includes("ccessibilit") || 
+                    k.toLowerCase().includes("gruppi misura")
+                );
+            }
+
             csvData.forEach(row => {
                 // Mappatura Colonne
                 const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
@@ -249,9 +261,17 @@
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
 
-                    // MAPPATURA ACCESSIBILITA
-                    // Cerca 'Accessibilità gruppi misura' (case sensitive dal CSV) o fallback
-                    const accessibilita = row['Accessibilità gruppi misura'] || row['Accessibilita'] || 'N/D';
+                    // MAPPATURA ACCESSIBILITA ROBUSTA
+                    let accessibilita = 'N/D';
+                    if (colAccessibilita && row[colAccessibilita]) {
+                        accessibilita = row[colAccessibilita];
+                    } else {
+                        // Fallback disperato sui vecchi nomi
+                        accessibilita = row['Accessibilità gruppi misura'] || row['Accessibilita'] || 'N/D';
+                    }
+                    
+                    // Pulisci eventuale stringa vuota
+                    if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
                     const newData = {
                         pdr: pdr,
@@ -262,7 +282,7 @@
                         matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
                         data_riferimento: dateStr,
                         anno: year,
-                        accessibilita: accessibilita, // Nuovo Campo
+                        accessibilita: accessibilita,
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
