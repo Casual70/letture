@@ -392,12 +392,19 @@
                     }
                     if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
+                    // --- NORMALIZZAZIONE TELEFONO ---
+                    let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
+                    // Se inizia con "75" (e non "075"), aggiungiamo lo zero davanti
+                    if (rawTele.startsWith('75')) {
+                        rawTele = '0' + rawTele;
+                    }
+
                     const newData = {
                         pdr: pdr,
                         nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
                         indirizzo: row['Indirizzo'] || row.INDIRIZZO || row.Indirizzo || '',
                         zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
-                        telefono: row['Telefono'] || row.TELEFONO || '',
+                        telefono: rawTele, // Uso il numero normalizzato
                         matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
                         data_riferimento: dateStr,
                         anno: year,
