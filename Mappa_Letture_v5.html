@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mappa PDR - Accessibilità</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+     
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+        #map { height: 100%; width: 100%; z-index: 1; }
+        
+        /* Sidebar e UI */
+        .sidebar {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            width: 350px;
+            background: white;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            transform: translateX(0);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar.collapsed { transform: translateX(-100%); }
+        
+        .sidebar-header { padding: 1rem; background: #1e293b; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-content { flex: 1; overflow-y: auto; padding: 1rem; }
+        .sidebar-footer { padding: 1rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; gap: 0.5rem; }
+
+        .toggle-btn {
+            position: absolute; top: 1rem; left: 1rem; z-index: 1001;
+            background: white; padding: 0.5rem; border-radius: 0.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer;
+        }
+
+        /* Popup Customization */
+        .leaflet-popup-content-wrapper { border-radius: 8px; }
+        .leaflet-popup-content { margin: 12px; width: 280px !important; }
+
+        /* Clusters Override */
+        .marker-cluster-small { background-color: rgba(181, 181, 181, 0.6); }
+        .marker-cluster-small div { background-color: rgba(110, 110, 110, 0.6); color: white; }
+        .marker-cluster-medium { background-color: rgba(181, 181, 181, 0.6); }
+        .marker-cluster-medium div { background-color: rgba(110, 110, 110, 0.6); color: white; }
+        .marker-cluster-large { background-color: rgba(181, 181, 181, 0.6); }
+        .marker-cluster-large div { background-color: rgba(110, 110, 110, 0.6); color: white; }
+
+        /* Modal Settings */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 20px; rounded: 12px; width: 90%; max-width: 500px;
+            border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        /* Checkbox Style */
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .filter-checkbox:hover { background-color: #f3f4f6; }
+        .filter-checkbox input { margin-right: 10px; accent-color: #2563eb; width: 16px; height: 16px; }
+    </style>
+</head>
+<body>
+
+    <!-- Toggle Button -->
+    <div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()">
+        <i class="fa-solid fa-bars text-gray-700 text-xl"></i>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR</h1>
+            <button onclick="toggleSidebar()" class="hover:text-gray-300"><i class="fa-solid fa-chevron-left"></i></button>
+        </div>
+        
+        <div class="sidebar-content">
+            
+            <!-- Import Section -->
+            <div class="mb-6 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+                <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
+                <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
+                <p class="text-[10px] text-gray-400 mt-2">Supporta file CSV (Separatore ; o ,)</p>
+            </div>
+
+            <!-- Legend (Nuova Logica Accessibilità) -->
+            <div class="mb-6 grid grid-cols-2 gap-2 text-center">
+                <div class="p-2 bg-blue-50 border border-blue-200 rounded col-span-2">
+                     <div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
+                     <span class="text-[10px] font-bold text-blue-700">FATTO</span>
+                </div>
+                <div class="p-2 bg-green-50 border border-green-200 rounded">
+                    <div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
+                    <span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span>
+                </div>
+                <div class="p-2 bg-orange-50 border border-orange-200 rounded">
+                    <div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div>
+                    <span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span>
+                </div>
+                <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2">
+                    <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
+                    <span class="text-[10px] font-bold text-red-700">Non Specificato / Altro</span>
+                </div>
+            </div>
+
+            <!-- FILTRI ACCESSIBILITÀ (Nuovo) -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Accessibilità</label>
+                    <button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
+                </div>
+                <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2">
+                    <!-- Generato via JS -->
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-gray-700 mb-1">Cerca</label>
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Cerca PDR, Nome..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none focus:border-blue-500">
+                    <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                </div>
+            </div>
+
+            <!-- List Container -->
+            <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
+            
+            <!-- Count Display -->
+            <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-2 gap-2">
+                <div>
+                    <div class="text-[10px] text-gray-500 uppercase">Visibili</div>
+                    <div id="statVisible" class="text-xl font-bold text-gray-700">0</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-gray-500 uppercase">Completati</div>
+                    <div id="statDone" class="text-xl font-bold text-blue-600">0</div>
+                </div>
+            </div>
+
+            <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">
+                Inizializzazione...
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+             <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Impostazioni">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
+                <i class="fa-solid fa-trash mr-1"></i> Reset Dati
+            </button>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                Incolla qui l'oggetto JSON di configurazione del tuo progetto Firebase per abilitare il Cloud.
+                (Vai su Firebase Console > Project Settings > General > Your apps > Config)
+            </p>
+            
+            <label class="block text-xs font-bold text-gray-700 mb-1">Firebase Config (JSON)</label>
+            <textarea id="firebaseConfigInput" rows="8" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4" placeholder='{ "apiKey": "...", "authDomain": "...", ... }'></textarea>
+            
+            <label class="block text-xs font-bold text-gray-700 mb-1">App ID (Opzionale, per multi-utenza)</label>
+            <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
+                <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded">Salva e Ricarica</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Libraries -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL STATE ---
+        let db, auth, user;
+        let map, markersCluster;
+        let allData = {}; 
+        let isCloudMode = false;
+        let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+        
+        // FILTRI ACCESSIBILITA
+        let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
+
+        // --- CONFIGURAZIONE FALLBACK (INSERITA DAL UTENTE) ---
+        const HARDCODED_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
+            authDomain: "letture-asimultiservices.firebaseapp.com",
+            projectId: "letture-asimultiservices",
+            storageBucket: "letture-asimultiservices.firebasestorage.app",
+            messagingSenderId: "412990381286",
+            appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+        };
+        
+        async function initApp() {
+            try {
+                renderAccessFilters(); // Inizializza UI Filtri
+
+                // 1. Cerca Configurazione in Ambiente (Preview)
+                let firebaseConfig = null;
+                let appId = 'default-app-id';
+
+                // Se siamo nell'ambiente di anteprima con variabili definite
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                     firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                     if (typeof __app_id !== 'undefined') appId = __app_id;
+                }
+
+                // 2. Cerca Configurazione in LocalStorage (Utente Manuale)
+                const localConfigStr = localStorage.getItem('custom_firebase_config');
+                const localAppId = localStorage.getItem('custom_app_id');
+
+                if (localConfigStr) {
+                    try {
+                        firebaseConfig = JSON.parse(localConfigStr);
+                        if (localAppId) appId = localAppId;
+                        console.log("Usando configurazione manuale da LocalStorage");
+                    } catch (e) {
+                        console.error("Configurazione salvata non valida");
+                    }
+                }
+
+                // 3. Fallback alla configurazione hardcoded (Per uso locale)
+                if (!firebaseConfig) {
+                    console.log("Usando configurazione hardcoded (Fallback)");
+                    firebaseConfig = HARDCODED_FIREBASE_CONFIG;
+                }
+
+                if (firebaseConfig) {
+                    const app = initializeApp(firebaseConfig);
+                    auth = getAuth(app);
+                    db = getFirestore(app);
+                    
+                    // --- AUTENTICAZIONE ---
+                    try {
+                        // Prima prova Token Ambiente (se esiste)
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token); 
+                        } else {
+                            // Fallback Anonimo (Richiede abilitazione su Firebase Console)
+                            await signInAnonymously(auth);
+                        }
+                    } catch (authErr) {
+                        console.warn("Login token fallito, fallback anonimo:", authErr);
+                        try {
+                            await signInAnonymously(auth);
+                        } catch(anonErr) {
+                            console.error("Anche login anonimo fallito. Verifica Firebase Console.", anonErr);
+                            // Non rilanciamo l'errore per permettere all'app di provare comunque a funzionare in readonly o mostrare la UI
+                        }
+                    }
+
+                    onAuthStateChanged(auth, (u) => {
+                        if (u) {
+                            user = u;
+                            isCloudMode = true;
+                            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
+                            startCloudListener(appId);
+                        } else {
+                             // Se non c'è utente, rimaniamo in locale o mostriamo errore
+                             console.warn("Nessun utente loggato.");
+                        }
+                    });
+                } else {
+                    throw new Error("Nessuna configurazione trovata");
+                }
+            } catch (e) {
+                console.warn("Avvio in Modalità Locale:", e.message);
+                isCloudMode = false;
+                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500 cursor-pointer hover:underline" onclick="toggleSettings()"><i class="fa-solid fa-database"></i> Locale (Clicca per Configurare)</span>';
+                loadLocalData();
+            }
+        }
+
+        // --- IMPOSTAZIONI MANUALI ---
+        window.toggleSettings = function() {
+            const modal = document.getElementById('settingsModal');
+            if (modal.classList.contains('hidden')) {
+                // Carica valori esistenti
+                const savedConfig = localStorage.getItem('custom_firebase_config');
+                const savedAppId = localStorage.getItem('custom_app_id');
+                if (savedConfig) document.getElementById('firebaseConfigInput').value = savedConfig;
+                if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
+                
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        window.saveSettings = function() {
+            const configStr = document.getElementById('firebaseConfigInput').value.trim();
+            const appIdStr = document.getElementById('appIdInput').value.trim();
+
+            if (!configStr) {
+                localStorage.removeItem('custom_firebase_config');
+                localStorage.removeItem('custom_app_id');
+                location.reload();
+                return;
+            }
+
+            try {
+                const json = JSON.parse(configStr); // Validazione
+                localStorage.setItem('custom_firebase_config', JSON.stringify(json, null, 2));
+                if (appIdStr) localStorage.setItem('custom_app_id', appIdStr);
+                location.reload();
+            } catch (e) {
+                alert("JSON non valido! Controlla la sintassi.\n" + e.message);
+            }
+        }
+
+        function startCloudListener(appId) {
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
+            onSnapshot(colRef, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    const pdr = change.doc.id;
+                    if (change.type === "removed") {
+                        delete allData[pdr];
+                    } else {
+                        allData[pdr] = data;
+                    }
+                });
+                updateMapAndUI();
+            }, (error) => {
+                console.error("Errore listener Firestore:", error);
+                if (error.code === 'permission-denied') {
+                    showToast("Errore permessi. Verifica Regole Firestore.");
+                }
+            });
+        }
+
+        function loadLocalData() {
+            const stored = localStorage.getItem('pdr_data_riepilogo');
+            if (stored) {
+                allData = JSON.parse(stored);
+                updateMapAndUI();
+            }
+        }
+
+        // --- FILTRI UI FUNZIONI ---
+        function renderAccessFilters() {
+            const container = document.getElementById('accessFiltersContainer');
+            container.innerHTML = '';
+            
+            const categories = [
+                { id: 'Accessibile', label: 'Accessibile', color: 'text-green-700' },
+                { id: 'Inaccessibile', label: 'Inaccessibile', color: 'text-orange-700' },
+                { id: 'Altro', label: 'Altro / N/D', color: 'text-red-700' }
+            ];
+
+            categories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'filter-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = cat.id;
+                checkbox.checked = activeAccess.has(cat.id);
+                
+                checkbox.onchange = (e) => {
+                    if(e.target.checked) activeAccess.add(cat.id);
+                    else activeAccess.delete(cat.id);
+                    updateMapAndUI();
+                };
+
+                const label = document.createElement('span');
+                label.className = `text-sm font-bold ${cat.color}`;
+                label.innerText = cat.label;
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+        window.selectAllAccess = function() {
+            const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                activeAccess.add(cb.value);
+            });
+            updateMapAndUI();
+        }
+
+        // --- IMPORT CSV ---
+        window.importCSVData = async function(csvData) {
+            let batchCount = 0;
+            let batch = isCloudMode ? writeBatch(db) : null;
+            let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            // Usa AppID manuale se presente
+            const localAppId = localStorage.getItem('custom_app_id');
+            if (localAppId) appId = localAppId;
+
+            // RILEVAMENTO ACCESSIBILITÀ
+            let colAccessibilita = null;
+            if (csvData.length > 0) {
+                const keys = Object.keys(csvData[0]);
+                colAccessibilita = keys.find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
+            }
+
+            csvData.forEach(row => {
+                const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
+                
+                let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
+                let rawLon = (row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, '');
+                
+                let lat = parseFloat(rawLat);
+                let lng = parseFloat(rawLon);
+
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const dateStr = row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "";
+                    let year = "N/D";
+                    if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        if(parts.length === 3) year = parts[2].trim();
+                    } else if (dateStr.includes('-')) {
+                        year = dateStr.split('-')[0].trim();
+                    }
+                    
+                    const existingPDR = allData[pdr];
+                    const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
+
+                    let accessibilita = 'N/D';
+                    if (colAccessibilita && row[colAccessibilita]) {
+                        accessibilita = row[colAccessibilita];
+                    } else {
+                        accessibilita = row['Accessibilità gruppi misura'] || row['Accessibilita'] || 'N/D';
+                    }
+                    if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
+
+                    // --- NORMALIZZAZIONE TELEFONO ---
+                    let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
+                    // Se inizia con "75" (e non "075"), aggiungiamo lo zero davanti
+                    if (rawTele.startsWith('75')) {
+                        rawTele = '0' + rawTele;
+                    }
+
+                    const newData = {
+                        pdr: pdr,
+                        nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
+                        indirizzo: row['Indirizzo'] || row.INDIRIZZO || row.Indirizzo || '',
+                        zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
+                        telefono: rawTele, // Uso il numero normalizzato
+                        matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
+                        data_riferimento: dateStr,
+                        anno: year,
+                        accessibilita: accessibilita,
+                        lat: lat,
+                        lng: lng,
+                        fatto: existingStatus
+                    };
+                    
+                    allData[pdr] = newData;
+
+                    if (isCloudMode) {
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
+                        batch.set(docRef, newData);
+                        batchCount++;
+                        if (batchCount >= 450) {
+                            batch.commit();
+                            batch = writeBatch(db);
+                            batchCount = 0;
+                        }
+                    }
+                }
+            });
+
+            if (isCloudMode && batchCount > 0) {
+                await batch.commit();
+            } else if (!isCloudMode) {
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+                updateMapAndUI();
+            }
+            showToast(`Importati ${Object.keys(allData).length} PDR`);
+        };
+
+        // --- TOGGLE STATUS ---
+        window.togglePdrStatus = async function(pdr) {
+            const item = allData[pdr];
+            if (!item) return;
+            const newStatus = !item.fatto;
+
+            if (isCloudMode) {
+                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const localAppId = localStorage.getItem('custom_app_id');
+                if (localAppId) appId = localAppId;
+
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
+                try {
+                    await updateDoc(docRef, { fatto: newStatus });
+                } catch(e) {
+                    console.error(e);
+                    alert("Errore aggiornamento stato cloud");
+                }
+            } else {
+                item.fatto = newStatus;
+                allData[pdr] = item;
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+                updateMapAndUI();
+            }
+        };
+
+        window.clearData = async function() {
+            if(confirm("ATTENZIONE: Questa azione cancellerà TUTTI i dati presenti nella mappa (anche dal Cloud se attivo). Sei sicuro?")) {
+                
+                if(!isCloudMode) {
+                    // Modalità Locale
+                    localStorage.removeItem('pdr_data_riepilogo');
+                    allData = {};
+                    updateMapAndUI();
+                    location.reload();
+                } else {
+                    // Modalità Cloud - Cancellazione Massiva
+                    let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    // Usa AppID manuale se presente per consistenza
+                    const localAppId = localStorage.getItem('custom_app_id');
+                    if (localAppId) appId = localAppId;
+
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
+                    
+                    try {
+                        showToast("Avvio cancellazione dati Cloud...");
+                        // Ottieni tutti i documenti
+                        const snapshot = await getDocs(colRef);
+                        
+                        if (snapshot.empty) {
+                            showToast("Nessun dato da cancellare.");
+                            return;
+                        }
+
+                        // Cancellazione in batch (max 500 operazioni per batch)
+                        const batches = [];
+                        let batch = writeBatch(db);
+                        let count = 0;
+
+                        snapshot.docs.forEach((docSnap) => {
+                            batch.delete(docSnap.ref);
+                            count++;
+                            if (count >= 450) {
+                                batches.push(batch.commit());
+                                batch = writeBatch(db);
+                                count = 0;
+                            }
+                        });
+
+                        if (count > 0) {
+                            batches.push(batch.commit());
+                        }
+
+                        await Promise.all(batches);
+                        showToast("Cancellazione Cloud completata.");
+                        
+                        // Pulizia locale per riflettere immediatamente la modifica
+                        allData = {};
+                        updateMapAndUI();
+
+                    } catch (e) {
+                        console.error("Errore cancellazione:", e);
+                        alert("Errore durante la cancellazione Cloud: " + e.message);
+                    }
+                }
+            }
+        }
+
+        function updateMapAndUI() {
+            if (!markersCluster) return;
+            markersCluster.clearLayers();
+            let countVisible = 0;
+            let countDone = 0;
+
+            Object.values(allData).forEach(item => {
+                // --- NUOVA LOGICA FILTRO ACCESSIBILITA ---
+                let filterCategory = 'Altro';
+                const accessLower = (item.accessibilita || '').toLowerCase();
+                
+                if (accessLower.includes('inaccessibile')) filterCategory = 'Inaccessibile';
+                else if (accessLower.includes('accessibile')) filterCategory = 'Accessibile';
+                
+                // Se la categoria non è attiva, saltiamo il marker
+                if (!activeAccess.has(filterCategory)) return;
+
+                countVisible++;
+                if (item.fatto) countDone++;
+                
+                let colorCode = '#dc2626'; 
+
+                if (item.fatto === true) {
+                    colorCode = '#2563eb'; 
+                } else if (filterCategory === 'Inaccessibile') {
+                    colorCode = '#f97316'; 
+                } else if (filterCategory === 'Accessibile') {
+                    colorCode = '#16a34a'; 
+                }
+                
+                const iconHtml = `<div style="background-color: ${colorCode}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
+                const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [14, 14], iconAnchor: [7, 7] });
+                const marker = L.marker([item.lat, item.lng], { icon: icon });
+                
+                const isDone = item.fatto === true;
+                const btnClass = isDone ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
+                const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
+
+                const popupContent = `
+                    <div class="font-sans">
+                        <div class="border-b pb-2 mb-2">
+                            <div class="font-bold text-gray-800 text-lg leading-tight">${item.nominativo}</div>
+                            <div class="flex justify-between items-center mt-1">
+                                <div class="text-xs text-gray-500">PDR: ${item.pdr}</div>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isDone ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${isDone ? 'COMPLETATO' : 'DA FARE'}</span>
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-1 mb-3">
+                            <div><i class="fa-solid fa-map-pin w-4 text-center mr-1"></i> ${item.indirizzo}</div>
+                            <div><i class="fa-solid fa-city w-4 text-center mr-1"></i> ${item.zona}</div>
+                            <div><i class="fa-solid fa-barcode w-4 text-center mr-1"></i> <strong>Matricola:</strong> ${item.matricola}</div>
+                            <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
+                            ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="window.togglePdrStatus('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
+                        </div>
+                    </div>`;
+                
+                marker.bindPopup(popupContent);
+                markersCluster.addLayer(marker);
+            });
+
+            document.getElementById('statVisible').innerText = countVisible;
+            document.getElementById('statDone').innerText = countDone;
+            if (countVisible > 0 && map.getZoom() === 6) map.fitBounds(markersCluster.getBounds(), { padding: [50, 50] });
+        }
+
+        // --- MAP SETUP ---
+        document.addEventListener('DOMContentLoaded', () => {
+            map = L.map('map').setView([43.30, 12.33], 10); 
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+            
+            // MODIFICATO: maxClusterRadius a 0 per aggregare SOLO i marker sovrapposti
+            markersCluster = L.markerClusterGroup({ 
+                maxClusterRadius: 0, // Raggruppa solo punti identici
+                spiderfyOnMaxZoom: true, 
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true
+            });
+            map.addLayer(markersCluster);
+
+            initApp();
+            
+            document.getElementById('csvInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                Papa.parse(file, { header: true, skipEmptyLines: true, complete: function(results) {
+                    if (results.meta.fields.length < 2) {
+                        Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: function(res) {
+                            if (res.data && res.data.length > 0) window.importCSVData(res.data);
+                        }});
+                    } else {
+                        if (results.data && results.data.length > 0) window.importCSVData(results.data);
+                    }
+                }});
+            });
+            
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const container = document.getElementById('searchResults');
+                container.innerHTML = '';
+                if (term.length < 3) { container.classList.add('hidden'); return; }
+                const matches = Object.values(allData).filter(item => 
+                    (item.pdr && String(item.pdr).includes(term)) || (item.nominativo && item.nominativo.toLowerCase().includes(term)) || (item.matricola && String(item.matricola).toLowerCase().includes(term))
+                ).slice(0, 5); 
+                if (matches.length > 0) {
+                    container.classList.remove('hidden');
+                    matches.forEach(m => {
+                        const div = document.createElement('div');
+                        div.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
+                        div.innerHTML = `<b>${m.nominativo}</b> <br> ${m.pdr}`;
+                        div.onclick = () => { map.flyTo([m.lat, m.lng], 18); };
+                        container.appendChild(div);
+                    });
+                } else { container.classList.add('hidden'); }
+            });
+        });
+
+        function showToast(msg) {
+            const div = document.createElement('div');
+            div.className = "fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[2000] text-sm fade-in";
+            div.innerText = msg;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        window.toggleSidebar = function() {
+            const sb = document.getElementById('sidebar');
+            const btn = document.getElementById('toggleSidebar');
+            sb.classList.toggle('collapsed');
+            if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
+            else btn.classList.add('hidden');
+        }
+    </script>
+
+    <!-- External Libs -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+</body>
+</html>
