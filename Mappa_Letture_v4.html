@@ -39,7 +39,7 @@
         
         .sidebar-header { padding: 1rem; background: #1e293b; color: white; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-content { flex: 1; overflow-y: auto; padding: 1rem; }
-        .sidebar-footer { padding: 1rem; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+        .sidebar-footer { padding: 1rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; gap: 0.5rem; }
 
         .toggle-btn {
             position: absolute; top: 1rem; left: 1rem; z-index: 1001;
@@ -58,6 +58,17 @@
         .marker-cluster-medium div { background-color: rgba(110, 110, 110, 0.6); color: white; }
         .marker-cluster-large { background-color: rgba(181, 181, 181, 0.6); }
         .marker-cluster-large div { background-color: rgba(110, 110, 110, 0.6); color: white; }
+
+        /* Modal Settings */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5); z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 20px; rounded: 12px; width: 90%; max-width: 500px;
+            border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -128,19 +139,44 @@
             </div>
 
             <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">
-                Pronto.
+                Inizializzazione...
             </div>
         </div>
 
-        <div class="sidebar-footer space-y-2">
-            <button onclick="clearData()" class="w-full bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
-                <i class="fa-solid fa-trash mr-1"></i> Reset Mappa
+        <div class="sidebar-footer">
+             <button onclick="toggleSettings()" class="w-10 h-full bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
+                <i class="fa-solid fa-trash mr-1"></i> Reset Dati
             </button>
         </div>
     </div>
 
     <!-- Map -->
     <div id="map"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
+            <p class="text-xs text-gray-500 mb-4">
+                Incolla qui l'oggetto JSON di configurazione del tuo progetto Firebase per abilitare il Cloud.
+                (Vai su Firebase Console > Project Settings > General > Your apps > Config)
+            </p>
+            
+            <label class="block text-xs font-bold text-gray-700 mb-1">Firebase Config (JSON)</label>
+            <textarea id="firebaseConfigInput" rows="8" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4" placeholder='{ "apiKey": "...", "authDomain": "...", ... }'></textarea>
+            
+            <label class="block text-xs font-bold text-gray-700 mb-1">App ID (Opzionale, per multi-utenza)</label>
+            <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
+                <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded">Salva e Ricarica</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Firebase Libraries -->
     <script type="module">
@@ -153,52 +189,108 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
-        const COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+        let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
         
         async function initApp() {
             try {
-                // FIX: Verifica robusta della configurazione
-                const configExists = typeof __firebase_config !== 'undefined' && __firebase_config;
-                
-                if (configExists) {
-                    // FIX: Gestisce sia stringa JSON che oggetto
-                    const firebaseConfig = typeof __firebase_config === 'string' 
-                        ? JSON.parse(__firebase_config) 
-                        : __firebase_config;
-                        
+                // 1. Cerca Configurazione in Ambiente (Preview)
+                let firebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+                // 2. Cerca Configurazione in LocalStorage (Utente Manuale)
+                const localConfigStr = localStorage.getItem('custom_firebase_config');
+                const localAppId = localStorage.getItem('custom_app_id');
+
+                if (localConfigStr) {
+                    try {
+                        firebaseConfig = JSON.parse(localConfigStr);
+                        if (localAppId) appId = localAppId;
+                        console.log("Usando configurazione manuale da LocalStorage");
+                    } catch (e) {
+                        console.error("Configurazione salvata non valida");
+                    }
+                } else if (typeof firebaseConfig === 'string') {
+                    // Se arriva dall'ambiente come stringa
+                    firebaseConfig = JSON.parse(firebaseConfig);
+                }
+
+                if (firebaseConfig) {
                     const app = initializeApp(firebaseConfig);
                     auth = getAuth(app);
                     db = getFirestore(app);
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-                    // --- AUTENTICAZIONE ROBUSTA ---
+                    
+                    // --- AUTENTICAZIONE ---
                     try {
+                        // Prima prova Token Ambiente
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             await signInWithCustomToken(auth, __initial_auth_token); 
                         } else {
-                            throw new Error("Token non fornito, fallback anonimo");
+                            // Fallback Anonimo (Richiede abilitazione su Firebase Console)
+                            await signInAnonymously(auth);
                         }
                     } catch (authErr) {
-                        console.warn("Login con token fallito o assente, tento fallback anonimo:", authErr);
-                        await signInAnonymously(auth);
+                        console.warn("Login token fallito, fallback anonimo:", authErr);
+                        try {
+                            await signInAnonymously(auth);
+                        } catch(anonErr) {
+                            console.error("Anche login anonimo fallito. Verifica Firebase Console.", anonErr);
+                            throw anonErr;
+                        }
                     }
 
                     onAuthStateChanged(auth, (u) => {
                         if (u) {
                             user = u;
                             isCloudMode = true;
-                            document.getElementById('statusMessage').innerHTML = '<span class="text-green-600"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>';
+                            document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo (${appId})</span>`;
                             startCloudListener(appId);
                         }
                     });
                 } else {
-                    throw new Error("Configurazione Firebase mancante (Modalità Offline)");
+                    throw new Error("Nessuna configurazione trovata");
                 }
             } catch (e) {
                 console.warn("Avvio in Modalità Locale:", e.message);
                 isCloudMode = false;
-                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500"><i class="fa-solid fa-database"></i> Modalità Locale</span>';
+                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500 cursor-pointer hover:underline" onclick="toggleSettings()"><i class="fa-solid fa-database"></i> Locale (Clicca per Configurare)</span>';
                 loadLocalData();
+            }
+        }
+
+        // --- IMPOSTAZIONI MANUALI ---
+        window.toggleSettings = function() {
+            const modal = document.getElementById('settingsModal');
+            if (modal.classList.contains('hidden')) {
+                // Carica valori esistenti
+                const savedConfig = localStorage.getItem('custom_firebase_config');
+                const savedAppId = localStorage.getItem('custom_app_id');
+                if (savedConfig) document.getElementById('firebaseConfigInput').value = savedConfig;
+                if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
+                
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        window.saveSettings = function() {
+            const configStr = document.getElementById('firebaseConfigInput').value.trim();
+            const appIdStr = document.getElementById('appIdInput').value.trim();
+
+            if (!configStr) {
+                localStorage.removeItem('custom_firebase_config');
+                localStorage.removeItem('custom_app_id');
+                location.reload();
+                return;
+            }
+
+            try {
+                const json = JSON.parse(configStr); // Validazione
+                localStorage.setItem('custom_firebase_config', JSON.stringify(json, null, 2));
+                if (appIdStr) localStorage.setItem('custom_app_id', appIdStr);
+                location.reload();
+            } catch (e) {
+                alert("JSON non valido! Controlla la sintassi.\n" + e.message);
             }
         }
 
@@ -218,7 +310,7 @@
             }, (error) => {
                 console.error("Errore listener Firestore:", error);
                 if (error.code === 'permission-denied') {
-                    showToast("Errore permessi: Ricarica la pagina.");
+                    showToast("Errore permessi. Verifica Regole Firestore.");
                 }
             });
         }
@@ -231,26 +323,24 @@
             }
         }
 
-        // --- IMPORT CSV ADATTATO AL NUOVO FORMATO + ACCESSIBILITA ---
+        // --- IMPORT CSV ---
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            
+            // Usa AppID manuale se presente
+            const localAppId = localStorage.getItem('custom_app_id');
+            if (localAppId) appId = localAppId;
 
-            // 1. RILEVAMENTO DINAMICO COLONNA ACCESSIBILITÀ
-            // Questo risolve il problema dei caratteri accentati (à) o codifiche diverse
+            // RILEVAMENTO ACCESSIBILITÀ
             let colAccessibilita = null;
             if (csvData.length > 0) {
                 const keys = Object.keys(csvData[0]);
-                // Cerca una colonna che contenga "ccessibilit" (ignora la A e l'accento) oppure "gruppi misura"
-                colAccessibilita = keys.find(k => 
-                    k.toLowerCase().includes("ccessibilit") || 
-                    k.toLowerCase().includes("gruppi misura")
-                );
+                colAccessibilita = keys.find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
             }
 
             csvData.forEach(row => {
-                // Mappatura Colonne
                 const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
                 
                 let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
@@ -262,7 +352,6 @@
                 if (!isNaN(lat) && !isNaN(lng)) {
                     const dateStr = row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "";
                     let year = "N/D";
-                    
                     if (dateStr.includes('/')) {
                         const parts = dateStr.split('/');
                         if(parts.length === 3) year = parts[2].trim();
@@ -270,20 +359,15 @@
                         year = dateStr.split('-')[0].trim();
                     }
                     
-                    // PRESERVA STATO: Mantiene lo stato 'fatto' se esiste già
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
 
-                    // MAPPATURA ACCESSIBILITA ROBUSTA
                     let accessibilita = 'N/D';
                     if (colAccessibilita && row[colAccessibilita]) {
                         accessibilita = row[colAccessibilita];
                     } else {
-                        // Fallback disperato sui vecchi nomi
                         accessibilita = row['Accessibilità gruppi misura'] || row['Accessibilita'] || 'N/D';
                     }
-                    
-                    // Pulisci eventuale stringa vuota
                     if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
                     const newData = {
@@ -322,19 +406,20 @@
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
                 updateMapAndUI();
             }
-            
             showToast(`Importati ${Object.keys(allData).length} PDR`);
         };
 
-        // --- TOGGLE STATUS FUNCTION ---
+        // --- TOGGLE STATUS ---
         window.togglePdrStatus = async function(pdr) {
             const item = allData[pdr];
             if (!item) return;
-
-            const newStatus = !item.fatto; // Toggle boolean
+            const newStatus = !item.fatto;
 
             if (isCloudMode) {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const localAppId = localStorage.getItem('custom_app_id');
+                if (localAppId) appId = localAppId;
+
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                 try {
                     await updateDoc(docRef, { fatto: newStatus });
@@ -358,62 +443,38 @@
                     updateMapAndUI();
                     location.reload();
                 } else {
-                    alert("Per cancellare dati in cloud, contattare amministratore o usare console.");
+                    alert("Per cancellare dati in cloud, contattare amministratore.");
                 }
             }
         }
 
-        // --- MAP & UI FUNCTIONS ---
-
         function updateMapAndUI() {
             if (!markersCluster) return;
-            
             markersCluster.clearLayers();
             let countVisible = 0;
             let countDone = 0;
 
             Object.values(allData).forEach(item => {
-                // Rimosso filtro Anno: Mostriamo tutto
                 countVisible++;
                 if (item.fatto) countDone++;
                 
-                // --- LOGICA COLORI NUOVA ---
-                // Default Rosso
                 let colorCode = '#dc2626'; 
-                
                 const accessLower = (item.accessibilita || '').toLowerCase();
 
                 if (item.fatto === true) {
-                    colorCode = '#2563eb'; // BLU (Fatto) - Vince sempre
+                    colorCode = '#2563eb'; 
                 } else if (accessLower.includes('inaccessibile')) {
-                    colorCode = '#f97316'; // ARANCIONE
+                    colorCode = '#f97316'; 
                 } else if (accessLower.includes('accessibile')) {
-                    colorCode = '#16a34a'; // VERDE
+                    colorCode = '#16a34a'; 
                 }
                 
-                const iconHtml = `<div style="
-                    background-color: ${colorCode};
-                    width: 14px; height: 14px;
-                    border-radius: 50%;
-                    border: 2px solid white;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-                "></div>`;
-
-                const icon = L.divIcon({
-                    className: 'custom-pin',
-                    html: iconHtml,
-                    iconSize: [14, 14],
-                    iconAnchor: [7, 7]
-                });
-
+                const iconHtml = `<div style="background-color: ${colorCode}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
+                const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [14, 14], iconAnchor: [7, 7] });
                 const marker = L.marker([item.lat, item.lng], { icon: icon });
                 
-                // Popup Interattivo
                 const isDone = item.fatto === true;
-                const btnClass = isDone 
-                    ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" 
-                    : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
-                
+                const btnClass = isDone ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
                 const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
 
                 const popupContent = `
@@ -422,12 +483,9 @@
                             <div class="font-bold text-gray-800 text-lg leading-tight">${item.nominativo}</div>
                             <div class="flex justify-between items-center mt-1">
                                 <div class="text-xs text-gray-500">PDR: ${item.pdr}</div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isDone ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">
-                                    ${isDone ? 'COMPLETATO' : 'DA FARE'}
-                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isDone ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${isDone ? 'COMPLETATO' : 'DA FARE'}</span>
                             </div>
                         </div>
-                        
                         <div class="text-sm text-gray-600 space-y-1 mb-3">
                             <div><i class="fa-solid fa-map-pin w-4 text-center mr-1"></i> ${item.indirizzo}</div>
                             <div><i class="fa-solid fa-city w-4 text-center mr-1"></i> ${item.zona}</div>
@@ -435,21 +493,11 @@
                             <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
                             ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
                         </div>
-                        
                         <div class="flex flex-col gap-2">
-                            <!-- Toggle Button -->
-                            <button onclick="window.togglePdrStatus('${item.pdr}')" 
-                                class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">
-                                ${btnText}
-                            </button>
-
-                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
-                               class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50">
-                               <i class="fa-solid fa-location-arrow"></i> Naviga qui
-                            </a>
+                            <button onclick="window.togglePdrStatus('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 
                 marker.bindPopup(popupContent);
                 markersCluster.addLayer(marker);
@@ -457,26 +505,14 @@
 
             document.getElementById('statVisible').innerText = countVisible;
             document.getElementById('statDone').innerText = countDone;
-            
-            if (countVisible > 0 && map.getZoom() === 6) { 
-                map.fitBounds(markersCluster.getBounds(), { padding: [50, 50] });
-            }
+            if (countVisible > 0 && map.getZoom() === 6) map.fitBounds(markersCluster.getBounds(), { padding: [50, 50] });
         }
 
         // --- MAP SETUP ---
         document.addEventListener('DOMContentLoaded', () => {
             map = L.map('map').setView([43.30, 12.33], 10); 
-            
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(map);
-
-            markersCluster = L.markerClusterGroup({
-                disableClusteringAtZoom: 16,
-                spiderfyOnMaxZoom: true,
-                showCoverageOnHover: false
-            });
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+            markersCluster = L.markerClusterGroup({ disableClusteringAtZoom: 16, spiderfyOnMaxZoom: true, showCoverageOnHover: false });
             map.addLayer(markersCluster);
 
             initApp();
@@ -484,62 +520,35 @@
             document.getElementById('csvInput').addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        if (results.meta.fields.length < 2) {
-                             Papa.parse(file, {
-                                header: true,
-                                delimiter: ";",
-                                skipEmptyLines: true,
-                                complete: function(res) {
-                                     if (res.data && res.data.length > 0) {
-                                        window.importCSVData(res.data);
-                                    }
-                                }
-                             });
-                        } else {
-                            if (results.data && results.data.length > 0) {
-                                window.importCSVData(results.data);
-                            }
-                        }
+                Papa.parse(file, { header: true, skipEmptyLines: true, complete: function(results) {
+                    if (results.meta.fields.length < 2) {
+                        Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: function(res) {
+                            if (res.data && res.data.length > 0) window.importCSVData(res.data);
+                        }});
+                    } else {
+                        if (results.data && results.data.length > 0) window.importCSVData(results.data);
                     }
-                });
+                }});
             });
             
             document.getElementById('searchInput').addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase();
                 const container = document.getElementById('searchResults');
                 container.innerHTML = '';
-                
-                if (term.length < 3) {
-                    container.classList.add('hidden');
-                    return;
-                }
-                
+                if (term.length < 3) { container.classList.add('hidden'); return; }
                 const matches = Object.values(allData).filter(item => 
-                    (item.pdr && String(item.pdr).includes(term)) || 
-                    (item.nominativo && item.nominativo.toLowerCase().includes(term)) ||
-                    (item.matricola && String(item.matricola).toLowerCase().includes(term))
+                    (item.pdr && String(item.pdr).includes(term)) || (item.nominativo && item.nominativo.toLowerCase().includes(term)) || (item.matricola && String(item.matricola).toLowerCase().includes(term))
                 ).slice(0, 5); 
-                
                 if (matches.length > 0) {
                     container.classList.remove('hidden');
                     matches.forEach(m => {
                         const div = document.createElement('div');
                         div.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
-                        // Mostriamo sempre status
                         div.innerHTML = `<b>${m.nominativo}</b> <br> ${m.pdr}`;
-                        div.onclick = () => {
-                            map.flyTo([m.lat, m.lng], 18);
-                        };
+                        div.onclick = () => { map.flyTo([m.lat, m.lng], 18); };
                         container.appendChild(div);
                     });
-                } else {
-                    container.classList.add('hidden');
-                }
+                } else { container.classList.add('hidden'); }
             });
         });
 
@@ -555,11 +564,8 @@
             const sb = document.getElementById('sidebar');
             const btn = document.getElementById('toggleSidebar');
             sb.classList.toggle('collapsed');
-            if (sb.classList.contains('collapsed')) {
-                setTimeout(() => btn.classList.remove('hidden'), 300);
-            } else {
-                btn.classList.add('hidden');
-            }
+            if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
+            else btn.classList.add('hidden');
         }
     </script>
 
