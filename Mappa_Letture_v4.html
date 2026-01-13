@@ -182,7 +182,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- GLOBAL STATE ---
         let db, auth, user;
@@ -465,14 +465,63 @@
         };
 
         window.clearData = async function() {
-            if(confirm("Sei sicuro di voler cancellare i dati della mappa?")) {
-                localStorage.removeItem('pdr_data_riepilogo');
+            if(confirm("ATTENZIONE: Questa azione cancellerà TUTTI i dati presenti nella mappa (anche dal Cloud se attivo). Sei sicuro?")) {
+                
                 if(!isCloudMode) {
+                    // Modalità Locale
+                    localStorage.removeItem('pdr_data_riepilogo');
                     allData = {};
                     updateMapAndUI();
                     location.reload();
                 } else {
-                    alert("Per cancellare dati in cloud, contattare amministratore.");
+                    // Modalità Cloud - Cancellazione Massiva
+                    let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    // Usa AppID manuale se presente per consistenza
+                    const localAppId = localStorage.getItem('custom_app_id');
+                    if (localAppId) appId = localAppId;
+
+                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
+                    
+                    try {
+                        showToast("Avvio cancellazione dati Cloud...");
+                        // Ottieni tutti i documenti
+                        const snapshot = await getDocs(colRef);
+                        
+                        if (snapshot.empty) {
+                            showToast("Nessun dato da cancellare.");
+                            return;
+                        }
+
+                        // Cancellazione in batch (max 500 operazioni per batch)
+                        const batches = [];
+                        let batch = writeBatch(db);
+                        let count = 0;
+
+                        snapshot.docs.forEach((docSnap) => {
+                            batch.delete(docSnap.ref);
+                            count++;
+                            if (count >= 450) {
+                                batches.push(batch.commit());
+                                batch = writeBatch(db);
+                                count = 0;
+                            }
+                        });
+
+                        if (count > 0) {
+                            batches.push(batch.commit());
+                        }
+
+                        await Promise.all(batches);
+                        showToast("Cancellazione Cloud completata.");
+                        
+                        // Pulizia locale per riflettere immediatamente la modifica
+                        allData = {};
+                        updateMapAndUI();
+
+                    } catch (e) {
+                        console.error("Errore cancellazione:", e);
+                        alert("Errore durante la cancellazione Cloud: " + e.message);
+                    }
                 }
             }
         }
