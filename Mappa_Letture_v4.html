@@ -164,9 +164,16 @@
                     db = getFirestore(app);
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                         await signInWithCustomToken(auth, __initial_auth_token); 
-                    } else {
+                    // --- AUTENTICAZIONE ROBUSTA ---
+                    // Tenta di usare il token custom (più permessi), se fallisce usa l'anonimo.
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token); 
+                        } else {
+                            throw new Error("No token provided");
+                        }
+                    } catch (authErr) {
+                        console.warn("Login con token fallito, tento fallback anonimo:", authErr);
                         await signInAnonymously(auth);
                     }
 
@@ -179,12 +186,12 @@
                         }
                     });
                 } else {
-                    throw new Error("No Config");
+                    throw new Error("Configurazione Firebase mancante");
                 }
             } catch (e) {
-                console.error("Errore inizializzazione:", e);
+                console.error("Errore Critico Inizializzazione:", e);
                 isCloudMode = false;
-                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500"><i class="fa-solid fa-database"></i> Modalità Locale</span>';
+                document.getElementById('statusMessage').innerHTML = '<span class="text-orange-500"><i class="fa-solid fa-database"></i> Modalità Locale (Err Init)</span>';
                 loadLocalData();
             }
         }
