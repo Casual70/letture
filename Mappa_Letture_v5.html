@@ -69,6 +69,18 @@
             background: white; padding: 20px; rounded: 12px; width: 90%; max-width: 500px;
             border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
+        
+        /* Checkbox Style */
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .filter-checkbox:hover { background-color: #f3f4f6; }
+        .filter-checkbox input { margin-right: 10px; accent-color: #2563eb; width: 16px; height: 16px; }
     </style>
 </head>
 <body>
@@ -111,6 +123,17 @@
                 <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2">
                     <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
                     <span class="text-[10px] font-bold text-red-700">Non Specificato / Altro</span>
+                </div>
+            </div>
+
+            <!-- FILTRI ACCESSIBILITÀ (Nuovo) -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Accessibilità</label>
+                    <button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
+                </div>
+                <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2">
+                    <!-- Generato via JS -->
                 </div>
             </div>
 
@@ -190,6 +213,9 @@
         let allData = {}; 
         let isCloudMode = false;
         let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+        
+        // FILTRI ACCESSIBILITA
+        let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
 
         // --- CONFIGURAZIONE FALLBACK (INSERITA DAL UTENTE) ---
         const HARDCODED_FIREBASE_CONFIG = {
@@ -203,6 +229,8 @@
         
         async function initApp() {
             try {
+                renderAccessFilters(); // Inizializza UI Filtri
+
                 // 1. Cerca Configurazione in Ambiente (Preview)
                 let firebaseConfig = null;
                 let appId = 'default-app-id';
@@ -343,6 +371,51 @@
                 allData = JSON.parse(stored);
                 updateMapAndUI();
             }
+        }
+
+        // --- FILTRI UI FUNZIONI ---
+        function renderAccessFilters() {
+            const container = document.getElementById('accessFiltersContainer');
+            container.innerHTML = '';
+            
+            const categories = [
+                { id: 'Accessibile', label: 'Accessibile', color: 'text-green-700' },
+                { id: 'Inaccessibile', label: 'Inaccessibile', color: 'text-orange-700' },
+                { id: 'Altro', label: 'Altro / N/D', color: 'text-red-700' }
+            ];
+
+            categories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'filter-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = cat.id;
+                checkbox.checked = activeAccess.has(cat.id);
+                
+                checkbox.onchange = (e) => {
+                    if(e.target.checked) activeAccess.add(cat.id);
+                    else activeAccess.delete(cat.id);
+                    updateMapAndUI();
+                };
+
+                const label = document.createElement('span');
+                label.className = `text-sm font-bold ${cat.color}`;
+                label.innerText = cat.label;
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
+        window.selectAllAccess = function() {
+            const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                activeAccess.add(cb.value);
+            });
+            updateMapAndUI();
         }
 
         // --- IMPORT CSV ---
@@ -533,17 +606,26 @@
             let countDone = 0;
 
             Object.values(allData).forEach(item => {
+                // --- NUOVA LOGICA FILTRO ACCESSIBILITA ---
+                let filterCategory = 'Altro';
+                const accessLower = (item.accessibilita || '').toLowerCase();
+                
+                if (accessLower.includes('inaccessibile')) filterCategory = 'Inaccessibile';
+                else if (accessLower.includes('accessibile')) filterCategory = 'Accessibile';
+                
+                // Se la categoria non è attiva, saltiamo il marker
+                if (!activeAccess.has(filterCategory)) return;
+
                 countVisible++;
                 if (item.fatto) countDone++;
                 
                 let colorCode = '#dc2626'; 
-                const accessLower = (item.accessibilita || '').toLowerCase();
 
                 if (item.fatto === true) {
                     colorCode = '#2563eb'; 
-                } else if (accessLower.includes('inaccessibile')) {
+                } else if (filterCategory === 'Inaccessibile') {
                     colorCode = '#f97316'; 
-                } else if (accessLower.includes('accessibile')) {
+                } else if (filterCategory === 'Accessibile') {
                     colorCode = '#16a34a'; 
                 }
                 
