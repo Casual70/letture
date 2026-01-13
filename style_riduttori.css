@@ -58,6 +58,14 @@
   padding: 10px;
 }
 
+#scheda_riduttori #gallery_img_riduttori .lightboxgallery img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: 1/1;
+  border-radius: 10px;
+}
+
 #scheda_generale_riduttori .thumbnail{
   border-radius: 10px;
   box-shadow: 1px 1px 5px #b3b3b3;
