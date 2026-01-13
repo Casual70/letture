@@ -2,6 +2,11 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
+    <!-- Meta tag anti-cache per forzare il ricaricamento -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mappa PDR - Accessibilità</title>
     
@@ -373,51 +378,6 @@
             }
         }
 
-        // --- FILTRI UI FUNZIONI ---
-        function renderAccessFilters() {
-            const container = document.getElementById('accessFiltersContainer');
-            container.innerHTML = '';
-            
-            const categories = [
-                { id: 'Accessibile', label: 'Accessibile', color: 'text-green-700' },
-                { id: 'Inaccessibile', label: 'Inaccessibile', color: 'text-orange-700' },
-                { id: 'Altro', label: 'Altro / N/D', color: 'text-red-700' }
-            ];
-
-            categories.forEach(cat => {
-                const div = document.createElement('div');
-                div.className = 'filter-checkbox';
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = cat.id;
-                checkbox.checked = activeAccess.has(cat.id);
-                
-                checkbox.onchange = (e) => {
-                    if(e.target.checked) activeAccess.add(cat.id);
-                    else activeAccess.delete(cat.id);
-                    updateMapAndUI();
-                };
-
-                const label = document.createElement('span');
-                label.className = `text-sm font-bold ${cat.color}`;
-                label.innerText = cat.label;
-
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                container.appendChild(div);
-            });
-        }
-
-        window.selectAllAccess = function() {
-            const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = true;
-                activeAccess.add(cb.value);
-            });
-            updateMapAndUI();
-        }
-
         // --- IMPORT CSV ---
         window.importCSVData = async function(csvData) {
             let batchCount = 0;
@@ -472,6 +432,10 @@
                         rawTele = '0' + rawTele;
                     }
 
+                    // --- NUOVO CAMPO: NOTA ACCESSO ---
+                    // Cerca "Nota_accesso" o "Note"
+                    const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
+
                     const newData = {
                         pdr: pdr,
                         nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
@@ -482,6 +446,7 @@
                         data_riferimento: dateStr,
                         anno: year,
                         accessibilita: accessibilita,
+                        nota_accesso: notaAccesso, // Aggiunto al modello dati
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
@@ -651,6 +616,7 @@
                             <div><i class="fa-solid fa-city w-4 text-center mr-1"></i> ${item.zona}</div>
                             <div><i class="fa-solid fa-barcode w-4 text-center mr-1"></i> <strong>Matricola:</strong> ${item.matricola}</div>
                             <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
+                            ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota:</strong> ${item.nota_accesso}</div>` : ''}
                             ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
                         </div>
                         <div class="flex flex-col gap-2">
