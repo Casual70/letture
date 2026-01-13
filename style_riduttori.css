@@ -46,7 +46,7 @@
   padding: 0px !important;
 }
 
-#scheda_riduttori .gallery_img_riduttori{
+#scheda_riduttori #gallery_img_riduttori{
   border-radius: 10px;
   box-shadow: 1px 1px 5px #b3b3b3;
 }
@@ -84,7 +84,6 @@
 
 #scheda_generale_riduttori .thumbnail .lat,
 #scheda_generale_riduttori .thumbnail .long{
-  display: none;
   opacity: 0;
 }
 
@@ -93,4 +92,5 @@
   margin-bottom: 10px;
   width: 100%;
   border-radius: 5px;
+  border: 1px solid #ccc;
 }
