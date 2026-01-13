@@ -51,7 +51,7 @@
   box-shadow: 1px 1px 5px #b3b3b3;
 }
 
-#gallery_img_riduttori .ligboxgallery{
+#scheda_riduttori #gallery_img_riduttori .ligboxgallery{
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
