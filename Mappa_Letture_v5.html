@@ -554,6 +554,18 @@
             }
         };
 
+        // --- OPEN WHATSAPP FUNCTION ---
+        window.openWhatsApp = function(pdr) {
+            const item = allData[pdr];
+            if (!item) return;
+            
+            const today = new Date().toLocaleDateString('it-IT');
+            const message = `Nome: ${item.nominativo} Matricola: ${item.matricola} Data lettura: ${today}`;
+            const url = `https://wa.me/393396306105?text=${encodeURIComponent(message)}`;
+            
+            window.open(url, '_blank');
+        }
+
         // --- TOGGLE STATUS ---
         window.togglePdrStatus = async function(pdr) {
             const item = allData[pdr];
@@ -709,6 +721,13 @@
 
                         <div class="flex flex-col gap-2">
                             <button onclick="window.togglePdrStatus('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
+                            
+                            <!-- PULSANTE WHATSAPP -->
+                            <button onclick="window.openWhatsApp('${item.pdr}')" 
+                                class="w-full py-1.5 rounded text-xs font-bold bg-green-500 hover:bg-green-600 text-white border border-green-600 transition shadow-sm">
+                                <i class="fa-brands fa-whatsapp mr-1"></i> Invia Lettura WA
+                            </button>
+
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
                         </div>
                     </div>`;
