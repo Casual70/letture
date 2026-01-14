@@ -54,7 +54,7 @@
 
         /* Popup Customization */
         .leaflet-popup-content-wrapper { border-radius: 8px; }
-        .leaflet-popup-content { margin: 12px; width: 280px !important; }
+        .leaflet-popup-content { margin: 12px; width: 300px !important; } /* Allargato leggermente per le note */
 
         /* Clusters Override */
         .marker-cluster-small { background-color: rgba(181, 181, 181, 0.6); }
@@ -461,6 +461,8 @@
                     
                     const existingPDR = allData[pdr];
                     const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
+                    // PRESERVE NOTES: Keep existing note if present
+                    const existingNote = existingPDR ? (existingPDR.nota_operatore || '') : '';
 
                     let accessibilita = 'N/D';
                     if (colAccessibilita && row[colAccessibilita]) {
@@ -472,13 +474,11 @@
 
                     // --- NORMALIZZAZIONE TELEFONO ---
                     let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
-                    // Se inizia con "75" (e non "075"), aggiungiamo lo zero davanti
                     if (rawTele.startsWith('75')) {
                         rawTele = '0' + rawTele;
                     }
 
-                    // --- NUOVO CAMPO: NOTA ACCESSO ---
-                    // Cerca "Nota_accesso" o "Note"
+                    // --- CAMPO: NOTA ACCESSO (CSV) ---
                     const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
 
                     const newData = {
@@ -486,12 +486,13 @@
                         nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
                         indirizzo: row['Indirizzo'] || row.INDIRIZZO || row.Indirizzo || '',
                         zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
-                        telefono: rawTele, // Uso il numero normalizzato
+                        telefono: rawTele, 
                         matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
                         data_riferimento: dateStr,
                         anno: year,
                         accessibilita: accessibilita,
-                        nota_accesso: notaAccesso, // Aggiunto al modello dati
+                        nota_accesso: notaAccesso, 
+                        nota_operatore: existingNote, // Preserva note utente
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
@@ -519,6 +520,38 @@
                 updateMapAndUI();
             }
             showToast(`Importati ${Object.keys(allData).length} PDR`);
+        };
+
+        // --- SAVE NOTE FUNCTION ---
+        window.savePdrNote = async function(pdr) {
+            const inputId = 'note_' + pdr;
+            const textarea = document.getElementById(inputId);
+            if (!textarea) return;
+            
+            const noteText = textarea.value.trim();
+            const item = allData[pdr];
+            
+            if (!item) return;
+
+            if (isCloudMode) {
+                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const localAppId = localStorage.getItem('custom_app_id');
+                if (localAppId) appId = localAppId;
+
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
+                try {
+                    await updateDoc(docRef, { nota_operatore: noteText });
+                    showToast("Nota salvata (Cloud)");
+                } catch(e) {
+                    console.error(e);
+                    alert("Errore salvataggio nota Cloud");
+                }
+            } else {
+                item.nota_operatore = noteText;
+                allData[pdr] = item;
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+                showToast("Nota salvata (Locale)");
+            }
         };
 
         // --- TOGGLE STATUS ---
@@ -661,9 +694,19 @@
                             <div><i class="fa-solid fa-city w-4 text-center mr-1"></i> ${item.zona}</div>
                             <div><i class="fa-solid fa-barcode w-4 text-center mr-1"></i> <strong>Matricola:</strong> ${item.matricola}</div>
                             <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
-                            ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota:</strong> ${item.nota_accesso}</div>` : ''}
+                            ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota CSV:</strong> ${item.nota_accesso}</div>` : ''}
                             ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
                         </div>
+                        
+                        <!-- NOTE OPERATORE -->
+                        <div class="mb-3">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Note Operatore</label>
+                            <textarea id="note_${item.pdr}" class="w-full text-xs border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none resize-none" rows="2" placeholder="Scrivi una nota...">${item.nota_operatore || ''}</textarea>
+                            <button onclick="window.savePdrNote('${item.pdr}')" class="mt-1 w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-[10px] font-bold py-1 rounded border border-gray-300 transition">
+                                <i class="fa-solid fa-save mr-1"></i> Salva Nota
+                            </button>
+                        </div>
+
                         <div class="flex flex-col gap-2">
                             <button onclick="window.togglePdrStatus('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
