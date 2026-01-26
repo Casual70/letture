@@ -598,13 +598,18 @@
             }
 
             const today = new Date().toLocaleDateString('it-IT');
+            // Costruzione indirizzo completo
+            const fullAddress = `${item.indirizzo} ${item.zona}`.trim();
+
             const message = `Salve,
-in data ${today} è stato effettuato un passaggio per la lettura del contatore del gas metano intestato a ${item.nominativo} con matricola: ${item.matricola}.
+in data ${today} è stato effettuato un passaggio per la lettura del contatore del gas metano intestato a ${item.nominativo}
+📍 Indirizzo: ${fullAddress}
+🔢 Matricola: ${item.matricola}
 
 Gli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.
 
 Al fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.
-In alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861.
+In alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).
 
 Grazie mille.
 I nostri uffici sono in Via Alberti 29/31`;
