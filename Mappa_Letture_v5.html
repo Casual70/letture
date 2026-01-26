@@ -477,8 +477,11 @@
                     if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
                     // --- NORMALIZZAZIONE TELEFONO ---
+                    // Conserviamo il dato grezzo per il parsing multiplo
                     let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
-                    if (rawTele.startsWith('75')) {
+                    // Se era un singolo numero che iniziava con 75, lo correggiamo subito
+                    // (Ma la logica completa sarà nel rendering popup per gestire i multipli)
+                    if (rawTele.length > 5 && rawTele.startsWith('75') && !rawTele.includes('-') && !rawTele.includes('/')) {
                         rawTele = '0' + rawTele;
                     }
 
@@ -578,13 +581,25 @@
         };
 
         // --- OPEN WHATSAPP FUNCTION ---
-        window.openWhatsApp = function(pdr) {
+        window.openWhatsApp = function(pdr, specificPhone) {
             const item = allData[pdr];
             if (!item) return;
             
+            // Usa il numero specifico passato (dal bottone) o fallback al campo intero (se singolo)
+            let targetPhone = specificPhone || item.telefono;
+            if (!targetPhone) return;
+
+            // Pulisci il numero per l'URL (rimuovi spazi)
+            const cleanPhone = targetPhone.replace(/\s+/g, '');
+            // Aggiungi prefisso 39 se manca e non è un link web
+            let phoneParam = cleanPhone;
+            if (!cleanPhone.startsWith('39') && !cleanPhone.startsWith('+39')) {
+                phoneParam = '39' + cleanPhone;
+            }
+
             const today = new Date().toLocaleDateString('it-IT');
             const message = `Nome: ${item.nominativo} Matricola: ${item.matricola} Data lettura: ${today}`;
-            const url = `https://wa.me/393396306105?text=${encodeURIComponent(message)}`;
+            const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
             
             window.open(url, '_blank');
         }
@@ -728,6 +743,35 @@
                 const btnClass = isDone ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
                 const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
 
+                // --- PARSING NUMERI DI TELEFONO MULTIPLI ---
+                const rawTele = item.telefono || '';
+                // Splitta per trattino, slash o virgola
+                const phones = rawTele.split(/[-/,]+/).map(p => p.trim()).filter(p => p.length > 4);
+                
+                let waButtonsHtml = '';
+                
+                if (phones.length > 0) {
+                    phones.forEach(num => {
+                        // Normalizzazione 75 -> 075 applicata a ogni singolo numero
+                        let cleanNum = num;
+                        // Rimuovi spazi interni per il check
+                        const checkNum = num.replace(/\s+/g, '');
+                        if (checkNum.startsWith('75')) {
+                            cleanNum = '0' + num;
+                        }
+                        
+                        waButtonsHtml += `
+                            <button onclick="window.openWhatsApp('${item.pdr}', '${cleanNum}')" 
+                                class="w-full mb-1 py-1.5 rounded text-xs font-bold bg-green-500 hover:bg-green-600 text-white border border-green-600 transition shadow-sm">
+                                <i class="fa-brands fa-whatsapp mr-1"></i> WA ${cleanNum}
+                            </button>
+                        `;
+                    });
+                } else {
+                    // Fallback se nessun numero valido trovato (pulsante disabilitato o generico)
+                    // Non mostriamo nulla
+                }
+
                 const popupContent = `
                     <div class="font-sans">
                         <div class="border-b pb-2 mb-2">
@@ -743,7 +787,7 @@
                             <div><i class="fa-solid fa-barcode w-4 text-center mr-1"></i> <strong>Matricola:</strong> ${item.matricola}</div>
                             <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
                             ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota CSV:</strong> ${item.nota_accesso}</div>` : ''}
-                            ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
+                            ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
                             
                             <!-- DATI LETTURA IMPORTATI -->
                             ${(item.val_lettura || item.data_lettura) ? `
@@ -767,11 +811,8 @@
                         <div class="flex flex-col gap-2">
                             <button onclick="window.togglePdrStatus('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
                             
-                            <!-- PULSANTE WHATSAPP -->
-                            <button onclick="window.openWhatsApp('${item.pdr}')" 
-                                class="w-full py-1.5 rounded text-xs font-bold bg-green-500 hover:bg-green-600 text-white border border-green-600 transition shadow-sm">
-                                <i class="fa-brands fa-whatsapp mr-1"></i> Invia Lettura WA
-                            </button>
+                            <!-- PULSANTI WHATSAPP MULTIPLI -->
+                            ${waButtonsHtml}
 
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
                         </div>
