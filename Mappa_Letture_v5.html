@@ -460,7 +460,7 @@
                     }
                     
                     const existingPDR = allData[pdr];
-                    const existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
+                    let existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
                     // PRESERVE NOTES: Keep existing note if present
                     const existingNote = existingPDR ? (existingPDR.nota_operatore || '') : '';
 
@@ -481,6 +481,15 @@
                     // --- CAMPO: NOTA ACCESSO (CSV) ---
                     const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
 
+                    // --- CAMPI LETTURA E DATA LETTURA (NUOVI) ---
+                    const valLettura = row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '';
+                    const dataLettura = row['Data lettura'] || row['data lettura'] || '';
+
+                    // SE CI SONO VALORI DI LETTURA, SEGNA COME FATTO
+                    if ((valLettura && valLettura.trim() !== '') || (dataLettura && dataLettura.trim() !== '')) {
+                        existingStatus = true;
+                    }
+
                     const newData = {
                         pdr: pdr,
                         nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
@@ -493,6 +502,8 @@
                         accessibilita: accessibilita,
                         nota_accesso: notaAccesso, 
                         nota_operatore: existingNote, // Preserva note utente
+                        val_lettura: valLettura,      // Nuovo campo
+                        data_lettura: dataLettura,    // Nuovo campo
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
@@ -708,6 +719,15 @@
                             <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
                             ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota CSV:</strong> ${item.nota_accesso}</div>` : ''}
                             ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> <a href="tel:${item.telefono}" class="text-blue-600 hover:underline">${item.telefono}</a></div>` : ''}
+                            
+                            <!-- DATI LETTURA IMPORTATI -->
+                            ${(item.val_lettura || item.data_lettura) ? `
+                                <div class="mt-2 bg-green-50 p-2 rounded border border-green-200 text-xs">
+                                    <div class="font-bold text-green-800 mb-1"><i class="fa-solid fa-file-import mr-1"></i> Dati Lettura Importati</div>
+                                    ${item.val_lettura ? `<div>Lettura: <strong>${item.val_lettura}</strong></div>` : ''}
+                                    ${item.data_lettura ? `<div>Data: <strong>${item.data_lettura}</strong></div>` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                         
                         <!-- NOTE OPERATORE -->
