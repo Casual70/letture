@@ -598,7 +598,7 @@
             }
 
             const today = new Date().toLocaleDateString('it-IT');
-            const message = `Nome: ${item.nominativo} Matricola: ${item.matricola} Data lettura: ${today}`;
+            const message = `Salve. In data ${today} è stato effettuato il passaggio per la lettura del contatore del gas metano intestato a ${item.nominativo} con matricola: ${item.matricola}. Gli operatori da noi incaricati non hanno trovato nessuno in casa. Al fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato; in alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861. Grazie mille. I nostri uffici sono in Via Alberti 29/31.`;
             const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
             
             window.open(url, '_blank');
