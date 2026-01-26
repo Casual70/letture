@@ -482,11 +482,19 @@
                     const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
 
                     // --- CAMPI LETTURA E DATA LETTURA (NUOVI) ---
-                    const valLettura = row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '';
-                    const dataLettura = row['Data lettura'] || row['data lettura'] || '';
+                    const valLetturaRaw = row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '';
+                    const dataLetturaRaw = row['Data lettura'] || row['data lettura'] || '';
+
+                    // Pulizia valori
+                    const valLettura = valLetturaRaw.toString().trim();
+                    const dataLettura = dataLetturaRaw.toString().trim();
 
                     // SE CI SONO VALORI DI LETTURA, SEGNA COME FATTO
-                    if ((valLettura && valLettura.trim() !== '') || (dataLettura && dataLettura.trim() !== '')) {
+                    // Ignora se valore lettura è "0" o data è "00/01/1900"
+                    const isLetturaValid = valLettura !== '' && valLettura !== '0';
+                    const isDataValid = dataLettura !== '' && dataLettura !== '00/01/1900';
+
+                    if (isLetturaValid || isDataValid) {
                         existingStatus = true;
                     }
 
