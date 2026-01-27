@@ -496,14 +496,26 @@
                     const valLettura = valLetturaRaw.toString().trim();
                     const dataLettura = dataLetturaRaw.toString().trim();
 
-                    // SE CI SONO VALORI DI LETTURA, SEGNA COME FATTO
-                    // Ignora se valore lettura è "0" o data è "00/01/1900"
-                    const isLetturaValid = valLettura !== '' && valLettura !== '0';
-                    const isDataValid = dataLettura !== '' && dataLettura !== '00/01/1900';
-
-                    if (isLetturaValid || isDataValid) {
-                        existingStatus = true;
+                    // --- LOGICA IMPORTAZIONE AGGIORNATA ---
+                    // 1. Se è un numero valido > 0 -> FATTO (Blu)
+                    // 2. Se è testo ("Avviso", "Assente") -> NON FATTO (Giallo via UI)
+                    // 3. Se è 0 o vuoto -> NON FATTO (Normale)
+                    
+                    let isNumericReading = false;
+                    if (valLettura !== '' && valLettura !== '0') {
+                        // Sostituisce virgola con punto per il controllo matematico
+                        const checkNum = parseFloat(valLettura.replace(',', '.'));
+                        if (!isNaN(checkNum) && checkNum !== 0) {
+                            isNumericReading = true;
+                        }
                     }
+
+                    if (isNumericReading) {
+                        existingStatus = true;
+                    } 
+                    // Nota: Non settiamo a false qui per non sovrascrivere eventuali "fatto" manuali
+                    // a meno che non vogliamo forzare lo stato dal CSV. 
+                    // Per ora manteniamo lo status precedente se il CSV non ha un dato "Fatto" sicuro.
 
                     const newData = {
                         pdr: pdr,
@@ -730,19 +742,20 @@ I nostri uffici sono in Via Alberti 29/31`;
 
                 // Check if reading is alphanumeric (Warning/Error)
                 let isWarning = false;
+                // Controllo più robusto: deve esserci un valore ma NON deve essere un numero valido
                 if (item.val_lettura) {
-                    // Sostituisce virgole con punti e rimuove spazi per il check
                     const cleanVal = item.val_lettura.replace(',', '.').trim();
-                    // Se non è un numero (quindi contiene testo come "Avviso", "Assente")
-                    if (isNaN(cleanVal)) {
+                    if (cleanVal !== '' && isNaN(cleanVal)) {
                         isWarning = true;
                     }
                 }
 
-                if (isWarning) {
-                    colorCode = '#facc15'; // GIALLO ACCESO
-                } else if (item.fatto === true) {
+                // PRIORITÀ COLORI: 
+                // 1. Fatto (Blu) - Vince su tutto (anche su avviso se segnato manualmente)
+                if (item.fatto === true) {
                     colorCode = '#2563eb'; 
+                } else if (isWarning) {
+                    colorCode = '#facc15'; // GIALLO ACCESO (Se non fatto e c'è avviso)
                 } else if (filterCategory === 'Inaccessibile') {
                     colorCode = '#f97316'; 
                 } else if (filterCategory === 'Accessibile') {
