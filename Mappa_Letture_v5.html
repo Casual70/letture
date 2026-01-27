@@ -498,24 +498,39 @@
 
                     // --- LOGICA IMPORTAZIONE AGGIORNATA ---
                     // 1. Se è un numero valido > 0 -> FATTO (Blu)
-                    // 2. Se è testo ("Avviso", "Assente") -> NON FATTO (Giallo via UI)
+                    // 2. Se è testo ("Avviso", "Assente") -> NON FATTO (Giallo via UI), ma salviamo il valore nel campo val_lettura
                     // 3. Se è 0 o vuoto -> NON FATTO (Normale)
                     
                     let isNumericReading = false;
+                    let hasReadingValue = false;
+
                     if (valLettura !== '' && valLettura !== '0') {
+                        hasReadingValue = true;
                         // Sostituisce virgola con punto per il controllo matematico
                         const checkNum = parseFloat(valLettura.replace(',', '.'));
-                        if (!isNaN(checkNum) && checkNum !== 0) {
+                        // Se è un numero valido E non è NaN
+                        if (!isNaN(checkNum)) {
                             isNumericReading = true;
                         }
                     }
 
-                    if (isNumericReading) {
-                        existingStatus = true;
-                    } 
-                    // Nota: Non settiamo a false qui per non sovrascrivere eventuali "fatto" manuali
-                    // a meno che non vogliamo forzare lo stato dal CSV. 
-                    // Per ora manteniamo lo status precedente se il CSV non ha un dato "Fatto" sicuro.
+                    // Logica Data: Se c'è una data valida diversa da default
+                    let isDateValid = false;
+                    if (dataLettura !== '' && dataLettura !== '00/01/1900') {
+                        isDateValid = true;
+                    }
+
+                    // DETERMINAZIONE STATO "FATTO" INIZIALE
+                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA o una Data valida, 
+                    // MA NON se la lettura è un testo (che indica un Avviso/Problema)
+                    if ((isNumericReading || isDateValid) && hasReadingValue && !isNaN(parseFloat(valLettura.replace(',', '.')))) {
+                         existingStatus = true;
+                    } else if (hasReadingValue && isNaN(parseFloat(valLettura.replace(',', '.')))) {
+                        // Caso AVVISO: C'è scritto qualcosa ma non è un numero (es. "Avviso")
+                        // NON lo segniamo come fatto automaticamente, lasciamo che la UI lo colori di Giallo
+                        // in base alla presenza di 'val_lettura' non numerico.
+                        existingStatus = false; 
+                    }
 
                     const newData = {
                         pdr: pdr,
@@ -745,17 +760,18 @@ I nostri uffici sono in Via Alberti 29/31`;
                 // Controllo più robusto: deve esserci un valore ma NON deve essere un numero valido
                 if (item.val_lettura) {
                     const cleanVal = item.val_lettura.replace(',', '.').trim();
+                    // Se non è vuoto E non è un numero -> è un AVVISO (Giallo)
                     if (cleanVal !== '' && isNaN(cleanVal)) {
                         isWarning = true;
                     }
                 }
 
-                // PRIORITÀ COLORI: 
-                // 1. Fatto (Blu) - Vince su tutto (anche su avviso se segnato manualmente)
+                // PRIORITÀ COLORI AGGIORNATA: 
+                // 1. Fatto (Blu) - Vince su tutto (anche su avviso se l'operatore lo forza a Fatto manualmente)
                 if (item.fatto === true) {
                     colorCode = '#2563eb'; 
                 } else if (isWarning) {
-                    colorCode = '#facc15'; // GIALLO ACCESO (Se non fatto e c'è avviso)
+                    colorCode = '#facc15'; // GIALLO ACCESO (Se non fatto e c'è avviso testuale)
                 } else if (filterCategory === 'Inaccessibile') {
                     colorCode = '#f97316'; 
                 } else if (filterCategory === 'Accessibile') {
