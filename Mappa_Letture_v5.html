@@ -477,11 +477,8 @@
                     if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
                     // --- NORMALIZZAZIONE TELEFONO ---
-                    // Conserviamo il dato grezzo per il parsing multiplo
                     let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
-                    // Se era un singolo numero che iniziava con 75, lo correggiamo subito
-                    // (Ma la logica completa sarà nel rendering popup per gestire i multipli)
-                    if (rawTele.length > 5 && rawTele.startsWith('75') && !rawTele.includes('-') && !rawTele.includes('/')) {
+                    if (rawTele.startsWith('75')) {
                         rawTele = '0' + rawTele;
                     }
 
@@ -502,35 +499,31 @@
                     // 3. Se è 0 o vuoto -> NON FATTO (Normale)
                     
                     let isNumericReading = false;
-                    let hasReadingValue = false;
-
+                    
                     if (valLettura !== '' && valLettura !== '0') {
-                        hasReadingValue = true;
-                        // Sostituisce virgola con punto per il controllo matematico
-                        const checkNum = parseFloat(valLettura.replace(',', '.'));
-                        // Se è un numero valido E non è NaN
-                        if (!isNaN(checkNum)) {
-                            isNumericReading = true;
-                        }
+                         // Sostituisce virgola con punto per il controllo matematico
+                         const checkNum = parseFloat(valLettura.replace(',', '.'));
+                         // Se è un numero valido E non è NaN
+                         if (!isNaN(checkNum) && isFinite(checkNum)) {
+                             isNumericReading = true;
+                         }
                     }
 
-                    // Logica Data: Se c'è una data valida diversa da default
+                    // Logica Data: Se c'è una data valida diversa da default e NON c'è un avviso testuale in lettura
                     let isDateValid = false;
-                    if (dataLettura !== '' && dataLettura !== '00/01/1900') {
+                    const isTextWarning = valLettura !== '' && !isNumericReading; // Se c'è testo non numerico, è un avviso
+
+                    if (dataLettura !== '' && dataLettura !== '00/01/1900' && !isTextWarning) {
                         isDateValid = true;
                     }
 
                     // DETERMINAZIONE STATO "FATTO" INIZIALE
-                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA o una Data valida, 
-                    // MA NON se la lettura è un testo (che indica un Avviso/Problema)
-                    if ((isNumericReading || isDateValid) && hasReadingValue && !isNaN(parseFloat(valLettura.replace(',', '.')))) {
+                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA valida o una Data valida SENZA avvisi testuali.
+                    if (isNumericReading || isDateValid) {
                          existingStatus = true;
-                    } else if (hasReadingValue && isNaN(parseFloat(valLettura.replace(',', '.')))) {
-                        // Caso AVVISO: C'è scritto qualcosa ma non è un numero (es. "Avviso")
-                        // NON lo segniamo come fatto automaticamente, lasciamo che la UI lo colori di Giallo
-                        // in base alla presenza di 'val_lettura' non numerico.
-                        existingStatus = false; 
-                    }
+                    } 
+                    // Nota: Se c'è un avviso testuale, existingStatus rimane false (o quello che era), 
+                    // e la UI lo colorerà di giallo perché vede val_lettura non numerico.
 
                     const newData = {
                         pdr: pdr,
