@@ -183,8 +183,11 @@
              <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Impostazioni">
                 <i class="fa-solid fa-gear"></i>
             </button>
+            <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border border-green-600 transition flex items-center justify-center py-2" title="Esporta CSV">
+                <i class="fa-solid fa-download"></i>
+            </button>
             <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
-                <i class="fa-solid fa-trash mr-1"></i> Reset Dati
+                <i class="fa-solid fa-trash mr-1"></i> Reset
             </button>
         </div>
     </div>
@@ -383,6 +386,53 @@
             updateMapAndUI(); // Ridisegna i marker con la nuova impostazione draggable
         }
 
+        // --- EXPORT CSV ---
+        window.exportData = function() {
+            if (Object.keys(allData).length === 0) {
+                alert("Nessun dato da esportare.");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM per caratteri speciali
+            // Intestazione basata sulla richiesta (Simile al CSV massive ma con coordinate aggiornate)
+            csvContent += "Codice PDR;Nome utenza;Indirizzo;Città;Telefono;Matricola;Data ultima lettura;Accessibilità;Nota;Lat;Long;Stato;Note Operatore\n";
+
+            Object.values(allData).forEach(item => {
+                let row = [
+                    item.pdr,
+                    item.nominativo,
+                    item.indirizzo,
+                    item.zona,
+                    item.telefono,
+                    item.matricola,
+                    item.data_riferimento,
+                    item.accessibilita,
+                    item.nota_accesso,
+                    String(item.lat).replace('.', ','), // Formato Excel Italiano
+                    String(item.lng).replace('.', ','), // Formato Excel Italiano
+                    item.fatto ? "FATTO" : "DA FARE",
+                    item.nota_operatore || ""
+                ].map(f => {
+                    // Gestione virgolette e campi vuoti
+                    const val = String(f || '');
+                    if (val.includes('"') || val.includes(';')) {
+                        return `"${val.replace(/"/g, '""')}"`;
+                    }
+                    return val;
+                }).join(';');
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const today = new Date().toISOString().slice(0,10);
+            link.setAttribute("download", `PDR_Export_${today}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         function startCloudListener(appId) {
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
             onSnapshot(colRef, (snapshot) => {
@@ -458,8 +508,8 @@
             updateMapAndUI();
         }
 
-        // --- IMPORT CSV ---
-        window.importCSVData = async function(csvData) {
+        // --- IMPORT CSV (MODIFICATO PER CHIEDERE SOVRASCRITTURA) ---
+        window.importCSVData = async function(csvData, overwriteCoords) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
             let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -478,11 +528,18 @@
             csvData.forEach(row => {
                 const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
                 
+                // Gestione Coordinate
                 let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
                 let rawLon = (row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, '');
                 
                 let lat = parseFloat(rawLat);
                 let lng = parseFloat(rawLon);
+
+                // Se non si vuole sovrascrivere e il PDR esiste già, mantieni le vecchie coordinate
+                if (!overwriteCoords && allData[pdr]) {
+                    lat = allData[pdr].lat;
+                    lng = allData[pdr].lng;
+                }
 
                 if (!isNaN(lat) && !isNaN(lng)) {
                     const dateStr = row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "";
@@ -496,7 +553,6 @@
                     
                     const existingPDR = allData[pdr];
                     let existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
-                    // PRESERVE NOTES: Keep existing note if present
                     const existingNote = existingPDR ? (existingPDR.nota_operatore || '') : '';
 
                     let accessibilita = 'N/D';
@@ -507,54 +563,36 @@
                     }
                     if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
 
-                    // --- NORMALIZZAZIONE TELEFONO ---
                     let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
-                    if (rawTele.startsWith('75')) {
+                    if (rawTele.length > 5 && rawTele.startsWith('75') && !rawTele.includes('-') && !rawTele.includes('/')) {
                         rawTele = '0' + rawTele;
                     }
 
-                    // --- CAMPO: NOTA ACCESSO (CSV) ---
                     const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
 
-                    // --- CAMPI LETTURA E DATA LETTURA (NUOVI) ---
                     const valLetturaRaw = row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '';
                     const dataLetturaRaw = row['Data lettura'] || row['data lettura'] || '';
 
-                    // Pulizia valori
                     const valLettura = valLetturaRaw.toString().trim();
                     const dataLettura = dataLetturaRaw.toString().trim();
 
-                    // --- LOGICA IMPORTAZIONE AGGIORNATA ---
-                    // 1. Se è un numero valido > 0 -> FATTO (Blu)
-                    // 2. Se è testo ("Avviso", "Assente") -> NON FATTO (Giallo via UI), ma salviamo il valore nel campo val_lettura
-                    // 3. Se è 0 o vuoto -> NON FATTO (Normale)
-                    
                     let isNumericReading = false;
-                    
                     if (valLettura !== '' && valLettura !== '0') {
-                         // Sostituisce virgola con punto per il controllo matematico
                          const checkNum = parseFloat(valLettura.replace(',', '.'));
-                         // Se è un numero valido E non è NaN
                          if (!isNaN(checkNum) && isFinite(checkNum)) {
                              isNumericReading = true;
                          }
                     }
 
-                    // Logica Data: Se c'è una data valida diversa da default e NON c'è un avviso testuale in lettura
                     let isDateValid = false;
-                    const isTextWarning = valLettura !== '' && !isNumericReading; // Se c'è testo non numerico, è un avviso
-
+                    const isTextWarning = valLettura !== '' && !isNumericReading; 
                     if (dataLettura !== '' && dataLettura !== '00/01/1900' && !isTextWarning) {
                         isDateValid = true;
                     }
 
-                    // DETERMINAZIONE STATO "FATTO" INIZIALE
-                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA valida o una Data valida SENZA avvisi testuali.
                     if (isNumericReading || isDateValid) {
                          existingStatus = true;
                     } 
-                    // Nota: Se c'è un avviso testuale, existingStatus rimane false (o quello che era), 
-                    // e la UI lo colorerà di giallo perché vede val_lettura non numerico.
 
                     const newData = {
                         pdr: pdr,
@@ -567,9 +605,9 @@
                         anno: year,
                         accessibilita: accessibilita,
                         nota_accesso: notaAccesso, 
-                        nota_operatore: existingNote, // Preserva note utente
-                        val_lettura: valLettura,      // Nuovo campo
-                        data_lettura: dataLettura,    // Nuovo campo
+                        nota_operatore: existingNote, 
+                        val_lettura: valLettura,      
+                        data_lettura: dataLettura,    
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
@@ -961,13 +999,21 @@ I nostri uffici sono in Via Alberti 29/31`;
             document.getElementById('csvInput').addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+                
+                // CHIEDI CONFERMA SOVRASCRITTURA COORDINATE
+                if(confirm("Vuoi sovrascrivere le coordinate GPS esistenti con quelle del file?\n\nOK = Sovrascrivi (Usa file)\nANNULLA = Mantieni attuali (Usa modifiche manuali)")) {
+                    var overwriteCoords = true;
+                } else {
+                    var overwriteCoords = false;
+                }
+
                 Papa.parse(file, { header: true, skipEmptyLines: true, complete: function(results) {
                     if (results.meta.fields.length < 2) {
                         Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: function(res) {
-                            if (res.data && res.data.length > 0) window.importCSVData(res.data);
+                            if (res.data && res.data.length > 0) window.importCSVData(res.data, overwriteCoords);
                         }});
                     } else {
-                        if (results.data && results.data.length > 0) window.importCSVData(results.data);
+                        if (results.data && results.data.length > 0) window.importCSVData(results.data, overwriteCoords);
                     }
                 }});
             });
