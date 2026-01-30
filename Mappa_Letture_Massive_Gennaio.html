@@ -603,8 +603,10 @@
                     // 3. Se è 0 o vuoto -> NON FATTO (Normale)
                     
                     let isNumericReading = false;
-                    
+                    let hasReadingValue = false;
+
                     if (valLettura !== '' && valLettura !== '0') {
+                        hasReadingValue = true;
                          // Sostituisce virgola con punto per il controllo matematico
                          const checkNum = parseFloat(valLettura.replace(',', '.'));
                          // Se è un numero valido E non è NaN
@@ -613,17 +615,21 @@
                          }
                     }
 
-                    // Logica Data: Se c'è una data valida diversa da default e NON c'è un avviso testuale in lettura
+                    // Logica Data: Se c'è una data valida diversa da default
                     let isDateValid = false;
-                    const isTextWarning = valLettura !== '' && !isNumericReading; 
-
-                    if (dataLettura !== '' && dataLettura !== '00/01/1900' && !isTextWarning) {
+                    if (dataLettura !== '' && dataLettura !== '00/01/1900') {
                         isDateValid = true;
                     }
 
-                    if (isNumericReading || isDateValid) {
+                    // DETERMINAZIONE STATO "FATTO" INIZIALE
+                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA valida o una Data valida SENZA avvisi testuali.
+                    if ((isNumericReading || isDateValid) && hasReadingValue && isNumericReading) {
                          existingStatus = true;
-                    } 
+                    } else if (hasReadingValue && !isNumericReading) {
+                        // Caso AVVISO: C'è scritto qualcosa ma non è un numero (es. "Avviso")
+                        // NON lo segniamo come fatto automaticamente.
+                        existingStatus = false; 
+                    }
 
                     const newData = {
                         pdr: pdr,
@@ -826,7 +832,7 @@ I nostri uffici sono in Via Alberti 29/31`;
         };
 
         window.clearData = async function() {
-            if(confirm("ATTENZIONE: Questa azione cancellerà TUTTI i dati presenti nella mappa (anche dal Cloud se attivo). Sei sicuro?")) {
+            if(confirm(`ATTENZIONE: Questa azione cancellerà TUTTI i dati della lista "${COLLECTION_NAME}" (anche dal Cloud se attivo). Sei sicuro?`)) {
                 
                 if(!isCloudMode) {
                     // Modalità Locale
@@ -1070,26 +1076,6 @@ I nostri uffici sono in Via Alberti 29/31`;
 
             initApp();
             
-            // AGGIUNTO: Controllo GPS al map
-             map.on('locationfound', function(e) {
-                const radius = e.accuracy / 2;
-
-                if(userLocationMarker) {
-                    map.removeLayer(userLocationMarker);
-                }
-
-                userLocationMarker = L.circle(e.latlng, radius).addTo(map);
-                
-                // Opzionale: Aggiungi anche un marker per vedere meglio il centro
-                // L.marker(e.latlng).addTo(map).bindPopup("Sei qui").openPopup();
-            });
-
-            map.on('locationerror', function(e) {
-                alert("Non è stato possibile trovare la tua posizione: " + e.message);
-                 const btn = document.getElementById('locateBtn');
-                 btn.classList.remove('gps-active');
-            });
-
             document.getElementById('csvInput').addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
