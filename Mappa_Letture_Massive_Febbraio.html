@@ -54,7 +54,7 @@
 
         /* Popup Customization */
         .leaflet-popup-content-wrapper { border-radius: 8px; }
-        .leaflet-popup-content { margin: 12px; width: 300px !important; } /* Allargato leggermente per le note */
+        .leaflet-popup-content { margin: 12px; width: 320px !important; } /* Allargato per il nuovo input */
 
         /* Clusters Override */
         .marker-cluster-small { background-color: rgba(181, 181, 181, 0.6); }
@@ -153,7 +153,7 @@
                 </div>
             </div>
 
-            <!-- FILTRI COMUNE (Nuovo) -->
+            <!-- FILTRI COMUNE -->
             <div class="mb-6">
                 <div class="flex justify-between items-center mb-2">
                     <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Comune</label>
@@ -250,7 +250,7 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
-        //let COLLECTION_NAME = 'letture_pdr_riepilogo';
+        //let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
         let COLLECTION_NAME = 'letture_massive_febbraio'; 
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
@@ -619,20 +619,22 @@
             window.savePdrPosition(pdr, newLat, newLng);
         }
 
-        // --- NUOVA FUNZIONE: RICERCA AUTOMATICA DA INDIRIZZO (OSM NOMINATIM) ---
-        window.searchBetterCoords = async function(pdr) {
-            const item = allData[pdr];
-            if (!item) return;
-
-            // Costruisci query: Indirizzo + Zona (Comune)
-            // Es. "Via Roma 1, Milano"
-            const addressQuery = `${item.indirizzo}, ${item.zona}`;
+        // --- NUOVA FUNZIONE: RICERCA MANUALE CON OPENSTREETMAP ---
+        window.executeOSMSearch = async function(pdr) {
+            const inputAddr = document.getElementById('osm_search_' + pdr);
+            if (!inputAddr) return;
             
-            showToast("Ricerca coordinate in corso...");
+            const addressQuery = inputAddr.value.trim();
+            if (!addressQuery) {
+                alert("Inserisci un indirizzo per cercare.");
+                return;
+            }
+
+            showToast("Ricerca indirizzo in corso (OSM)...");
 
             try {
                 // Chiamata a Nominatim (OpenStreetMap)
-                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1`;
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1&countrycodes=it`;
                 
                 const response = await fetch(url, {
                     headers: {
@@ -647,22 +649,30 @@
                     const newLat = parseFloat(best.lat).toFixed(6);
                     const newLon = parseFloat(best.lon).toFixed(6);
                     
-                    // Aggiorna campo input
-                    const input = document.getElementById('coord_input_' + pdr);
-                    if (input) {
-                        input.value = `${newLat}, ${newLon}`;
-                        // Effetto visivo per confermare
-                        input.classList.add('bg-green-50', 'border-green-500');
-                        setTimeout(() => input.classList.remove('bg-green-50', 'border-green-500'), 2000);
+                    // Aggiorna campo input manuale
+                    const inputManual = document.getElementById('coord_input_' + pdr);
+                    if (inputManual) {
+                        inputManual.value = `${newLat}, ${newLon}`;
+                        // Effetto visivo
+                        inputManual.classList.add('bg-green-50', 'border-green-500');
+                        setTimeout(() => inputManual.classList.remove('bg-green-50', 'border-green-500'), 2000);
                     }
                     showToast(`Trovato: ${newLat}, ${newLon}. Premi 'Aggiorna' per salvare.`);
                 } else {
-                    alert(`Indirizzo non trovato su OpenStreetMap: "${addressQuery}".\nProva a verificare se l'indirizzo è corretto.`);
+                    alert(`Indirizzo non trovato su OpenStreetMap: "${addressQuery}".\nProva a semplificare (es. solo Via e Città).`);
                 }
             } catch (e) {
                 console.error(e);
-                alert("Errore durante la ricerca online.");
+                alert("Errore di connessione a OpenStreetMap.");
             }
+        }
+
+        // --- FUNZIONE FALLBACK GOOGLE MAPS ---
+        window.searchGoogleMaps = function(pdr) {
+             const inputAddr = document.getElementById('osm_search_' + pdr);
+             const addressQuery = inputAddr ? inputAddr.value : '';
+             const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
+             window.open(url, '_blank');
         }
 
         // --- IMPORT CSV (MODIFICATO PER CHIEDERE SOVRASCRITTURA) ---
@@ -1177,20 +1187,32 @@ I nostri uffici sono in Via Alberti 29/31`;
                                 </div>
                             ` : ''}
                             
-                            <!-- MODIFICA COORDINATE MANUALE -->
+                            <!-- MODIFICA COORDINATE MANUALE & OSM -->
                             <div class="mt-2 text-xs text-gray-500 border-t pt-2">
                                 <div class="flex justify-between items-center cursor-pointer hover:bg-gray-50 p-1 rounded" onclick="window.toggleCoordInput('${item.pdr}')">
                                     <span><i class="fa-solid fa-location-dot mr-1"></i> Coords: ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}</span>
                                     <i class="fa-solid fa-pen text-blue-600"></i>
                                 </div>
                                 <div id="coord_edit_${item.pdr}" class="hidden mt-2 p-2 bg-gray-50 rounded border">
+                                
+                                    <!-- NUOVO: RICERCA OSM -->
+                                    <div class="mb-2">
+                                        <label class="block text-[10px] font-bold text-gray-500 mb-1">Cerca Indirizzo (OSM)</label>
+                                        <div class="flex gap-1">
+                                            <input type="text" id="osm_search_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.indirizzo} ${item.zona}">
+                                            <button onclick="window.executeOSMSearch('${item.pdr}')" class="bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 text-xs hover:bg-blue-200" title="Cerca su OpenStreetMap">
+                                                <i class="fa-solid fa-magnifying-glass"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                
                                     <label class="block text-[10px] font-bold text-gray-500 mb-1">Nuove Coordinate (Lat, Lng)</label>
                                     <input type="text" id="coord_input_${item.pdr}" class="w-full text-xs border rounded p-1 mb-2" value="${item.lat}, ${item.lng}" placeholder="es. 43.55..., 11.69...">
-                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded">
+                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded mb-2">
                                         Aggiorna Posizione
                                     </button>
-                                     <button onclick="window.searchBetterCoords('${item.pdr}')" class="mb-2 w-full bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-bold py-1 rounded" title="Cerca coordinate da indirizzo">
-                                        <i class="fa-solid fa-magnifying-glass-location mr-1"></i> Trova da Indirizzo
+                                     <button onclick="window.searchGoogleMaps('${item.pdr}')" class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-xs font-bold py-1 rounded shadow-sm" title="Apri su Google Maps">
+                                        <i class="fa-brands fa-google mr-1 text-red-500"></i> Apri Google Maps
                                     </button>
                                 </div>
                             </div>
