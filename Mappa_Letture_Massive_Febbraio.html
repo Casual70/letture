@@ -239,7 +239,7 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
-        let COLLECTION_NAME = 'letture_massive_febbraio'; 
+        let COLLECTION_NAME = 'letture_massive_febbraio';  
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
         
@@ -405,15 +405,14 @@
             map.locate({setView: true, maxZoom: 16});
         }
 
-        // --- EXPORT CSV ---
+        // --- EXPORT CSV (CORRETTO CON BLOB) ---
         window.exportData = function() {
             if (Object.keys(allData).length === 0) {
                 alert("Nessun dato da esportare.");
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM per caratteri speciali
-            // Intestazione basata sulla richiesta (Simile al CSV massive ma con coordinate aggiornate)
+            let csvContent = "\uFEFF"; // BOM per caratteri speciali
             csvContent += "Codice PDR;Nome utenza;Indirizzo;Città;Telefono;Matricola;Data ultima lettura;Accessibilità;Nota;Lat;Long;Stato;Note Operatore;Evidenziato\n";
 
             Object.values(allData).forEach(item => {
@@ -433,9 +432,8 @@
                     item.nota_operatore || "",
                     item.evidenziato ? "SI" : "NO"
                 ].map(f => {
-                    // Gestione virgolette e campi vuoti
                     const val = String(f || '');
-                    if (val.includes('"') || val.includes(';')) {
+                    if (val.includes('"') || val.includes(';') || val.includes('\n')) {
                         return `"${val.replace(/"/g, '""')}"`;
                     }
                     return val;
@@ -443,9 +441,12 @@
                 csvContent += row + "\n";
             });
 
-            const encodedUri = encodeURI(csvContent);
+            // FIX: Usare Blob per file grandi
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", url);
             const today = new Date().toISOString().slice(0,10);
             link.setAttribute("download", `PDR_Export_${today}.csv`);
             document.body.appendChild(link);
