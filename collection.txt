@@ -1,2 +1,2 @@
 let COLLECTION_NAME = 'letture_massive_febbraio'; 
-
+let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
