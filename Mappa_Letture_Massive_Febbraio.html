@@ -250,7 +250,7 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
-        let COLLECTION_NAME = 'letture_massive_febbraio'; 
+        let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
         
@@ -616,6 +616,52 @@
             }
             
             window.savePdrPosition(pdr, newLat, newLng);
+        }
+
+        // --- NUOVA FUNZIONE: RICERCA AUTOMATICA DA INDIRIZZO (OSM NOMINATIM) ---
+        window.searchBetterCoords = async function(pdr) {
+            const item = allData[pdr];
+            if (!item) return;
+
+            // Costruisci query: Indirizzo + Zona (Comune)
+            // Es. "Via Roma 1, Milano"
+            const addressQuery = `${item.indirizzo}, ${item.zona}`;
+            
+            showToast("Ricerca coordinate in corso...");
+
+            try {
+                // Chiamata a Nominatim (OpenStreetMap)
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'MappaPDR_App/1.0' // Richiesto da OSM
+                    }
+                });
+                
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    const best = data[0];
+                    const newLat = parseFloat(best.lat).toFixed(6);
+                    const newLon = parseFloat(best.lon).toFixed(6);
+                    
+                    // Aggiorna campo input
+                    const input = document.getElementById('coord_input_' + pdr);
+                    if (input) {
+                        input.value = `${newLat}, ${newLon}`;
+                        // Effetto visivo per confermare
+                        input.classList.add('bg-green-50', 'border-green-500');
+                        setTimeout(() => input.classList.remove('bg-green-50', 'border-green-500'), 2000);
+                    }
+                    showToast(`Trovato: ${newLat}, ${newLon}. Premi 'Aggiorna' per salvare.`);
+                } else {
+                    alert(`Indirizzo non trovato su OpenStreetMap: "${addressQuery}".\nProva a verificare se l'indirizzo è corretto.`);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Errore durante la ricerca online.");
+            }
         }
 
         // --- IMPORT CSV (MODIFICATO PER CHIEDERE SOVRASCRITTURA) ---
@@ -1141,6 +1187,9 @@ I nostri uffici sono in Via Alberti 29/31`;
                                     <input type="text" id="coord_input_${item.pdr}" class="w-full text-xs border rounded p-1 mb-2" value="${item.lat}, ${item.lng}" placeholder="es. 43.55..., 11.69...">
                                     <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded">
                                         Aggiorna Posizione
+                                    </button>
+                                     <button onclick="window.searchBetterCoords('${item.pdr}')" class="mb-2 w-full bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-bold py-1 rounded" title="Cerca coordinate da indirizzo">
+                                        <i class="fa-solid fa-magnifying-glass-location mr-1"></i> Trova da Indirizzo
                                     </button>
                                 </div>
                             </div>
