@@ -143,12 +143,23 @@
             </div>
 
             <!-- FILTRI ACCESSIBILITÀ -->
-            <div class="mb-6">
+            <div class="mb-4">
                 <div class="flex justify-between items-center mb-2">
                     <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Accessibilità</label>
                     <button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
                 </div>
                 <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2">
+                    <!-- Generato via JS -->
+                </div>
+            </div>
+
+            <!-- FILTRI COMUNE (Nuovo) -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Comune</label>
+                    <button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
+                </div>
+                <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2">
                     <!-- Generato via JS -->
                 </div>
             </div>
@@ -239,12 +250,13 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
-        let COLLECTION_NAME = 'letture_massive_febbraio';  
+        let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
         
-        // FILTRI ACCESSIBILITA
+        // FILTRI
         let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
+        let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
 
         // --- CONFIGURAZIONE FALLBACK (INSERITA DAL UTENTE) ---
         const HARDCODED_FIREBASE_CONFIG = {
@@ -258,7 +270,8 @@
         
         async function initApp() {
             try {
-                renderAccessFilters(); // Inizializza UI Filtri
+                renderAccessFilters(); 
+                renderComuniFilters(); // Inizializza filtri comuni
 
                 // 1. Cerca Configurazione
                 let firebaseConfig = null;
@@ -483,7 +496,7 @@
             }
         }
 
-        // --- FILTRI UI FUNZIONI (Ripristinate) ---
+        // --- FILTRI UI FUNZIONI ---
         function renderAccessFilters() {
             const container = document.getElementById('accessFiltersContainer');
             if (!container) return;
@@ -519,6 +532,43 @@
                 container.appendChild(div);
             });
         }
+        
+        function renderComuniFilters() {
+            const container = document.getElementById('comuniFiltersContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const comuni = [
+                { id: 'San Giustino', label: 'San Giustino', color: 'text-gray-700' },
+                { id: 'Umbertide', label: 'Umbertide', color: 'text-gray-700' },
+                { id: 'Montone', label: 'Montone', color: 'text-gray-700' },
+                { id: 'Altro', label: 'Altro / N/D', color: 'text-gray-500' }
+            ];
+
+            comuni.forEach(comune => {
+                const div = document.createElement('div');
+                div.className = 'filter-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = comune.id;
+                checkbox.checked = activeComuni.has(comune.id);
+                
+                checkbox.onchange = (e) => {
+                    if(e.target.checked) activeComuni.add(comune.id);
+                    else activeComuni.delete(comune.id);
+                    updateMapAndUI();
+                };
+
+                const label = document.createElement('span');
+                label.className = `text-sm font-bold ${comune.color}`;
+                label.innerText = comune.label;
+
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
 
         window.selectAllAccess = function() {
             const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
@@ -527,6 +577,45 @@
                 activeAccess.add(cb.value);
             });
             updateMapAndUI();
+        }
+        
+        window.selectAllComuni = function() {
+            const checkboxes = document.querySelectorAll('#comuniFiltersContainer input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                activeComuni.add(cb.value);
+            });
+            updateMapAndUI();
+        }
+        
+        // --- FUNZIONI DI INPUT MANUALE COORDINATE ---
+        window.toggleCoordInput = function(pdr) {
+            const div = document.getElementById('coord_edit_' + pdr);
+            if(div) div.classList.toggle('hidden');
+        }
+        
+        window.saveManualCoords = function(pdr) {
+            const input = document.getElementById('coord_input_' + pdr);
+            if(!input) return;
+            
+            const rawVal = input.value;
+            // Supporta sia formato "lat, lng" che "lat; lng"
+            const parts = rawVal.replace(';', ',').split(',');
+            
+            if(parts.length !== 2) {
+                alert("Formato non valido. Usa: lat, lng (es. 43.55..., 11.69...)");
+                return;
+            }
+            
+            const newLat = parseFloat(parts[0].trim());
+            const newLng = parseFloat(parts[1].trim());
+            
+            if(isNaN(newLat) || isNaN(newLng)) {
+                alert("Valori non numerici.");
+                return;
+            }
+            
+            window.savePdrPosition(pdr, newLat, newLng);
         }
 
         // --- IMPORT CSV (MODIFICATO PER CHIEDERE SOVRASCRITTURA) ---
@@ -893,6 +982,15 @@ I nostri uffici sono in Via Alberti 29/31`;
                 }
             }
         }
+        
+        // --- HELPER PER COMUNE ---
+        function getComune(item) {
+            const searchStr = ((item.zona || '') + ' ' + (item.indirizzo || '')).toLowerCase();
+            if (searchStr.includes('umbertide') || searchStr.includes('54056')) return 'Umbertide';
+            if (searchStr.includes('san giustino') || searchStr.includes('54044')) return 'San Giustino';
+            if (searchStr.includes('montone') || searchStr.includes('54033')) return 'Montone';
+            return 'Altro';
+        }
 
         function updateMapAndUI() {
             if (!markersCluster) return;
@@ -901,15 +999,18 @@ I nostri uffici sono in Via Alberti 29/31`;
             let countDone = 0;
 
             Object.values(allData).forEach(item => {
-                // --- NUOVA LOGICA FILTRO ACCESSIBILITA ---
+                // --- FILTRO ACCESSIBILITA ---
                 let filterCategory = 'Altro';
                 const accessLower = (item.accessibilita || '').toLowerCase();
                 
                 if (accessLower.includes('inaccessibile')) filterCategory = 'Inaccessibile';
                 else if (accessLower.includes('accessibile')) filterCategory = 'Accessibile';
                 
-                // Se la categoria non è attiva, saltiamo il marker
                 if (!activeAccess.has(filterCategory)) return;
+                
+                // --- FILTRO COMUNE ---
+                const comune = getComune(item);
+                if (!activeComuni.has(comune)) return;
 
                 countVisible++;
                 if (item.fatto) countDone++;
@@ -1028,6 +1129,21 @@ I nostri uffici sono in Via Alberti 29/31`;
                                     ${item.data_lettura ? `<div>Data: <strong>${item.data_lettura}</strong></div>` : ''}
                                 </div>
                             ` : ''}
+                            
+                            <!-- MODIFICA COORDINATE MANUALE -->
+                            <div class="mt-2 text-xs text-gray-500 border-t pt-2">
+                                <div class="flex justify-between items-center cursor-pointer hover:bg-gray-50 p-1 rounded" onclick="window.toggleCoordInput('${item.pdr}')">
+                                    <span><i class="fa-solid fa-location-dot mr-1"></i> Coords: ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}</span>
+                                    <i class="fa-solid fa-pen text-blue-600"></i>
+                                </div>
+                                <div id="coord_edit_${item.pdr}" class="hidden mt-2 p-2 bg-gray-50 rounded border">
+                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">Nuove Coordinate (Lat, Lng)</label>
+                                    <input type="text" id="coord_input_${item.pdr}" class="w-full text-xs border rounded p-1 mb-2" value="${item.lat}, ${item.lng}" placeholder="es. 43.55..., 11.69...">
+                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded">
+                                        Aggiorna Posizione
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- NOTE OPERATORE -->
