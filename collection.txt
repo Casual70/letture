@@ -1,1 +1,2 @@
+let COLLECTION_NAME = 'letture_massive_febbraio'; 
 
