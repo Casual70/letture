@@ -1,1260 +1,432 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <!-- Meta tag anti-cache per forzare il ricaricamento -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mappa PDR - Accessibilità</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <!-- MarkerCluster CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-     
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
-        #map { height: 100%; width: 100%; z-index: 1; }
-        
-        /* Sidebar e UI */
-        .sidebar {
-            position: absolute;
-            top: 0; left: 0; bottom: 0;
-            width: 350px;
-            background: white;
-            z-index: 1000;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            transform: translateX(0);
-            transition: transform 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-        .sidebar.collapsed { transform: translateX(-100%); }
-        
-        .sidebar-header { padding: 1rem; background: #1e293b; color: white; display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-content { flex: 1; overflow-y: auto; padding: 1rem; }
-        .sidebar-footer { padding: 1rem; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; gap: 0.5rem; }
-
-        .toggle-btn {
-            position: absolute; top: 1rem; left: 1rem; z-index: 1001;
-            background: white; padding: 0.5rem; border-radius: 0.5rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer;
-        }
-
-        /* Popup Customization */
-        .leaflet-popup-content-wrapper { border-radius: 8px; }
-        .leaflet-popup-content { margin: 12px; width: 320px !important; }
-
-        /* Clusters Override */
-        .marker-cluster-small { background-color: rgba(181, 181, 181, 0.6); }
-        .marker-cluster-small div { background-color: rgba(110, 110, 110, 0.6); color: white; }
-        .marker-cluster-medium { background-color: rgba(181, 181, 181, 0.6); }
-        .marker-cluster-medium div { background-color: rgba(110, 110, 110, 0.6); color: white; }
-        .marker-cluster-large { background-color: rgba(181, 181, 181, 0.6); }
-        .marker-cluster-large div { background-color: rgba(110, 110, 110, 0.6); color: white; }
-
-        /* Modal Settings */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 2000;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .modal-content {
-            background: white; padding: 20px; rounded: 12px; width: 90%; max-width: 500px;
-            border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        }
-        
-        /* Checkbox Style */
-        .filter-checkbox {
-            display: flex;
-            align-items: center;
-            padding: 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .filter-checkbox:hover { background-color: #f3f4f6; }
-        .filter-checkbox input { margin-right: 10px; accent-color: #2563eb; width: 16px; height: 16px; }
-
-        /* Pulsante GPS */
-        .gps-active { color: #2563eb; border-color: #2563eb; background-color: #eff6ff; }
-    </style>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mappa PDR - Accessibilità</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
+    #map{height:100%;width:100%;z-index:1}
+    .sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
+    .sidebar.collapsed{transform:translateX(-100%)}
+    .sidebar-header{padding:1rem;background:#1e293b;color:#fff;display:flex;justify-content:space-between;align-items:center}
+    .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
+    .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
+    .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
+    .leaflet-popup-content-wrapper{border-radius:8px}.leaflet-popup-content{margin:12px;width:320px!important}
+    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
+    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
+    .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+    .filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
+    .filter-checkbox:hover{background-color:#f3f4f6}
+    .filter-checkbox input{margin-right:10px;accent-color:#2563eb;width:16px;height:16px}
+    .gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
+</style>
 </head>
 <body>
-
-    <!-- Toggle Button -->
-    <div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()">
-        <i class="fa-solid fa-bars text-gray-700 text-xl"></i>
+<div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()"><i class="fa-solid fa-bars text-gray-700 text-xl"></i></div>
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
+    <div class="sidebar-content">
+        <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
+            <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
+        </div>
+        <!-- Selezione Panel -->
+        <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
+            <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-cyan-800 uppercase">Selezione</span><span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span></div>
+            <div class="flex gap-2">
+                <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-file-export mr-1"></i> Esporta</button>
+                <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        <!-- Legend -->
+        <div class="mb-6 grid grid-cols-2 gap-2 text-center">
+             <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
+             <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
+             <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
+             <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div>
+             <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span></div>
+             <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
+             <div class="p-2 bg-red-50 border border-red-200 rounded"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
+        </div>
+        <!-- Filtri -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
+            <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
+            <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+        <!-- Search -->
+        <div class="mb-4">
+            <div class="relative"><input type="text" id="searchInput" placeholder="Cerca..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none"><i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i></div>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
+        <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-2 gap-2">
+            <div><div class="text-[10px] text-gray-500 uppercase">Visibili</div><div id="statVisible" class="text-xl font-bold text-gray-700">0</div></div>
+            <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-blue-600">0</div></div>
+        </div>
+        <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
     </div>
+    <div class="sidebar-footer">
+         <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
+         <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
+         <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
+        <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
+    </div>
+</div>
+<div id="map"></div>
 
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-            <h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR</h1>
-            <button onclick="toggleSidebar()" class="hover:text-gray-300"><i class="fa-solid fa-chevron-left"></i></button>
-        </div>
-        
-        <div class="sidebar-content">
-            
-            <!-- Import Section -->
-            <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
-                <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
-                <p class="text-[10px] text-gray-400 mt-2">Supporta file CSV (Separatore ; o ,)</p>
-            </div>
-
-            <!-- Pannello Selezione (NUOVO) -->
-            <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span>
-                    <span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded transition">
-                        <i class="fa-solid fa-file-export mr-1"></i> Esporta
-                    </button>
-                    <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded transition" title="Deseleziona Tutti">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Legend -->
-            <div class="mb-6 grid grid-cols-2 gap-2 text-center">
-                 <div class="p-2 bg-cyan-50 border border-cyan-200 rounded col-span-2">
-                     <div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div>
-                     <span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span>
-                </div>
-                <div class="p-2 bg-purple-50 border border-purple-200 rounded">
-                     <div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div>
-                     <span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span>
-                </div>
-                <div class="p-2 bg-blue-50 border border-blue-200 rounded">
-                     <div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div>
-                     <span class="text-[10px] font-bold text-blue-700">FATTO</span>
-                </div>
-                <div class="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                     <div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div>
-                     <span class="text-[10px] font-bold text-yellow-700">AVVISO</span>
-                </div>
-                <div class="p-2 bg-green-50 border border-green-200 rounded">
-                    <div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span>
-                </div>
-                <div class="p-2 bg-orange-50 border border-orange-200 rounded">
-                    <div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span>
-                </div>
-                <div class="p-2 bg-red-50 border border-red-200 rounded">
-                    <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-red-700">ALTRO</span>
-                </div>
-            </div>
-
-            <!-- FILTRI ACCESSIBILITÀ -->
-            <div class="mb-4">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Accessibilità</label>
-                    <button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
-                </div>
-                <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2">
-                    <!-- Generato via JS -->
-                </div>
-            </div>
-
-            <!-- FILTRI COMUNE -->
-            <div class="mb-6">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="block text-xs font-bold text-gray-700 uppercase">Filtra Comune</label>
-                    <button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button>
-                </div>
-                <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2">
-                    <!-- Generato via JS -->
-                </div>
-            </div>
-
-            <!-- Search -->
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-gray-700 mb-1">Cerca</label>
-                <div class="relative">
-                    <input type="text" id="searchInput" placeholder="Cerca PDR, Nome..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none focus:border-blue-500">
-                    <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                </div>
-            </div>
-
-            <!-- List Container -->
-            <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
-            
-            <!-- Count Display -->
-            <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-2 gap-2">
-                <div>
-                    <div class="text-[10px] text-gray-500 uppercase">Visibili</div>
-                    <div id="statVisible" class="text-xl font-bold text-gray-700">0</div>
-                </div>
-                <div>
-                    <div class="text-[10px] text-gray-500 uppercase">Completati</div>
-                    <div id="statDone" class="text-xl font-bold text-blue-600">0</div>
-                </div>
-            </div>
-
-            <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">
-                Inizializzazione...
-            </div>
-        </div>
-
-        <div class="sidebar-footer">
-             <!-- TASTO GPS -->
-             <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Trova la mia posizione">
-                <i class="fa-solid fa-crosshairs"></i>
-            </button>
-             <!-- TASTO BLOCCO/SBLOCCO MARKER -->
-             <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Sblocca Spostamento Marker">
-                <i class="fa-solid fa-lock"></i>
-            </button>
-             <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Impostazioni">
-                <i class="fa-solid fa-gear"></i>
-            </button>
-            <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border border-green-600 transition flex items-center justify-center py-2" title="Esporta CSV Completo">
-                <i class="fa-solid fa-download"></i>
-            </button>
-            <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
-                <i class="fa-solid fa-trash mr-1"></i> Reset
-            </button>
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
+        <textarea id="firebaseConfigInput" rows="6" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4"></textarea>
+        <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+        <div class="flex justify-end gap-2">
+            <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
+            <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded">Salva</button>
         </div>
     </div>
+</div>
 
-    <!-- Map -->
-    <div id="map"></div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
-            <p class="text-xs text-gray-500 mb-4">
-                Incolla qui l'oggetto JSON di configurazione del tuo progetto Firebase per abilitare il Cloud.
-                (Vai su Firebase Console > Project Settings > General > Your apps > Config)
-            </p>
-            
-            <label class="block text-xs font-bold text-gray-700 mb-1">Firebase Config (JSON)</label>
-            <textarea id="firebaseConfigInput" rows="8" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4" placeholder='{ "apiKey": "...", "authDomain": "...", ... }'></textarea>
-            
-            <label class="block text-xs font-bold text-gray-700 mb-1">App ID (Opzionale, per multi-utenza)</label>
-            <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+    let db, auth, user, map, markersCluster;
+    let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
+    let COLLECTION_NAME = 'letture_massive_febbraio'; 
+    let selectedPDRs = new Set();
+    let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
+    let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
 
-            <div class="flex justify-end gap-2">
-                <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
-                <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded">Salva e Ricarica</button>
-            </div>
-        </div>
-    </div>
+    const HARDCODED_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
+        authDomain: "letture-asimultiservices.firebaseapp.com",
+        projectId: "letture-asimultiservices",
+        storageBucket: "letture-asimultiservices.firebasestorage.app",
+        messagingSenderId: "412990381286",
+        appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+    };
 
-    <!-- Firebase Libraries -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    async function initApp() {
+        try {
+            renderAccessFilters(); renderComuniFilters();
+            let firebaseConfig = null; let appId = 'default-app-id';
 
-        // --- GLOBAL STATE ---
-        let db, auth, user;
-        let map, markersCluster;
-        let allData = {}; 
-        let isCloudMode = false;
-        
-        // --- NOME COLLEZIONE (MODIFICABILE PER NUOVI PROGETTI) ---
-        //let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
-        let COLLECTION_NAME = 'letture_massive_febbraio'; 
-        
-        let isEditMode = false; // Stato modifica posizione
-        let userLocationMarker = null; // Marker posizione utente
-        let selectedPDRs = new Set(); // SET PER SELEZIONE MULTIPLA
-        
-        // FILTRI
-        let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
-        let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
-
-        // --- CONFIGURAZIONE FALLBACK (INSERITA DAL UTENTE) ---
-        const HARDCODED_FIREBASE_CONFIG = {
-            apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
-            authDomain: "letture-asimultiservices.firebaseapp.com",
-            projectId: "letture-asimultiservices",
-            storageBucket: "letture-asimultiservices.firebasestorage.app",
-            messagingSenderId: "412990381286",
-            appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
-        };
-        
-        async function initApp() {
-            try {
-                renderAccessFilters(); 
-                renderComuniFilters(); 
-
-                // 1. Cerca Configurazione
-                let firebaseConfig = null;
-                let appId = 'default-app-id';
-
-                // Ambiente
-                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                     firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
-                     if (typeof __app_id !== 'undefined') appId = __app_id;
-                }
-
-                // LocalStorage (Settings Manuali)
-                const localConfigStr = localStorage.getItem('custom_firebase_config');
-                const localAppId = localStorage.getItem('custom_app_id');
-                if (localConfigStr) {
-                    try {
-                        firebaseConfig = JSON.parse(localConfigStr);
-                        if (localAppId) appId = localAppId;
-                    } catch (e) { console.error("Config locale errata"); }
-                }
-
-                // Fallback Hardcoded
-                if (!firebaseConfig) {
-                    console.log("Uso config Hardcoded.");
-                    firebaseConfig = HARDCODED_FIREBASE_CONFIG;
-                }
-
-                // Inizializzazione Firebase
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                
-                // --- AUTENTICAZIONE ---
-                try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token); 
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                } catch (authErr) {
-                    try {
-                        await signInAnonymously(auth);
-                    } catch(anonErr) {
-                         throw new Error("Auth Fallita: " + anonErr.code);
-                    }
-                }
-
-                onAuthStateChanged(auth, (u) => {
-                    if (u) {
-                        user = u;
-                        isCloudMode = true;
-                        document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
-                        startCloudListener(appId);
-                    } else {
-                         throw new Error("Nessun utente loggato");
-                    }
-                });
-
-            } catch (e) {
-                console.error("Errore Init:", e);
-                isCloudMode = false;
-                let errorText = "Locale (Offline)";
-                if (e.message && e.message.includes("Auth")) errorText = "Err Auth: Verifica Config";
-                document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer hover:underline" onclick="toggleSettings()" title="${e.message}"><i class="fa-solid fa-triangle-exclamation"></i> ${errorText}</span>`;
-                loadLocalData();
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                if (typeof __app_id !== 'undefined') appId = __app_id;
             }
-        }
-
-        // --- GESTIONE SELEZIONE MULTIPLA ---
-        window.togglePdrSelection = function(pdr) {
-            if (selectedPDRs.has(pdr)) {
-                selectedPDRs.delete(pdr);
-            } else {
-                selectedPDRs.add(pdr);
-            }
-            updateSelectionUI();
-            updateMapAndUI();
-        }
-
-        window.clearSelection = function() {
-            selectedPDRs.clear();
-            updateSelectionUI();
-            updateMapAndUI();
-        }
-
-        function updateSelectionUI() {
-            const panel = document.getElementById('selectionPanel');
-            const countEl = document.getElementById('selectedCount');
-            
-            countEl.innerText = selectedPDRs.size;
-            
-            if (selectedPDRs.size > 0) {
-                panel.classList.remove('hidden');
-            } else {
-                panel.classList.add('hidden');
-            }
-        }
-
-        window.exportSelectedData = function() {
-             if (selectedPDRs.size === 0) {
-                alert("Nessun PDR selezionato.");
-                return;
-            }
-            
-            const selectedItems = [];
-            selectedPDRs.forEach(pdr => {
-                if (allData[pdr]) selectedItems.push(allData[pdr]);
-            });
-            
-            generateCSV(selectedItems, "PDR_Export_Selezionati_");
-        }
-
-        // --- IMPOSTAZIONI MANUALI ---
-        window.toggleSettings = function() {
-            const modal = document.getElementById('settingsModal');
-            if (modal.classList.contains('hidden')) {
-                const savedConfig = localStorage.getItem('custom_firebase_config');
-                const savedAppId = localStorage.getItem('custom_app_id');
-                if (savedConfig) document.getElementById('firebaseConfigInput').value = savedConfig;
-                else document.getElementById('firebaseConfigInput').value = JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2); 
-                
-                if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        window.saveSettings = function() {
-            const configStr = document.getElementById('firebaseConfigInput').value.trim();
-            const appIdStr = document.getElementById('appIdInput').value.trim();
-
-            if (!configStr) {
-                localStorage.removeItem('custom_firebase_config');
-                localStorage.removeItem('custom_app_id');
-                location.reload();
-                return;
-            }
-
-            try {
-                const json = JSON.parse(configStr); 
-                localStorage.setItem('custom_firebase_config', JSON.stringify(json, null, 2));
-                if (appIdStr) localStorage.setItem('custom_app_id', appIdStr);
-                location.reload();
-            } catch (e) {
-                alert("JSON non valido! Controlla la sintassi.\n" + e.message);
-            }
-        }
-
-        // --- TOGGLE EDIT MODE (LOCK) ---
-        window.toggleEditMode = function() {
-            if (L.Browser.mobile) {
-                alert("Per sicurezza, la modifica della posizione è disabilitata sui dispositivi mobili.");
-                return;
-            }
-
-            isEditMode = !isEditMode;
-            const btn = document.getElementById('editModeBtn');
-            const icon = btn.querySelector('i');
-            
-            if(isEditMode) {
-                btn.classList.remove('bg-gray-100', 'text-gray-600');
-                btn.classList.add('bg-yellow-100', 'text-yellow-700', 'border-yellow-300');
-                icon.className = "fa-solid fa-lock-open";
-                showToast("Spostamento marker SBLOCCATO");
-            } else {
-                btn.classList.add('bg-gray-100', 'text-gray-600');
-                btn.classList.remove('bg-yellow-100', 'text-yellow-700', 'border-yellow-300');
-                icon.className = "fa-solid fa-lock";
-                showToast("Spostamento marker BLOCCATO");
-            }
-            updateMapAndUI(); 
-        }
-
-        // --- GEOLOCALIZZAZIONE ---
-        window.locateUser = function() {
-            const btn = document.getElementById('locateBtn');
-            btn.classList.add('gps-active');
-            
-            map.locate({setView: true, maxZoom: 16});
-        }
-
-        // --- EXPORT CSV GENERICO ---
-        function generateCSV(items, filenamePrefix) {
-            let csvContent = "\uFEFF"; // BOM
-            csvContent += "Codice PDR;Nome utenza;Indirizzo;Città;Telefono;Matricola;Data ultima lettura;Accessibilità;Nota;Lat;Long;Stato;Note Operatore;Evidenziato\n";
-
-            items.forEach(item => {
-                let row = [
-                    item.pdr,
-                    item.nominativo,
-                    item.indirizzo,
-                    item.zona,
-                    item.telefono,
-                    item.matricola,
-                    item.data_riferimento,
-                    item.accessibilita,
-                    item.nota_accesso,
-                    String(item.lat).replace('.', ','),
-                    String(item.lng).replace('.', ','),
-                    item.fatto ? "FATTO" : "DA FARE",
-                    item.nota_operatore || "",
-                    item.evidenziato ? "SI" : "NO"
-                ].map(f => {
-                    const val = String(f || '');
-                    if (val.includes('"') || val.includes(';') || val.includes('\n')) {
-                        return `"${val.replace(/"/g, '""')}"`;
-                    }
-                    return val;
-                }).join(';');
-                csvContent += row + "\n";
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            const today = new Date().toISOString().slice(0,10);
-            link.setAttribute("download", `${filenamePrefix}${today}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        window.exportData = function() {
-            if (Object.keys(allData).length === 0) {
-                alert("Nessun dato da esportare.");
-                return;
-            }
-            generateCSV(Object.values(allData), "PDR_Export_All_");
-        }
-
-        function startCloudListener(appId) {
-            const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
-            onSnapshot(colRef, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const pdr = change.doc.id;
-                    if (change.type === "removed") {
-                        delete allData[pdr];
-                        if (selectedPDRs.has(pdr)) selectedPDRs.delete(pdr);
-                    } else {
-                        allData[pdr] = data;
-                    }
-                });
-                updateMapAndUI();
-                updateSelectionUI();
-            }, (error) => {
-                console.error("Errore listener Firestore:", error);
-                if (error.code === 'permission-denied') {
-                    showToast("Errore permessi. Verifica Regole Firestore.");
-                }
-            });
-        }
-
-        function loadLocalData() {
-            const stored = localStorage.getItem('pdr_data_riepilogo');
-            if (stored) {
-                allData = JSON.parse(stored);
-                updateMapAndUI();
-            }
-        }
-
-        // --- FILTRI UI FUNZIONI ---
-        function renderAccessFilters() {
-            const container = document.getElementById('accessFiltersContainer');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            const categories = [
-                { id: 'Accessibile', label: 'Accessibile', color: 'text-green-700' },
-                { id: 'Inaccessibile', label: 'Inaccessibile', color: 'text-orange-700' },
-                { id: 'Altro', label: 'Altro / N/D', color: 'text-red-700' }
-            ];
-
-            categories.forEach(cat => {
-                const div = document.createElement('div');
-                div.className = 'filter-checkbox';
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = cat.id;
-                checkbox.checked = activeAccess.has(cat.id);
-                
-                checkbox.onchange = (e) => {
-                    if(e.target.checked) activeAccess.add(cat.id);
-                    else activeAccess.delete(cat.id);
-                    updateMapAndUI();
-                };
-
-                const label = document.createElement('span');
-                label.className = `text-sm font-bold ${cat.color}`;
-                label.innerText = cat.label;
-
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                container.appendChild(div);
-            });
-        }
-        
-        function renderComuniFilters() {
-            const container = document.getElementById('comuniFiltersContainer');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            const comuni = [
-                { id: 'San Giustino', label: 'San Giustino', color: 'text-gray-700' },
-                { id: 'Umbertide', label: 'Umbertide', color: 'text-gray-700' },
-                { id: 'Montone', label: 'Montone', color: 'text-gray-700' },
-                { id: 'Altro', label: 'Altro / N/D', color: 'text-gray-500' }
-            ];
-
-            comuni.forEach(comune => {
-                const div = document.createElement('div');
-                div.className = 'filter-checkbox';
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.value = comune.id;
-                checkbox.checked = activeComuni.has(comune.id);
-                
-                checkbox.onchange = (e) => {
-                    if(e.target.checked) activeComuni.add(comune.id);
-                    else activeComuni.delete(comune.id);
-                    updateMapAndUI();
-                };
-
-                const label = document.createElement('span');
-                label.className = `text-sm font-bold ${comune.color}`;
-                label.innerText = comune.label;
-
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                container.appendChild(div);
-            });
-        }
-
-        window.selectAllAccess = function() {
-            const checkboxes = document.querySelectorAll('#accessFiltersContainer input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = true;
-                activeAccess.add(cb.value);
-            });
-            updateMapAndUI();
-        }
-        
-        window.selectAllComuni = function() {
-            const checkboxes = document.querySelectorAll('#comuniFiltersContainer input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = true;
-                activeComuni.add(cb.value);
-            });
-            updateMapAndUI();
-        }
-        
-        // --- FUNZIONI DI INPUT MANUALE COORDINATE ---
-        window.toggleCoordInput = function(pdr) {
-            const div = document.getElementById('coord_edit_' + pdr);
-            if(div) div.classList.toggle('hidden');
-        }
-        
-        window.saveManualCoords = function(pdr) {
-            const input = document.getElementById('coord_input_' + pdr);
-            if(!input) return;
-            
-            const rawVal = input.value;
-            const parts = rawVal.replace(';', ',').split(',');
-            
-            if(parts.length !== 2) {
-                alert("Formato non valido. Usa: lat, lng");
-                return;
-            }
-            
-            const newLat = parseFloat(parts[0].trim());
-            const newLng = parseFloat(parts[1].trim());
-            
-            if(isNaN(newLat) || isNaN(newLng)) {
-                alert("Valori non numerici.");
-                return;
-            }
-            
-            window.savePdrPosition(pdr, newLat, newLng);
-        }
-
-        window.executeOSMSearch = async function(pdr) {
-            const inputAddr = document.getElementById('osm_search_' + pdr);
-            if (!inputAddr) return;
-            
-            const addressQuery = inputAddr.value.trim();
-            if (!addressQuery) {
-                alert("Inserisci un indirizzo per cercare.");
-                return;
-            }
-
-            showToast("Ricerca indirizzo in corso (OSM)...");
-
-            try {
-                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1&countrycodes=it`;
-                
-                const response = await fetch(url, {
-                    headers: {
-                        'User-Agent': 'MappaPDR_App/1.0' 
-                    }
-                });
-                
-                const data = await response.json();
-
-                if (data && data.length > 0) {
-                    const best = data[0];
-                    const newLat = parseFloat(best.lat).toFixed(6);
-                    const newLon = parseFloat(best.lon).toFixed(6);
-                    
-                    const inputManual = document.getElementById('coord_input_' + pdr);
-                    if (inputManual) {
-                        inputManual.value = `${newLat}, ${newLon}`;
-                        inputManual.classList.add('bg-green-50', 'border-green-500');
-                        setTimeout(() => inputManual.classList.remove('bg-green-50', 'border-green-500'), 2000);
-                    }
-                    showToast(`Trovato: ${newLat}, ${newLon}. Premi 'Aggiorna' per salvare.`);
-                } else {
-                    alert(`Indirizzo non trovato su OpenStreetMap.`);
-                }
-            } catch (e) {
-                console.error(e);
-                alert("Errore di connessione a OpenStreetMap.");
-            }
-        }
-
-        window.searchGoogleMaps = function(pdr) {
-             const inputAddr = document.getElementById('osm_search_' + pdr);
-             const addressQuery = inputAddr ? inputAddr.value : '';
-             const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}`;
-             window.open(url, '_blank');
-        }
-
-        // --- IMPORT CSV ---
-        window.importCSVData = async function(csvData, overwriteCoords) {
-            let batchCount = 0;
-            let batch = isCloudMode ? writeBatch(db) : null;
-            let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            
+            const localConfigStr = localStorage.getItem('custom_firebase_config');
             const localAppId = localStorage.getItem('custom_app_id');
-            if (localAppId) appId = localAppId;
-
-            let colAccessibilita = null;
-            if (csvData.length > 0) {
-                const keys = Object.keys(csvData[0]);
-                colAccessibilita = keys.find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
+            if (localConfigStr) {
+                try { firebaseConfig = JSON.parse(localConfigStr); if (localAppId) appId = localAppId; } catch (e) {}
             }
+            if (!firebaseConfig) firebaseConfig = HARDCODED_FIREBASE_CONFIG;
 
-            csvData.forEach(row => {
-                const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
-                
-                let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
-                let rawLon = (row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, '');
-                
-                let lat = parseFloat(rawLat);
-                let lng = parseFloat(rawLon);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app); db = getFirestore(app);
+            
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            } catch (err) { try { await signInAnonymously(auth); } catch(e) { throw e; } }
 
-                if (!overwriteCoords && allData[pdr]) {
-                    lat = allData[pdr].lat;
-                    lng = allData[pdr].lng;
-                }
-
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    const dateStr = row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "";
-                    let year = "N/D";
-                    if (dateStr.includes('/')) {
-                        const parts = dateStr.split('/');
-                        if(parts.length === 3) year = parts[2].trim();
-                    } else if (dateStr.includes('-')) {
-                        year = dateStr.split('-')[0].trim();
-                    }
-                    
-                    const existingPDR = allData[pdr];
-                    let existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
-                    const existingNote = existingPDR ? (existingPDR.nota_operatore || '') : '';
-                    const existingHighlight = existingPDR ? (existingPDR.evidenziato || false) : false; 
-
-                    let accessibilita = 'N/D';
-                    if (colAccessibilita && row[colAccessibilita]) {
-                        accessibilita = row[colAccessibilita];
-                    } else {
-                        accessibilita = row['Accessibilità gruppi misura'] || row['Accessibilita'] || 'N/D';
-                    }
-                    if (!accessibilita || accessibilita.trim() === '') accessibilita = 'N/D';
-
-                    let rawTele = (row['Telefono'] || row.TELEFONO || '').toString().trim();
-                    if (rawTele.length > 5 && rawTele.startsWith('75') && !rawTele.includes('-') && !rawTele.includes('/')) {
-                        rawTele = '0' + rawTele;
-                    }
-
-                    const notaAccesso = row['Nota_accesso'] || row['Note'] || '';
-
-                    const valLetturaRaw = row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '';
-                    const dataLetturaRaw = row['Data lettura'] || row['data lettura'] || '';
-
-                    const valLettura = valLetturaRaw.toString().trim();
-                    const dataLettura = dataLetturaRaw.toString().trim();
-
-                    let isNumericReading = false;
-                    let hasReadingValue = false;
-
-                    if (valLettura !== '' && valLettura !== '0') {
-                        hasReadingValue = true;
-                         const checkNum = parseFloat(valLettura.replace(',', '.'));
-                         if (!isNaN(checkNum) && isFinite(checkNum)) {
-                             isNumericReading = true;
-                         }
-                    }
-
-                    let isDateValid = false;
-                    if (dataLettura !== '' && dataLettura !== '00/01/1900') {
-                        isDateValid = true;
-                    }
-
-                    if ((isNumericReading || isDateValid) && hasReadingValue && isNumericReading) {
-                         existingStatus = true;
-                    } else if (hasReadingValue && !isNumericReading) {
-                        existingStatus = false; 
-                    }
-
-                    const newData = {
-                        pdr: pdr,
-                        nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
-                        indirizzo: row['Indirizzo'] || row.INDIRIZZO || row.Indirizzo || '',
-                        zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
-                        telefono: rawTele, 
-                        matricola: row['Matricola misuratore'] || row.MATRICOLA || row.Matricola || row.matricola || 'N/D',
-                        data_riferimento: dateStr,
-                        anno: year,
-                        accessibilita: accessibilita,
-                        nota_accesso: notaAccesso, 
-                        nota_operatore: existingNote, 
-                        val_lettura: valLettura,      
-                        data_lettura: dataLettura,    
-                        evidenziato: existingHighlight,
-                        lat: lat,
-                        lng: lng,
-                        fatto: existingStatus
-                    };
-                    
-                    allData[pdr] = newData;
-
-                    if (isCloudMode) {
-                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                        batch.set(docRef, newData);
-                        batchCount++;
-                        if (batchCount >= 450) {
-                            batch.commit();
-                            batch = writeBatch(db);
-                            batchCount = 0;
-                        }
-                    }
-                }
+            onAuthStateChanged(auth, (u) => {
+                if (u) { user = u; isCloudMode = true; document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`; startCloudListener(appId); }
             });
-
-            if (isCloudMode && batchCount > 0) {
-                await batch.commit();
-            } else if (!isCloudMode) {
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                updateMapAndUI();
-            }
-            showToast(`Importati ${Object.keys(allData).length} PDR`);
-        };
-
-        // --- SAVE NOTE FUNCTION ---
-        window.savePdrNote = async function(pdr) {
-            const inputId = 'note_' + pdr;
-            const textarea = document.getElementById(inputId);
-            if (!textarea) return;
-            
-            const noteText = textarea.value.trim();
-            const item = allData[pdr];
-            
-            if (!item) return;
-
-            if (isCloudMode) {
-                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const localAppId = localStorage.getItem('custom_app_id');
-                if (localAppId) appId = localAppId;
-
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                try {
-                    await updateDoc(docRef, { nota_operatore: noteText });
-                    showToast("Nota salvata (Cloud)");
-                } catch(e) {
-                    console.error(e);
-                    alert("Errore salvataggio nota Cloud");
-                }
-            } else {
-                item.nota_operatore = noteText;
-                allData[pdr] = item;
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                showToast("Nota salvata (Locale)");
-            }
-        };
-
-        // --- SAVE POSITION FUNCTION ---
-        window.savePdrPosition = async function(pdr, newLat, newLng) {
-            const item = allData[pdr];
-            if (!item) return;
-
-            item.lat = newLat;
-            item.lng = newLng;
-            allData[pdr] = item;
-
-            if (isCloudMode) {
-                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const localAppId = localStorage.getItem('custom_app_id');
-                if (localAppId) appId = localAppId;
-
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                try {
-                    await updateDoc(docRef, { lat: newLat, lng: newLng });
-                    showToast("Posizione aggiornata (Cloud)");
-                } catch(e) {
-                    console.error(e);
-                    showToast("Errore salvataggio posizione");
-                }
-            } else {
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                showToast("Posizione aggiornata (Locale)");
-            }
-        };
-
-        // --- OPEN WHATSAPP FUNCTION ---
-        window.openWhatsApp = function(pdr, specificPhone) {
-            const item = allData[pdr];
-            if (!item) return;
-            
-            let targetPhone = specificPhone || item.telefono;
-            if (!targetPhone) return;
-
-            const cleanPhone = targetPhone.replace(/\s+/g, '');
-            let phoneParam = cleanPhone;
-            if (!cleanPhone.startsWith('39') && !cleanPhone.startsWith('+39')) {
-                phoneParam = '39' + cleanPhone;
-            }
-
-            let dateToUse = new Date().toLocaleDateString('it-IT');
-            if (item.data_lettura && item.data_lettura.trim() !== '' && item.data_lettura !== '00/01/1900') {
-                dateToUse = item.data_lettura;
-            }
-
-            const fullAddress = `${item.indirizzo} ${item.zona}`.trim();
-
-            const message = `Salve,
-in data ${dateToUse} è stato effettuato un passaggio per la lettura del contatore del gas metano intestato a ${item.nominativo}
-📍 Indirizzo: ${fullAddress}
-🔢 Matricola: ${item.matricola}
-
-Gli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.
-
-Al fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.
-In alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).
-
-Grazie mille.
-I nostri uffici sono in Via Alberti 29/31`;
-            const url = `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`;
-            
-            window.open(url, '_blank');
+        } catch (e) {
+            isCloudMode = false;
+            document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer" onclick="toggleSettings()">Locale (Err Auth)</span>`;
+            loadLocalData();
         }
+    }
 
-        // --- TOGGLE STATUS ---
-        window.togglePdrStatus = async function(pdr) {
-            const item = allData[pdr];
-            if (!item) return;
-            const newStatus = !item.fatto;
+    // UI & Settings
+    window.toggleSettings = () => { document.getElementById('settingsModal').classList.toggle('hidden'); if(!document.getElementById('settingsModal').classList.contains('hidden')){ const c = localStorage.getItem('custom_firebase_config'); document.getElementById('firebaseConfigInput').value = c ? c : JSON.stringify(HARDCODED_FIREBASE_CONFIG,null,2); } };
+    window.saveSettings = () => { 
+        const c = document.getElementById('firebaseConfigInput').value.trim(); 
+        if(!c) { localStorage.removeItem('custom_firebase_config'); location.reload(); return;}
+        try { JSON.parse(c); localStorage.setItem('custom_firebase_config', c); localStorage.setItem('custom_app_id', document.getElementById('appIdInput').value.trim()); location.reload(); } catch(e){ alert("JSON non valido"); }
+    };
+    window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
+    window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
 
-            if (isCloudMode) {
-                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const localAppId = localStorage.getItem('custom_app_id');
-                if (localAppId) appId = localAppId;
+    // Selection
+    window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
+    window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
+    function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
+    window.exportSelectedData = () => { if(selectedPDRs.size===0) return; const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
+    window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "PDR_All_"); };
 
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                try {
-                    await updateDoc(docRef, { fatto: newStatus });
-                } catch(e) {
-                    console.error(e);
-                    alert("Errore aggiornamento stato cloud");
-                }
-            } else {
-                item.fatto = newStatus;
-                allData[pdr] = item;
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                updateMapAndUI();
-            }
-        };
+    function generateCSV(items, prefix) {
+        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato\n";
+        items.forEach(i => {
+            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO"].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
+            content += row + "\n";
+        });
+        const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
+        const link = document.createElement("a"); link.href = url; link.download = `${prefix}${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
 
-        // --- TOGGLE HIGHLIGHT (EVIDENZIA) ---
-        window.togglePdrHighlight = async function(pdr) {
-            const item = allData[pdr];
-            if (!item) return;
-            const newHighlight = !item.evidenziato;
+    // Data Logic
+    function startCloudListener(appId) {
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), (snap) => {
+            snap.docChanges().forEach(c => { const d = c.doc.data(); c.type === "removed" ? delete allData[c.doc.id] : allData[c.doc.id] = d; });
+            updateMapAndUI(); updateSelectionUI();
+        }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
+    }
+    function loadLocalData() { const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); updateMapAndUI(); } }
 
-            if (isCloudMode) {
-                let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const localAppId = localStorage.getItem('custom_app_id');
-                if (localAppId) appId = localAppId;
-
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
-                try {
-                    await updateDoc(docRef, { evidenziato: newHighlight });
-                } catch(e) {
-                    console.error(e);
-                    alert("Errore aggiornamento stato cloud");
-                }
-            } else {
-                item.evidenziato = newHighlight;
-                allData[pdr] = item;
-                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
-                updateMapAndUI();
-            }
-        };
-
-        window.clearData = async function() {
-            if(confirm(`ATTENZIONE: Questa azione cancellerà TUTTI i dati della lista "${COLLECTION_NAME}" (anche dal Cloud se attivo). Sei sicuro?`)) {
-                
-                if(!isCloudMode) {
-                    localStorage.removeItem('pdr_data_riepilogo');
-                    allData = {};
-                    updateMapAndUI();
-                    location.reload();
-                } else {
-                    let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    const localAppId = localStorage.getItem('custom_app_id');
-                    if (localAppId) appId = localAppId;
-
-                    const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
-                    
-                    try {
-                        showToast("Avvio cancellazione dati Cloud...");
-                        const snapshot = await getDocs(colRef);
-                        
-                        if (snapshot.empty) {
-                            showToast("Nessun dato da cancellare.");
-                            return;
-                        }
-
-                        const batches = [];
-                        let batch = writeBatch(db);
-                        let count = 0;
-
-                        snapshot.docs.forEach((docSnap) => {
-                            batch.delete(docSnap.ref);
-                            count++;
-                            if (count >= 450) {
-                                batches.push(batch.commit());
-                                batch = writeBatch(db);
-                                count = 0;
-                            }
-                        });
-
-                        if (count > 0) {
-                            batches.push(batch.commit());
-                        }
-
-                        await Promise.all(batches);
-                        showToast("Cancellazione Cloud completata.");
-                        allData = {};
-                        updateMapAndUI();
-
-                    } catch (e) {
-                        console.error("Errore cancellazione:", e);
-                        alert("Errore durante la cancellazione Cloud: " + e.message);
-                    }
-                }
-            }
-        }
+    window.importCSVData = async function(csvData, overwrite) {
+        let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
+        let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
         
-        // --- HELPER PER COMUNE ---
-        function getComune(item) {
-            const searchStr = ((item.zona || '') + ' ' + (item.indirizzo || '')).toLowerCase();
-            if (searchStr.includes('umbertide') || searchStr.includes('54056')) return 'Umbertide';
-            if (searchStr.includes('san giustino') || searchStr.includes('54044')) return 'San Giustino';
-            if (searchStr.includes('montone') || searchStr.includes('54033')) return 'Montone';
-            return 'Altro';
+        csvData.forEach(row => {
+            const pdr = String(row['Codice PDR']||row.PDR||row.pdr||Math.random().toString(36).substr(2,9));
+            let lat = parseFloat((row.Lat||row.LAT||row.lat||"").toString().replace(',','.').replace(/"/g,''));
+            let lng = parseFloat((row.Long||row.LON||row.lon||"").toString().replace(',','.').replace(/"/g,''));
+            
+            if(!overwrite && allData[pdr]) { lat = allData[pdr].lat; lng = allData[pdr].lng; }
+            
+            if(!isNaN(lat) && !isNaN(lng)) {
+                const ex = allData[pdr];
+                let status = ex ? (ex.fatto || false) : false;
+                
+                const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
+                const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
+                
+                let isNum = false;
+                if(valLett !== '' && valLett !== '0') {
+                    const chk = parseFloat(valLett.replace(',','.'));
+                    if(!isNaN(chk) && isFinite(chk)) isNum = true;
+                }
+                let isDate = (datLett !== '' && datLett !== '00/01/1900');
+                // Status Logic: Only numeric reading or valid date forces true. Text reading (warning) does not.
+                if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true; 
+
+                const newData = {
+                    pdr: pdr, nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
+                    indirizzo: row['Indirizzo']||row.INDIRIZZO||'', zona: row['NOME ZONA']||row.Citta||row['Cod. zona']||'',
+                    telefono: (row['Telefono']||row.TELEFONO||'').toString().trim().replace(/^75/,'075'),
+                    matricola: row['Matricola misuratore']||row.MATRICOLA||'N/D',
+                    data_riferimento: row['Data ultima lettura']||row['ULTIMA LETTURA']||"",
+                    anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
+                    nota_accesso: row['Nota_accesso']||row['Note']||'',
+                    nota_operatore: ex ? (ex.nota_operatore||'') : '',
+                    val_lettura: valLett, data_lettura: datLett,
+                    evidenziato: ex ? (ex.evidenziato||false) : false,
+                    lat: lat, lng: lng, fatto: status
+                };
+                allData[pdr] = newData;
+                if(isCloudMode) {
+                    const ref = doc(db, 'artifacts', localStorage.getItem('custom_app_id')||'default-app-id', 'public', 'data', COLLECTION_NAME, pdr);
+                    batch.set(ref, newData); count++;
+                    if(count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
+                }
+            }
+        });
+        if(isCloudMode && count>0) await batch.commit();
+        else if(!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); }
+        showToast(`Importati ${Object.keys(allData).length}`);
+    };
+
+    // Actions
+    window.savePdrNote = async (pdr) => { const txt = document.getElementById('note_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {nota_operatore:txt}); else { allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } showToast("Nota salvata"); };
+    window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
+    window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
+    window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
+    
+    // Tools
+    window.searchBetterCoords = async (pdr) => {
+        const q = document.getElementById('osm_search_'+pdr).value;
+        if(!q) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'MappaPDR'}});
+            const d = await response.json();
+            if(d.length>0) { document.getElementById('coord_input_'+pdr).value = `${d[0].lat}, ${d[0].lon}`; showToast("Trovato!"); }
+            else alert("Non trovato");
+        } catch(e) { alert("Err OSM"); }
+    };
+
+    window.clearData = async () => {
+        if(!confirm("Cancellare tutto?")) return;
+        if(!isCloudMode) { localStorage.removeItem('pdr_data_riepilogo'); allData={}; updateMapAndUI(); location.reload(); }
+        else {
+            const snap = await getDocs(collection(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME));
+            let b = writeBatch(db), c=0;
+            snap.docs.forEach(d=>{ b.delete(d.ref); c++; if(c>=450){b.commit(); b=writeBatch(db); c=0;} });
+            if(c>0) await b.commit();
+            allData={}; updateMapAndUI();
         }
+    };
+    
+    // UI Helpers
+    window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
+    window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
+    window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
+    window.openWhatsApp = (pdr, ph) => {
+        const item = allData[pdr];
+        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); // Add 39 if missing
+        const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
+        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${item.nominativo}\n📍 ${item.indirizzo} ${item.zona}\n🔢 Matricola: ${item.matricola}\n\nGli operatori ASI Multiservices non hanno trovato nessuno.\nPuò inviare la foto a questo numero o chiamare lo 0759417861 (Lun-Ven 09:00-13:30).\n\nGrazie.\nUffici: Via Alberti 29/31`;
+        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+    };
 
-        function updateMapAndUI() {
-            if (!markersCluster) return;
-            markersCluster.clearLayers();
-            let countVisible = 0;
-            let countDone = 0;
+    // Render
+    function updateMapAndUI() {
+        if(!markersCluster) return;
+        markersCluster.clearLayers();
+        let vis=0, done=0;
+        
+        Object.values(allData).forEach(item => {
+            let acc = (item.accessibilita||'').toLowerCase();
+            let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
+            if(!activeAccess.has(cat)) return;
+            
+            let search = ((item.zona||'')+' '+(item.indirizzo||'')).toLowerCase();
+            let com = 'Altro';
+            if(search.includes('umbertide')||search.includes('54056')) com='Umbertide';
+            else if(search.includes('san giustino')||search.includes('54044')) com='San Giustino';
+            else if(search.includes('montone')||search.includes('54033')) com='Montone';
+            if(!activeComuni.has(com)) return;
 
-            Object.values(allData).forEach(item => {
-                let filterCategory = 'Altro';
-                const accessLower = (item.accessibilita || '').toLowerCase();
-                
-                if (accessLower.includes('inaccessibile')) filterCategory = 'Inaccessibile';
-                else if (accessLower.includes('accessibile')) filterCategory = 'Accessibile';
-                
-                if (!activeAccess.has(filterCategory)) return;
-                
-                const comune = getComune(item);
-                if (!activeComuni.has(comune)) return;
+            vis++; if(item.fatto) done++;
 
-                countVisible++;
-                if (item.fatto) countDone++;
-                
-                let colorCode = '#dc2626'; 
+            let col = '#dc2626';
+            let warn = false;
+            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
+            
+            if(item.evidenziato) col='#9333ea';
+            else if(selectedPDRs.has(item.pdr)) col='#06b6d4';
+            else if(item.fatto) col='#2563eb';
+            else if(warn) col='#facc15';
+            else if(cat==='Inaccessibile') col='#f97316';
+            else if(cat==='Accessibile') col='#16a34a';
 
-                let isWarning = false;
-                if (item.val_lettura) {
-                    const cleanVal = item.val_lettura.replace(',', '.').trim();
-                    if (cleanVal !== '' && isNaN(cleanVal)) {
-                        isWarning = true;
-                    }
-                }
-
-                // PRIORITÀ: Evidenziato > Selezionato > Fatto > Avviso > Accessibilità
-                if (item.evidenziato === true) {
-                    colorCode = '#9333ea'; // VIOLA (Evidenziato)
-                }
-                else if (selectedPDRs.has(item.pdr)) {
-                    colorCode = '#06b6d4'; // CIANO (Selezionato)
-                }
-                else if (item.fatto === true) {
-                    colorCode = '#2563eb'; // BLU (Fatto)
-                } 
-                else if (isWarning) {
-                    colorCode = '#facc15'; // GIALLO (Avviso)
-                } 
-                else if (filterCategory === 'Inaccessibile') {
-                    colorCode = '#f97316'; // ARANCIONE
-                } else if (filterCategory === 'Accessibile') {
-                    colorCode = '#16a34a'; // VERDE
-                }
-                
-                const iconHtml = `<div style="background-color: ${colorCode}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
-                const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [14, 14], iconAnchor: [7, 7] });
-                
-                const marker = L.marker([item.lat, item.lng], { 
-                    icon: icon,
-                    draggable: isEditMode, 
-                    autoPan: true
-                });
-
-                marker.on('dragend', function(event) {
-                    var marker = event.target;
-                    var position = marker.getLatLng();
-                    window.savePdrPosition(item.pdr, position.lat, position.lng);
-                });
-                
-                const isDone = item.fatto === true;
-                const isHighlight = item.evidenziato === true;
-                const isSelected = selectedPDRs.has(item.pdr);
-                
-                const btnClass = isDone ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
-                const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
-
-                const highlightBtnClass = isHighlight ? "bg-purple-600 text-white border-purple-600" : "bg-white text-purple-600 border-purple-200 hover:bg-purple-50";
-                const highlightBtnText = isHighlight ? '<i class="fa-solid fa-thumbtack"></i> Rimuovi' : '<i class="fa-solid fa-thumbtack"></i> Evidenzia';
-
-                const selectBtnClass = isSelected ? "bg-cyan-600 text-white border-cyan-600" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
-                const selectBtnText = isSelected ? '<i class="fa-solid fa-circle-check"></i> Deseleziona' : '<i class="fa-regular fa-circle"></i> Seleziona';
-
-
-                const rawTele = item.telefono || '';
-                const phones = rawTele.split(/[-/,]+/).map(p => p.trim()).filter(p => p.length > 4);
-                
-                let waButtonsHtml = '';
-                
-                if (phones.length > 0) {
-                    phones.forEach(num => {
-                        let cleanNum = num;
-                        const checkNum = num.replace(/\s+/g, '');
-                        if (checkNum.startsWith('75')) {
-                            cleanNum = '0' + num;
-                        }
-                        
-                        waButtonsHtml += `
-                            <button onclick="window.openWhatsApp('${item.pdr}', '${cleanNum}')" 
-                                class="w-full mb-1 py-1.5 rounded text-xs font-bold bg-green-500 hover:bg-green-600 text-white border border-green-600 transition shadow-sm">
-                                <i class="fa-brands fa-whatsapp mr-1"></i> WA ${cleanNum}
-                            </button>
-                        `;
-                    });
-                }
-
-                const popupContent = `
-                    <div class="font-sans">
-                        <div class="border-b pb-2 mb-2">
-                            <div class="font-bold text-gray-800 text-lg leading-tight">${item.nominativo}</div>
-                            <div class="flex justify-between items-center mt-1">
-                                <div class="text-xs text-gray-500">PDR: ${item.pdr}</div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isDone ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${isDone ? 'COMPLETATO' : 'DA FARE'}</span>
-                            </div>
-                        </div>
-                        <div class="text-sm text-gray-600 space-y-1 mb-3">
-                            <div><i class="fa-solid fa-map-pin w-4 text-center mr-1"></i> ${item.indirizzo}</div>
-                            <div><i class="fa-solid fa-city w-4 text-center mr-1"></i> ${item.zona}</div>
-                            <div><i class="fa-solid fa-barcode w-4 text-center mr-1"></i> <strong>Matricola:</strong> ${item.matricola}</div>
-                            <div class="mt-1"><i class="fa-solid fa-door-open w-4 text-center mr-1"></i> <strong>Accessibilità:</strong> ${item.accessibilita}</div>
-                            ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota CSV:</strong> ${item.nota_accesso}</div>` : ''}
-                            ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
-                            
-                            ${(item.val_lettura || item.data_lettura) ? `
-                                <div class="mt-2 bg-green-50 p-2 rounded border border-green-200 text-xs">
-                                    <div class="font-bold text-green-800 mb-1"><i class="fa-solid fa-file-import mr-1"></i> Dati Lettura Importati</div>
-                                    ${item.val_lettura ? `<div>Lettura: <strong>${item.val_lettura}</strong></div>` : ''}
-                                    ${item.data_lettura ? `<div>Data: <strong>${item.data_lettura}</strong></div>` : ''}
-                                </div>
-                            ` : ''}
-                            
-                            <div class="mt-2 text-xs text-gray-500 border-t pt-2">
-                                <div class="flex justify-between items-center cursor-pointer hover:bg-gray-50 p-1 rounded" onclick="window.toggleCoordInput('${item.pdr}')">
-                                    <span><i class="fa-solid fa-location-dot mr-1"></i> Coords: ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}</span>
-                                    <i class="fa-solid fa-pen text-blue-600"></i>
-                                </div>
-                                <div id="coord_edit_${item.pdr}" class="hidden mt-2 p-2 bg-gray-50 rounded border">
-                                    <div class="mb-2">
-                                        <label class="block text-[10px] font-bold text-gray-500 mb-1">Cerca Indirizzo (OSM)</label>
-                                        <div class="flex gap-1">
-                                            <input type="text" id="osm_search_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.indirizzo} ${item.zona}">
-                                            <button onclick="window.executeOSMSearch('${item.pdr}')" class="bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 text-xs hover:bg-blue-200" title="Cerca su OpenStreetMap">
-                                                <i class="fa-solid fa-magnifying-glass"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <label class="block text-[10px] font-bold text-gray-500 mb-1">Nuove Coordinate (Lat, Lng)</label>
-                                    <input type="text" id="coord_input_${item.pdr}" class="w-full text-xs border rounded p-1 mb-2" value="${item.lat}, ${item.lng}" placeholder="es. 43.55..., 11.69...">
-                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded mb-2">
-                                        Aggiorna Posizione
-                                    </button>
-                                     <button onclick="window.searchGoogleMaps('${item.pdr}')" class="w-full bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-xs font-bold py-1 rounded shadow-sm" title="Apri su Google Maps">
-                                        <i class="fa-brands fa-google mr-1 text-red-500"></i> Apri Google Maps
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Note Operatore</label>
-                            <textarea id="note_${item.pdr}" class="w-full text-xs border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none resize-none" rows="2" placeholder="Scrivi una nota...">${item.nota_operatore || ''}</textarea>
-                            <button onclick="window.savePdrNote('${item.pdr}')" class="mt-1 w-full bg-gray-100 hover:bg-gray-200 text-gray-600 text-[10px] font-bold py-1 rounded border border-gray-300 transition">
-                                <i class="fa-solid fa-save mr-1"></i> Salva Nota
-                            </button>
-                        </div>
-
-                        <div class="flex flex-col gap-2">
-                            <div class="flex gap-2">
-                                <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
-                                <button onclick="window.togglePdrHighlight('${item.pdr}')" class="w-1/3 py-1.5 rounded text-xs font-bold border transition ${highlightBtnClass}" title="Evidenzia marker">${highlightBtnText}</button>
-                            </div>
-                             <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${selectBtnClass}">${selectBtnText}</button>
-                            ${waButtonsHtml}
-                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
-                        </div>
-                    </div>`;
-                
-                marker.bindPopup(popupContent);
-                markersCluster.addLayer(marker);
+            const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
+            
+            const m = L.marker([item.lat, item.lng], {icon:icon, draggable:isEditMode, autoPan:true});
+            m.on('dragend', (e) => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
+            
+            // Build Popup
+            let wa = '';
+            const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
+            phones.forEach(p => {
+                let clean = p.replace(/\s+/g,''); if(clean.startsWith('75')) clean='0'+clean;
+                wa += `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="w-full mb-1 py-1 text-[10px] font-bold bg-green-500 hover:bg-green-600 text-white rounded"><i class="fa-brands fa-whatsapp"></i> WA ${clean}</button>`;
             });
 
-            document.getElementById('statVisible').innerText = countVisible;
-            document.getElementById('statDone').innerText = countDone;
-            if (countVisible > 0 && map.getZoom() === 6) map.fitBounds(markersCluster.getBounds(), { padding: [50, 50] });
-        }
+            const content = `
+                <div class="font-sans">
+                    <div class="border-b pb-1 mb-2">
+                        <div class="font-bold text-gray-800">${item.nominativo}</div>
+                        <div class="flex justify-between items-center mt-1"><span class="text-[10px] text-gray-500">${item.pdr}</span><span class="px-2 rounded text-[9px] font-bold ${item.fatto?'bg-blue-100 text-blue-800':'bg-red-100 text-red-800'}">${item.fatto?'FATTO':'DA FARE'}</span></div>
+                    </div>
+                    <div class="text-xs text-gray-600 space-y-1 mb-2">
+                        <div>📍 ${item.indirizzo} (${item.zona})</div>
+                        <div>🔢 Matr: ${item.matricola}</div>
+                        <div>🚪 ${item.accessibilita}</div>
+                        ${item.nota_accesso?`<div class="text-orange-600 bg-orange-50 p-1 border border-orange-100">⚠️ ${item.nota_accesso}</div>`:''}
+                        ${(item.val_lettura||item.data_lettura)?`<div class="bg-green-50 p-1 border border-green-200">📥 Lett: ${item.val_lettura||'-'} (${item.data_lettura||'-'})</div>`:''}
+                        
+                        <div class="border-t pt-1 mt-1">
+                            <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
+                            <div id="coord_edit_${item.pdr}" class="hidden mt-1 p-1 bg-gray-50 border">
+                                <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
+                                <div class="flex gap-1 mb-1"><button onclick="window.executeOSMSearch('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
+                                <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
+                                <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                            </div>
+                        </div>
+                    </div>
+                    <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
+                    <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
+                    
+                    <div class="flex gap-1 mb-1">
+                        <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
+                        <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
+                    </div>
+                    <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-1 rounded text-[10px] font-bold border ${selectedPDRs.has(item.pdr)?'bg-cyan-600 text-white':'bg-white text-cyan-600'}">${selectedPDRs.has(item.pdr)?'Deseleziona':'Seleziona'}</button>
+                    ${wa}
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-1">Naviga qui</a>
+                </div>
+            `;
+            m.bindPopup(content);
+            markersCluster.addLayer(m);
+        });
+        document.getElementById('statVisible').innerText = vis;
+        document.getElementById('statDone').innerText = done;
+    }
+
+    // Filters Init
+    function renderAccessFilters() {
+        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
+        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    function renderComuniFilters() {
+        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
+        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
+    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
+        if(t.length<3){c.classList.add('hidden');return;}
+        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
+            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
+            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
+        });
+        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
+    });
+
+    // Helpers
+    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', ()=>{
+        map = L.map('map').setView([43.30,12.33],10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
+        map.addLayer(markersCluster);
+        
+        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
+        map.on('locationerror',e=>alert(e.message));
+
+        document.getElementById('csvInput').addEventListener('change', (e)=>{
+            const f=e.target.files[0]; if(!f)return;
+            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
+            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
+                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
+                else window.importCSVData(r.data,ow);
+            }});
+        });
+
+        initApp();
+    });
+</script>
+</body>
+</html>
