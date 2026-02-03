@@ -270,8 +270,11 @@
         let map, markersCluster;
         let allData = {}; 
         let isCloudMode = false;
+        
+        // --- NOME COLLEZIONE (MODIFICABILE PER NUOVI PROGETTI) ---
         //let COLLECTION_NAME = 'letture_pdr_riepilogo'; 
         let COLLECTION_NAME = 'letture_massive_febbraio'; 
+        
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
         let selectedPDRs = new Set(); // SET PER SELEZIONE MULTIPLA
@@ -305,7 +308,7 @@
                      if (typeof __app_id !== 'undefined') appId = __app_id;
                 }
 
-                // LocalStorage
+                // LocalStorage (Settings Manuali)
                 const localConfigStr = localStorage.getItem('custom_firebase_config');
                 const localAppId = localStorage.getItem('custom_app_id');
                 if (localConfigStr) {
@@ -315,13 +318,13 @@
                     } catch (e) { console.error("Config locale errata"); }
                 }
 
-                // Fallback
+                // Fallback Hardcoded
                 if (!firebaseConfig) {
                     console.log("Uso config Hardcoded.");
                     firebaseConfig = HARDCODED_FIREBASE_CONFIG;
                 }
 
-                // Init Firebase
+                // Inizializzazione Firebase
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
