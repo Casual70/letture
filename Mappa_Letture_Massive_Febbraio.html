@@ -54,7 +54,7 @@
 
         /* Popup Customization */
         .leaflet-popup-content-wrapper { border-radius: 8px; }
-        .leaflet-popup-content { margin: 12px; width: 320px !important; } /* Allargato per il nuovo input */
+        .leaflet-popup-content { margin: 12px; width: 320px !important; }
 
         /* Clusters Override */
         .marker-cluster-small { background-color: rgba(181, 181, 181, 0.6); }
@@ -108,15 +108,35 @@
         <div class="sidebar-content">
             
             <!-- Import Section -->
-            <div class="mb-6 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+            <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
                 <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
                 <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
                 <p class="text-[10px] text-gray-400 mt-2">Supporta file CSV (Separatore ; o ,)</p>
             </div>
 
+            <!-- Pannello Selezione (NUOVO) -->
+            <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span>
+                    <span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded transition">
+                        <i class="fa-solid fa-file-export mr-1"></i> Esporta
+                    </button>
+                    <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded transition" title="Deseleziona Tutti">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
             <!-- Legend -->
             <div class="mb-6 grid grid-cols-2 gap-2 text-center">
-                <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2">
+                 <div class="p-2 bg-cyan-50 border border-cyan-200 rounded col-span-2">
+                     <div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div>
+                     <span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span>
+                </div>
+                <div class="p-2 bg-purple-50 border border-purple-200 rounded">
                      <div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div>
                      <span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span>
                 </div>
@@ -136,9 +156,9 @@
                     <div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div>
                     <span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span>
                 </div>
-                <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2">
+                <div class="p-2 bg-red-50 border border-red-200 rounded">
                     <div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div>
-                    <span class="text-[10px] font-bold text-red-700">Non Specificato / Altro</span>
+                    <span class="text-[10px] font-bold text-red-700">ALTRO</span>
                 </div>
             </div>
 
@@ -205,7 +225,7 @@
              <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border border-gray-200 transition flex items-center justify-center py-2" title="Impostazioni">
                 <i class="fa-solid fa-gear"></i>
             </button>
-            <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border border-green-600 transition flex items-center justify-center py-2" title="Esporta CSV">
+            <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border border-green-600 transition flex items-center justify-center py-2" title="Esporta CSV Completo">
                 <i class="fa-solid fa-download"></i>
             </button>
             <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border border-gray-200 transition">
@@ -254,6 +274,7 @@
         let COLLECTION_NAME = 'letture_massive_febbraio'; 
         let isEditMode = false; // Stato modifica posizione
         let userLocationMarker = null; // Marker posizione utente
+        let selectedPDRs = new Set(); // SET PER SELEZIONE MULTIPLA
         
         // FILTRI
         let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
@@ -272,7 +293,7 @@
         async function initApp() {
             try {
                 renderAccessFilters(); 
-                renderComuniFilters(); // Inizializza filtri comuni
+                renderComuniFilters(); 
 
                 // 1. Cerca Configurazione
                 let firebaseConfig = null;
@@ -284,7 +305,7 @@
                      if (typeof __app_id !== 'undefined') appId = __app_id;
                 }
 
-                // LocalStorage (Settings Manuali)
+                // LocalStorage
                 const localConfigStr = localStorage.getItem('custom_firebase_config');
                 const localAppId = localStorage.getItem('custom_app_id');
                 if (localConfigStr) {
@@ -294,35 +315,29 @@
                     } catch (e) { console.error("Config locale errata"); }
                 }
 
-                // Fallback Hardcoded
+                // Fallback
                 if (!firebaseConfig) {
                     console.log("Uso config Hardcoded.");
                     firebaseConfig = HARDCODED_FIREBASE_CONFIG;
                 }
 
-                // Inizializzazione Firebase
+                // Init Firebase
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
                 
                 // --- AUTENTICAZIONE ---
                 try {
-                    // Prova token custom (ambiente preview)
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token); 
                     } else {
-                        // Prova anonimo (ambiente locale)
                         await signInAnonymously(auth);
                     }
                 } catch (authErr) {
-                    console.warn("Auth primaria fallita:", authErr);
                     try {
-                        // Riprova anonimo come ultima spiaggia
                         await signInAnonymously(auth);
                     } catch(anonErr) {
-                        console.error("Auth Anonima fallita:", anonErr);
-                        // Mostriamo l'errore specifico all'utente
-                        throw new Error("Auth Fallita: " + anonErr.code);
+                         throw new Error("Auth Fallita: " + anonErr.code);
                     }
                 }
 
@@ -340,13 +355,55 @@
             } catch (e) {
                 console.error("Errore Init:", e);
                 isCloudMode = false;
-                // Mostra l'errore specifico invece di un generico "Locale"
                 let errorText = "Locale (Offline)";
                 if (e.message && e.message.includes("Auth")) errorText = "Err Auth: Verifica Config";
-                
                 document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer hover:underline" onclick="toggleSettings()" title="${e.message}"><i class="fa-solid fa-triangle-exclamation"></i> ${errorText}</span>`;
                 loadLocalData();
             }
+        }
+
+        // --- GESTIONE SELEZIONE MULTIPLA ---
+        window.togglePdrSelection = function(pdr) {
+            if (selectedPDRs.has(pdr)) {
+                selectedPDRs.delete(pdr);
+            } else {
+                selectedPDRs.add(pdr);
+            }
+            updateSelectionUI();
+            updateMapAndUI();
+        }
+
+        window.clearSelection = function() {
+            selectedPDRs.clear();
+            updateSelectionUI();
+            updateMapAndUI();
+        }
+
+        function updateSelectionUI() {
+            const panel = document.getElementById('selectionPanel');
+            const countEl = document.getElementById('selectedCount');
+            
+            countEl.innerText = selectedPDRs.size;
+            
+            if (selectedPDRs.size > 0) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        window.exportSelectedData = function() {
+             if (selectedPDRs.size === 0) {
+                alert("Nessun PDR selezionato.");
+                return;
+            }
+            
+            const selectedItems = [];
+            selectedPDRs.forEach(pdr => {
+                if (allData[pdr]) selectedItems.push(allData[pdr]);
+            });
+            
+            generateCSV(selectedItems, "PDR_Export_Selezionati_");
         }
 
         // --- IMPOSTAZIONI MANUALI ---
@@ -356,7 +413,7 @@
                 const savedConfig = localStorage.getItem('custom_firebase_config');
                 const savedAppId = localStorage.getItem('custom_app_id');
                 if (savedConfig) document.getElementById('firebaseConfigInput').value = savedConfig;
-                else document.getElementById('firebaseConfigInput').value = JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2); // Precompila con hardcoded
+                else document.getElementById('firebaseConfigInput').value = JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2); 
                 
                 if (savedAppId) document.getElementById('appIdInput').value = savedAppId;
                 modal.classList.remove('hidden');
@@ -377,7 +434,7 @@
             }
 
             try {
-                const json = JSON.parse(configStr); // Validazione
+                const json = JSON.parse(configStr); 
                 localStorage.setItem('custom_firebase_config', JSON.stringify(json, null, 2));
                 if (appIdStr) localStorage.setItem('custom_app_id', appIdStr);
                 location.reload();
@@ -408,7 +465,7 @@
                 icon.className = "fa-solid fa-lock";
                 showToast("Spostamento marker BLOCCATO");
             }
-            updateMapAndUI(); // Ridisegna i marker con la nuova impostazione draggable
+            updateMapAndUI(); 
         }
 
         // --- GEOLOCALIZZAZIONE ---
@@ -419,17 +476,12 @@
             map.locate({setView: true, maxZoom: 16});
         }
 
-        // --- EXPORT CSV (CORRETTO CON BLOB) ---
-        window.exportData = function() {
-            if (Object.keys(allData).length === 0) {
-                alert("Nessun dato da esportare.");
-                return;
-            }
-
-            let csvContent = "\uFEFF"; // BOM per caratteri speciali
+        // --- EXPORT CSV GENERICO ---
+        function generateCSV(items, filenamePrefix) {
+            let csvContent = "\uFEFF"; // BOM
             csvContent += "Codice PDR;Nome utenza;Indirizzo;Città;Telefono;Matricola;Data ultima lettura;Accessibilità;Nota;Lat;Long;Stato;Note Operatore;Evidenziato\n";
 
-            Object.values(allData).forEach(item => {
+            items.forEach(item => {
                 let row = [
                     item.pdr,
                     item.nominativo,
@@ -440,8 +492,8 @@
                     item.data_riferimento,
                     item.accessibilita,
                     item.nota_accesso,
-                    String(item.lat).replace('.', ','), // Formato Excel Italiano
-                    String(item.lng).replace('.', ','), // Formato Excel Italiano
+                    String(item.lat).replace('.', ','),
+                    String(item.lng).replace('.', ','),
                     item.fatto ? "FATTO" : "DA FARE",
                     item.nota_operatore || "",
                     item.evidenziato ? "SI" : "NO"
@@ -455,17 +507,24 @@
                 csvContent += row + "\n";
             });
 
-            // FIX: Usare Blob per file grandi
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             
             const link = document.createElement("a");
             link.setAttribute("href", url);
             const today = new Date().toISOString().slice(0,10);
-            link.setAttribute("download", `PDR_Export_${today}.csv`);
+            link.setAttribute("download", `${filenamePrefix}${today}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        window.exportData = function() {
+            if (Object.keys(allData).length === 0) {
+                alert("Nessun dato da esportare.");
+                return;
+            }
+            generateCSV(Object.values(allData), "PDR_Export_All_");
         }
 
         function startCloudListener(appId) {
@@ -476,11 +535,13 @@
                     const pdr = change.doc.id;
                     if (change.type === "removed") {
                         delete allData[pdr];
+                        if (selectedPDRs.has(pdr)) selectedPDRs.delete(pdr);
                     } else {
                         allData[pdr] = data;
                     }
                 });
                 updateMapAndUI();
+                updateSelectionUI();
             }, (error) => {
                 console.error("Errore listener Firestore:", error);
                 if (error.code === 'permission-denied') {
@@ -600,11 +661,10 @@
             if(!input) return;
             
             const rawVal = input.value;
-            // Supporta sia formato "lat, lng" che "lat; lng"
             const parts = rawVal.replace(';', ',').split(',');
             
             if(parts.length !== 2) {
-                alert("Formato non valido. Usa: lat, lng (es. 43.55..., 11.69...)");
+                alert("Formato non valido. Usa: lat, lng");
                 return;
             }
             
@@ -619,7 +679,6 @@
             window.savePdrPosition(pdr, newLat, newLng);
         }
 
-        // --- NUOVA FUNZIONE: RICERCA MANUALE CON OPENSTREETMAP ---
         window.executeOSMSearch = async function(pdr) {
             const inputAddr = document.getElementById('osm_search_' + pdr);
             if (!inputAddr) return;
@@ -633,12 +692,11 @@
             showToast("Ricerca indirizzo in corso (OSM)...");
 
             try {
-                // Chiamata a Nominatim (OpenStreetMap)
                 const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1&countrycodes=it`;
                 
                 const response = await fetch(url, {
                     headers: {
-                        'User-Agent': 'MappaPDR_App/1.0' // Richiesto da OSM
+                        'User-Agent': 'MappaPDR_App/1.0' 
                     }
                 });
                 
@@ -649,17 +707,15 @@
                     const newLat = parseFloat(best.lat).toFixed(6);
                     const newLon = parseFloat(best.lon).toFixed(6);
                     
-                    // Aggiorna campo input manuale
                     const inputManual = document.getElementById('coord_input_' + pdr);
                     if (inputManual) {
                         inputManual.value = `${newLat}, ${newLon}`;
-                        // Effetto visivo
                         inputManual.classList.add('bg-green-50', 'border-green-500');
                         setTimeout(() => inputManual.classList.remove('bg-green-50', 'border-green-500'), 2000);
                     }
                     showToast(`Trovato: ${newLat}, ${newLon}. Premi 'Aggiorna' per salvare.`);
                 } else {
-                    alert(`Indirizzo non trovato su OpenStreetMap: "${addressQuery}".\nProva a semplificare (es. solo Via e Città).`);
+                    alert(`Indirizzo non trovato su OpenStreetMap.`);
                 }
             } catch (e) {
                 console.error(e);
@@ -667,7 +723,6 @@
             }
         }
 
-        // --- FUNZIONE FALLBACK GOOGLE MAPS ---
         window.searchGoogleMaps = function(pdr) {
              const inputAddr = document.getElementById('osm_search_' + pdr);
              const addressQuery = inputAddr ? inputAddr.value : '';
@@ -675,17 +730,15 @@
              window.open(url, '_blank');
         }
 
-        // --- IMPORT CSV (MODIFICATO PER CHIEDERE SOVRASCRITTURA) ---
+        // --- IMPORT CSV ---
         window.importCSVData = async function(csvData, overwriteCoords) {
             let batchCount = 0;
             let batch = isCloudMode ? writeBatch(db) : null;
             let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
-            // Usa AppID manuale se presente
             const localAppId = localStorage.getItem('custom_app_id');
             if (localAppId) appId = localAppId;
 
-            // RILEVAMENTO ACCESSIBILITÀ
             let colAccessibilita = null;
             if (csvData.length > 0) {
                 const keys = Object.keys(csvData[0]);
@@ -695,14 +748,12 @@
             csvData.forEach(row => {
                 const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
                 
-                // Gestione Coordinate
                 let rawLat = (row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, '');
                 let rawLon = (row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, '');
                 
                 let lat = parseFloat(rawLat);
                 let lng = parseFloat(rawLon);
 
-                // Se non si vuole sovrascrivere e il PDR esiste già, mantieni le vecchie coordinate
                 if (!overwriteCoords && allData[pdr]) {
                     lat = allData[pdr].lat;
                     lng = allData[pdr].lng;
@@ -721,7 +772,7 @@
                     const existingPDR = allData[pdr];
                     let existingStatus = existingPDR ? (existingPDR.fatto || false) : false;
                     const existingNote = existingPDR ? (existingPDR.nota_operatore || '') : '';
-                    const existingHighlight = existingPDR ? (existingPDR.evidenziato || false) : false; // PRESERVE HIGHLIGHT
+                    const existingHighlight = existingPDR ? (existingPDR.evidenziato || false) : false; 
 
                     let accessibilita = 'N/D';
                     if (colAccessibilita && row[colAccessibilita]) {
@@ -744,37 +795,25 @@
                     const valLettura = valLetturaRaw.toString().trim();
                     const dataLettura = dataLetturaRaw.toString().trim();
 
-                    // --- LOGICA IMPORTAZIONE AGGIORNATA ---
-                    // 1. Se è un numero valido > 0 -> FATTO (Blu)
-                    // 2. Se è testo ("Avviso", "Assente") -> NON FATTO (Giallo via UI), ma salviamo il valore nel campo val_lettura
-                    // 3. Se è 0 o vuoto -> NON FATTO (Normale)
-                    
                     let isNumericReading = false;
                     let hasReadingValue = false;
 
                     if (valLettura !== '' && valLettura !== '0') {
                         hasReadingValue = true;
-                         // Sostituisce virgola con punto per il controllo matematico
                          const checkNum = parseFloat(valLettura.replace(',', '.'));
-                         // Se è un numero valido E non è NaN
                          if (!isNaN(checkNum) && isFinite(checkNum)) {
                              isNumericReading = true;
                          }
                     }
 
-                    // Logica Data: Se c'è una data valida diversa da default
                     let isDateValid = false;
                     if (dataLettura !== '' && dataLettura !== '00/01/1900') {
                         isDateValid = true;
                     }
 
-                    // DETERMINAZIONE STATO "FATTO" INIZIALE
-                    // Un PDR è "Fatto" (Blu) SOLO se ha una lettura NUMERICA valida o una Data valida SENZA avvisi testuali.
                     if ((isNumericReading || isDateValid) && hasReadingValue && isNumericReading) {
                          existingStatus = true;
                     } else if (hasReadingValue && !isNumericReading) {
-                        // Caso AVVISO: C'è scritto qualcosa ma non è un numero (es. "Avviso")
-                        // NON lo segniamo come fatto automaticamente.
                         existingStatus = false; 
                     }
 
@@ -792,7 +831,7 @@
                         nota_operatore: existingNote, 
                         val_lettura: valLettura,      
                         data_lettura: dataLettura,    
-                        evidenziato: existingHighlight, // Mantiene evidenziazione
+                        evidenziato: existingHighlight,
                         lat: lat,
                         lng: lng,
                         fatto: existingStatus
@@ -854,12 +893,11 @@
             }
         };
 
-        // --- SAVE POSITION FUNCTION (Nuova) ---
+        // --- SAVE POSITION FUNCTION ---
         window.savePdrPosition = async function(pdr, newLat, newLng) {
             const item = allData[pdr];
             if (!item) return;
 
-            // Aggiorna memoria locale subito per evitare scatti
             item.lat = newLat;
             item.lng = newLng;
             allData[pdr] = item;
@@ -888,25 +926,20 @@
             const item = allData[pdr];
             if (!item) return;
             
-            // Usa il numero specifico passato (dal bottone) o fallback al campo intero (se singolo)
             let targetPhone = specificPhone || item.telefono;
             if (!targetPhone) return;
 
-            // Pulisci il numero per l'URL (rimuovi spazi)
             const cleanPhone = targetPhone.replace(/\s+/g, '');
-            // Aggiungi prefisso 39 se manca e non è un link web
             let phoneParam = cleanPhone;
             if (!cleanPhone.startsWith('39') && !cleanPhone.startsWith('+39')) {
                 phoneParam = '39' + cleanPhone;
             }
 
-            // DATA DINAMICA: Usa la data del CSV se presente, altrimenti oggi
             let dateToUse = new Date().toLocaleDateString('it-IT');
             if (item.data_lettura && item.data_lettura.trim() !== '' && item.data_lettura !== '00/01/1900') {
                 dateToUse = item.data_lettura;
             }
 
-            // Costruzione indirizzo completo
             const fullAddress = `${item.indirizzo} ${item.zona}`.trim();
 
             const message = `Salve,
@@ -982,15 +1015,12 @@ I nostri uffici sono in Via Alberti 29/31`;
             if(confirm(`ATTENZIONE: Questa azione cancellerà TUTTI i dati della lista "${COLLECTION_NAME}" (anche dal Cloud se attivo). Sei sicuro?`)) {
                 
                 if(!isCloudMode) {
-                    // Modalità Locale
                     localStorage.removeItem('pdr_data_riepilogo');
                     allData = {};
                     updateMapAndUI();
                     location.reload();
                 } else {
-                    // Modalità Cloud - Cancellazione Massiva
                     let appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    // Usa AppID manuale se presente per consistenza
                     const localAppId = localStorage.getItem('custom_app_id');
                     if (localAppId) appId = localAppId;
 
@@ -998,7 +1028,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                     
                     try {
                         showToast("Avvio cancellazione dati Cloud...");
-                        // Ottieni tutti i documenti
                         const snapshot = await getDocs(colRef);
                         
                         if (snapshot.empty) {
@@ -1006,7 +1035,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                             return;
                         }
 
-                        // Cancellazione in batch (max 500 operazioni per batch)
                         const batches = [];
                         let batch = writeBatch(db);
                         let count = 0;
@@ -1027,8 +1055,6 @@ I nostri uffici sono in Via Alberti 29/31`;
 
                         await Promise.all(batches);
                         showToast("Cancellazione Cloud completata.");
-                        
-                        // Pulizia locale per riflettere immediatamente la modifica
                         allData = {};
                         updateMapAndUI();
 
@@ -1056,7 +1082,6 @@ I nostri uffici sono in Via Alberti 29/31`;
             let countDone = 0;
 
             Object.values(allData).forEach(item => {
-                // --- FILTRO ACCESSIBILITA ---
                 let filterCategory = 'Altro';
                 const accessLower = (item.accessibilita || '').toLowerCase();
                 
@@ -1065,7 +1090,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                 
                 if (!activeAccess.has(filterCategory)) return;
                 
-                // --- FILTRO COMUNE ---
                 const comune = getComune(item);
                 if (!activeComuni.has(comune)) return;
 
@@ -1074,57 +1098,51 @@ I nostri uffici sono in Via Alberti 29/31`;
                 
                 let colorCode = '#dc2626'; 
 
-                // Check if reading is alphanumeric (Warning/Error)
                 let isWarning = false;
-                // Controllo più robusto: deve esserci un valore ma NON deve essere un numero valido
                 if (item.val_lettura) {
                     const cleanVal = item.val_lettura.replace(',', '.').trim();
-                    // Se non è vuoto E non è un numero -> è un AVVISO (Giallo)
                     if (cleanVal !== '' && isNaN(cleanVal)) {
                         isWarning = true;
                     }
                 }
 
-                // PRIORITÀ COLORI AGGIORNATA: 
-                // 0. Evidenziato (Viola) - Priorità ASSOLUTA (visuale)
+                // PRIORITÀ: Evidenziato > Selezionato > Fatto > Avviso > Accessibilità
                 if (item.evidenziato === true) {
-                    colorCode = '#9333ea'; // VIOLA
+                    colorCode = '#9333ea'; // VIOLA (Evidenziato)
                 }
-                // 1. Fatto (Blu)
+                else if (selectedPDRs.has(item.pdr)) {
+                    colorCode = '#06b6d4'; // CIANO (Selezionato)
+                }
                 else if (item.fatto === true) {
-                    colorCode = '#2563eb'; 
+                    colorCode = '#2563eb'; // BLU (Fatto)
                 } 
-                // 2. Avviso (Giallo)
                 else if (isWarning) {
-                    colorCode = '#facc15'; 
+                    colorCode = '#facc15'; // GIALLO (Avviso)
                 } 
-                // 3. Accessibilità
                 else if (filterCategory === 'Inaccessibile') {
-                    colorCode = '#f97316'; 
+                    colorCode = '#f97316'; // ARANCIONE
                 } else if (filterCategory === 'Accessibile') {
-                    colorCode = '#16a34a'; 
+                    colorCode = '#16a34a'; // VERDE
                 }
                 
                 const iconHtml = `<div style="background-color: ${colorCode}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
                 const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [14, 14], iconAnchor: [7, 7] });
                 
-                // MODIFICATO: draggable: true per spostare i marker
                 const marker = L.marker([item.lat, item.lng], { 
                     icon: icon,
-                    draggable: isEditMode, // Rende il marker spostabile se modalità modifica attiva
+                    draggable: isEditMode, 
                     autoPan: true
                 });
 
-                // EVENTO SPOSTAMENTO MARKER
                 marker.on('dragend', function(event) {
                     var marker = event.target;
                     var position = marker.getLatLng();
-                    // Salva la nuova posizione
                     window.savePdrPosition(item.pdr, position.lat, position.lng);
                 });
                 
                 const isDone = item.fatto === true;
                 const isHighlight = item.evidenziato === true;
+                const isSelected = selectedPDRs.has(item.pdr);
                 
                 const btnClass = isDone ? "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200" : "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-md";
                 const btnText = isDone ? '<i class="fa-solid fa-rotate-left"></i> Segna Da Fare' : '<i class="fa-solid fa-check"></i> Segna Fatto';
@@ -1132,18 +1150,18 @@ I nostri uffici sono in Via Alberti 29/31`;
                 const highlightBtnClass = isHighlight ? "bg-purple-600 text-white border-purple-600" : "bg-white text-purple-600 border-purple-200 hover:bg-purple-50";
                 const highlightBtnText = isHighlight ? '<i class="fa-solid fa-thumbtack"></i> Rimuovi' : '<i class="fa-solid fa-thumbtack"></i> Evidenzia';
 
-                // --- PARSING NUMERI DI TELEFONO MULTIPLI ---
+                const selectBtnClass = isSelected ? "bg-cyan-600 text-white border-cyan-600" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
+                const selectBtnText = isSelected ? '<i class="fa-solid fa-circle-check"></i> Deseleziona' : '<i class="fa-regular fa-circle"></i> Seleziona';
+
+
                 const rawTele = item.telefono || '';
-                // Splitta per trattino, slash o virgola
                 const phones = rawTele.split(/[-/,]+/).map(p => p.trim()).filter(p => p.length > 4);
                 
                 let waButtonsHtml = '';
                 
                 if (phones.length > 0) {
                     phones.forEach(num => {
-                        // Normalizzazione 75 -> 075 applicata a ogni singolo numero
                         let cleanNum = num;
-                        // Rimuovi spazi interni per il check
                         const checkNum = num.replace(/\s+/g, '');
                         if (checkNum.startsWith('75')) {
                             cleanNum = '0' + num;
@@ -1156,9 +1174,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                             </button>
                         `;
                     });
-                } else {
-                    // Fallback se nessun numero valido trovato (pulsante disabilitato o generico)
-                    // Non mostriamo nulla
                 }
 
                 const popupContent = `
@@ -1178,7 +1193,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                             ${item.nota_accesso ? `<div class="mt-1 text-orange-600 font-medium bg-orange-50 p-1 rounded border border-orange-100"><i class="fa-solid fa-triangle-exclamation w-4 text-center mr-1"></i> <strong>Nota CSV:</strong> ${item.nota_accesso}</div>` : ''}
                             ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
                             
-                            <!-- DATI LETTURA IMPORTATI -->
                             ${(item.val_lettura || item.data_lettura) ? `
                                 <div class="mt-2 bg-green-50 p-2 rounded border border-green-200 text-xs">
                                     <div class="font-bold text-green-800 mb-1"><i class="fa-solid fa-file-import mr-1"></i> Dati Lettura Importati</div>
@@ -1187,15 +1201,12 @@ I nostri uffici sono in Via Alberti 29/31`;
                                 </div>
                             ` : ''}
                             
-                            <!-- MODIFICA COORDINATE MANUALE & OSM -->
                             <div class="mt-2 text-xs text-gray-500 border-t pt-2">
                                 <div class="flex justify-between items-center cursor-pointer hover:bg-gray-50 p-1 rounded" onclick="window.toggleCoordInput('${item.pdr}')">
                                     <span><i class="fa-solid fa-location-dot mr-1"></i> Coords: ${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}</span>
                                     <i class="fa-solid fa-pen text-blue-600"></i>
                                 </div>
                                 <div id="coord_edit_${item.pdr}" class="hidden mt-2 p-2 bg-gray-50 rounded border">
-                                
-                                    <!-- NUOVO: RICERCA OSM -->
                                     <div class="mb-2">
                                         <label class="block text-[10px] font-bold text-gray-500 mb-1">Cerca Indirizzo (OSM)</label>
                                         <div class="flex gap-1">
@@ -1205,7 +1216,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                                             </button>
                                         </div>
                                     </div>
-                                
                                     <label class="block text-[10px] font-bold text-gray-500 mb-1">Nuove Coordinate (Lat, Lng)</label>
                                     <input type="text" id="coord_input_${item.pdr}" class="w-full text-xs border rounded p-1 mb-2" value="${item.lat}, ${item.lng}" placeholder="es. 43.55..., 11.69...">
                                     <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1 rounded mb-2">
@@ -1218,7 +1228,6 @@ I nostri uffici sono in Via Alberti 29/31`;
                             </div>
                         </div>
                         
-                        <!-- NOTE OPERATORE -->
                         <div class="mb-3">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Note Operatore</label>
                             <textarea id="note_${item.pdr}" class="w-full text-xs border border-gray-300 rounded p-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none resize-none" rows="2" placeholder="Scrivi una nota...">${item.nota_operatore || ''}</textarea>
@@ -1232,10 +1241,8 @@ I nostri uffici sono in Via Alberti 29/31`;
                                 <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1.5 rounded text-xs font-bold border transition ${btnClass}">${btnText}</button>
                                 <button onclick="window.togglePdrHighlight('${item.pdr}')" class="w-1/3 py-1.5 rounded text-xs font-bold border transition ${highlightBtnClass}" title="Evidenzia marker">${highlightBtnText}</button>
                             </div>
-                            
-                            <!-- PULSANTI WHATSAPP MULTIPLI -->
+                             <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1.5 rounded text-xs font-bold border transition ${selectBtnClass}">${selectBtnText}</button>
                             ${waButtonsHtml}
-
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-xs text-blue-600 font-medium hover:underline border rounded py-1.5 hover:bg-blue-50"><i class="fa-solid fa-location-arrow"></i> Naviga qui</a>
                         </div>
                     </div>`;
@@ -1248,86 +1255,3 @@ I nostri uffici sono in Via Alberti 29/31`;
             document.getElementById('statDone').innerText = countDone;
             if (countVisible > 0 && map.getZoom() === 6) map.fitBounds(markersCluster.getBounds(), { padding: [50, 50] });
         }
-
-        // --- MAP SETUP ---
-        document.addEventListener('DOMContentLoaded', () => {
-            map = L.map('map').setView([43.30, 12.33], 10); 
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
-            
-            // MODIFICATO: maxClusterRadius a 0 per aggregare SOLO i marker sovrapposti
-            markersCluster = L.markerClusterGroup({ 
-                maxClusterRadius: 0, // Raggruppa solo punti identici
-                spiderfyOnMaxZoom: true, 
-                showCoverageOnHover: false,
-                zoomToBoundsOnClick: true
-            });
-            map.addLayer(markersCluster);
-
-            initApp();
-            
-            document.getElementById('csvInput').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                // CHIEDI CONFERMA SOVRASCRITTURA COORDINATE
-                if(confirm("Vuoi sovrascrivere le coordinate GPS esistenti con quelle del file?\n\nOK = Sovrascrivi (Usa file)\nANNULLA = Mantieni attuali (Usa modifiche manuali)")) {
-                    var overwriteCoords = true;
-                } else {
-                    var overwriteCoords = false;
-                }
-
-                Papa.parse(file, { header: true, skipEmptyLines: true, complete: function(results) {
-                    if (results.meta.fields.length < 2) {
-                        Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: function(res) {
-                            if (res.data && res.data.length > 0) window.importCSVData(res.data, overwriteCoords);
-                        }});
-                    } else {
-                        if (results.data && results.data.length > 0) window.importCSVData(results.data, overwriteCoords);
-                    }
-                }});
-            });
-            
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                const container = document.getElementById('searchResults');
-                container.innerHTML = '';
-                if (term.length < 3) { container.classList.add('hidden'); return; }
-                const matches = Object.values(allData).filter(item => 
-                    (item.pdr && String(item.pdr).includes(term)) || (item.nominativo && item.nominativo.toLowerCase().includes(term)) || (item.matricola && String(item.matricola).toLowerCase().includes(term))
-                ).slice(0, 5); 
-                if (matches.length > 0) {
-                    container.classList.remove('hidden');
-                    matches.forEach(m => {
-                        const div = document.createElement('div');
-                        div.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
-                        div.innerHTML = `<b>${m.nominativo}</b> <br> ${m.pdr}`;
-                        div.onclick = () => { map.flyTo([m.lat, m.lng], 18); };
-                        container.appendChild(div);
-                    });
-                } else { container.classList.add('hidden'); }
-            });
-        });
-
-        function showToast(msg) {
-            const div = document.createElement('div');
-            div.className = "fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[2000] text-sm fade-in";
-            div.innerText = msg;
-            document.body.appendChild(div);
-            setTimeout(() => div.remove(), 3000);
-        }
-
-        window.toggleSidebar = function() {
-            const sb = document.getElementById('sidebar');
-            const btn = document.getElementById('toggleSidebar');
-            sb.classList.toggle('collapsed');
-            if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
-            else btn.classList.add('hidden');
-        }
-    </script>
-
-    <!-- External Libs -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-</body>
-</html>
