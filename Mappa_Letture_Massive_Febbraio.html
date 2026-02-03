@@ -2,16 +2,27 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<!-- Meta tag anti-cache -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mappa PDR - Gestione e Selezione</title>
+<title>Mappa PDR - ASI Multiservices</title>
+
+<!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
+
+<!-- LIBRERIE ESTERNE (Spostate nella HEAD per evitare errori "L is not defined") -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
 <style>
     body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
     #map{height:100%;width:100%;z-index:1}
@@ -42,7 +53,7 @@
             <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
         </div>
         
-        <!-- PANNELLO SELEZIONE (Nuovo) -->
+        <!-- PANNELLO SELEZIONE -->
         <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span>
@@ -68,6 +79,7 @@
              <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
              <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
         </div>
+
         <!-- Filtri -->
         <div class="mb-4">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
@@ -77,6 +89,7 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
+
         <!-- Search -->
         <div class="mb-4">
             <div class="relative"><input type="text" id="searchInput" placeholder="Cerca..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none"><i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i></div>
@@ -118,8 +131,11 @@
 
     let db, auth, user, map, markersCluster;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
+    
+    // --- NOME COLLEZIONE DATI ---
     let COLLECTION_NAME = 'letture_massive_febbraio'; 
-    let selectedPDRs = new Set(); // SELEZIONE MULTIPLA
+    
+    let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
 
@@ -176,7 +192,7 @@
     window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
 
-    // SELEZIONE MULTIPLA
+    // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
     window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
     function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
@@ -220,13 +236,25 @@
                 const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
                 const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
                 
+                // Logica Fatto/Avviso
                 let isNum = false;
                 if(valLett !== '' && valLett !== '0') {
                     const chk = parseFloat(valLett.replace(',','.'));
                     if(!isNaN(chk) && isFinite(chk)) isNum = true;
                 }
-                let isDate = (datLett !== '' && datLett !== '00/01/1900');
-                if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true; 
+                
+                // Se c'è una lettura numerica valida > diventa FATTO
+                if(isNum) {
+                    status = true;
+                }
+                // Se c'è una data di lettura valida (diversa da default) E non è un avviso testuale -> diventa FATTO
+                else if (datLett !== '' && datLett !== '00/01/1900') {
+                    // Se non è numerico ma c'è scritto qualcosa (es. "Avviso"), allora NON è fatto, rimane avviso (giallo).
+                    // Se invece campo lettura vuoto ma c'è data -> consideriamo Fatto? Di solito sì se c'è data.
+                    // Ma se c'è testo "Avviso", allora status = false.
+                    if(valLett !== '' && !isNum) status = false; 
+                    else status = true;
+                }
 
                 const newData = {
                     pdr: pdr, nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
@@ -266,7 +294,7 @@
         if(!q) return;
         try {
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'MappaPDR'}});
-            const d = await response.json();
+            const d = await res.json();
             if(d.length>0) { document.getElementById('coord_input_'+pdr).value = `${d[0].lat}, ${d[0].lon}`; showToast("Trovato!"); }
             else alert("Non trovato");
         } catch(e) { alert("Err OSM"); }
@@ -290,7 +318,7 @@
     window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
     window.openWhatsApp = (pdr, ph) => {
         const item = allData[pdr];
-        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); // Add 39 if missing
+        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); 
         const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
         const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${item.nominativo}\n📍 ${item.indirizzo} ${item.zona}\n🔢 Matricola: ${item.matricola}\n\nGli operatori ASI Multiservices non hanno trovato nessuno.\nPuò inviare la foto a questo numero o chiamare lo 0759417861 (Lun-Ven 09:00-13:30).\n\nGrazie.\nUffici: Via Alberti 29/31`;
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
