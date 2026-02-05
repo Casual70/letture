@@ -89,6 +89,17 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
+        
+        <!-- Filtri Speciali (Note) -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
+            <div class="space-y-1 bg-white border rounded p-2">
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> 
+                    <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span>
+                </div>
+            </div>
+        </div>
 
         <!-- Search -->
         <div class="mb-4">
@@ -138,6 +149,7 @@
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
+    let filterTerrazzo = false; // Nuovo stato filtro
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -236,25 +248,13 @@
                 const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
                 const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
                 
-                // Logica Fatto/Avviso
                 let isNum = false;
                 if(valLett !== '' && valLett !== '0') {
                     const chk = parseFloat(valLett.replace(',','.'));
                     if(!isNaN(chk) && isFinite(chk)) isNum = true;
                 }
-                
-                // Se c'è una lettura numerica valida > diventa FATTO
-                if(isNum) {
-                    status = true;
-                }
-                // Se c'è una data di lettura valida (diversa da default) E non è un avviso testuale -> diventa FATTO
-                else if (datLett !== '' && datLett !== '00/01/1900') {
-                    // Se non è numerico ma c'è scritto qualcosa (es. "Avviso"), allora NON è fatto, rimane avviso (giallo).
-                    // Se invece campo lettura vuoto ma c'è data -> consideriamo Fatto? Di solito sì se c'è data.
-                    // Ma se c'è testo "Avviso", allora status = false.
-                    if(valLett !== '' && !isNum) status = false; 
-                    else status = true;
-                }
+                let isDate = (datLett !== '' && datLett !== '00/01/1900');
+                if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true; 
 
                 const newData = {
                     pdr: pdr, nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
@@ -294,7 +294,7 @@
         if(!q) return;
         try {
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'MappaPDR'}});
-            const d = await res.json();
+            const d = await response.json();
             if(d.length>0) { document.getElementById('coord_input_'+pdr).value = `${d[0].lat}, ${d[0].lon}`; showToast("Trovato!"); }
             else alert("Non trovato");
         } catch(e) { alert("Err OSM"); }
@@ -313,12 +313,13 @@
     };
     
     // UI Helpers
+    window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
     window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
     window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
     window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
     window.openWhatsApp = (pdr, ph) => {
         const item = allData[pdr];
-        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); 
+        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); // Add 39 if missing
         const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
         const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${item.nominativo}\n📍 ${item.indirizzo} ${item.zona}\n🔢 Matricola: ${item.matricola}\n\nGli operatori ASI Multiservices non hanno trovato nessuno.\nPuò inviare la foto a questo numero o chiamare lo 0759417861 (Lun-Ven 09:00-13:30).\n\nGrazie.\nUffici: Via Alberti 29/31`;
         window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -335,6 +336,9 @@
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
             if(!activeAccess.has(cat)) return;
             
+            // FILTRO TERRAZZO
+            if (filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
+
             let search = ((item.zona||'')+' '+(item.indirizzo||'')).toLowerCase();
             let com = 'Altro';
             if(search.includes('umbertide')||search.includes('54056')) com='Umbertide';
