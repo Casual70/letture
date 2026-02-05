@@ -2,7 +2,6 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<!-- Meta tag anti-cache per forzare il ricaricamento -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -75,7 +74,7 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
-
+        
         <!-- Filtri Speciali (Terrazzo) -->
         <div class="mb-6">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
@@ -102,7 +101,7 @@
          <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
          <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
          <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
-        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV Totale"><i class="fa-solid fa-download"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
         <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
     </div>
 </div>
@@ -132,7 +131,7 @@
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
-    let filterTerrazzo = false; 
+    let filterTerrazzo = false; // Nuovo stato filtro
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -192,7 +191,7 @@
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
     window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
     function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
-    window.exportSelectedData = () => { if(selectedPDRs.size===0) { alert("Nessun PDR selezionato"); return; } const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
+    window.exportSelectedData = () => { if(selectedPDRs.size===0) return; const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
     window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "PDR_All_"); };
 
     function generateCSV(items, prefix) {
@@ -238,7 +237,6 @@
                     if(!isNaN(chk) && isFinite(chk)) isNum = true;
                 }
                 let isDate = (datLett !== '' && datLett !== '00/01/1900');
-                // Status Logic: Only numeric reading or valid date forces true. Text reading (warning) does not.
                 if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true; 
 
                 const newData = {
@@ -302,25 +300,17 @@
     window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
     window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
     
-    // Clean string for WA
-    const cleanStr = (s) => {
-        if (!s) return '';
-        // Rimuove carattere sostituzione e caratteri non-ascii strani, poi pulisce spazi
-        return s.replace(/\uFFFD/g, '').replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ').replace(/\s+/g, ' ').trim();
-    };
+    // WHATSAPP CLEANER
+    const cleanStr = (s) => (s||'').replace(/\uFFFD/g,'-').replace(/[^\x20-\x7E\xC0-\xFF]/g,'').trim();
 
     window.openWhatsApp = (pdr, ph) => {
         const item = allData[pdr];
-        // Rimuovi tutto ciò che non è numero
-        let cleanPh = (ph || item.telefono).replace(/[^0-9]/g, '');
-        // Se non inizia per 39, aggiungilo (check base, copre 075... e 338...)
-        if (!cleanPh.startsWith('39')) {
-             cleanPh = '39' + cleanPh;
-        }
-
+        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); 
         const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
-        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori ASI Multiservices non hanno trovato nessuno.\nPuò inviare la foto a questo numero o chiamare lo 0759417861 (Lun-Ven 09:00-13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
-        window.open(`https://wa.me/${cleanPh}?text=${encodeURIComponent(msg)}`, '_blank');
+        
+        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\nIndirizzo: ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\nMatricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.\nIn alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
+        
+        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     // Render
@@ -330,7 +320,11 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
-            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
+            // FILTER TERRAZZO
+            if (filterTerrazzo) {
+                const note = (item.nota_accesso||'').toLowerCase();
+                if (!note.includes('terrazzo')) return;
+            }
 
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
@@ -386,7 +380,7 @@
                             <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
                             <div id="coord_edit_${item.pdr}" class="hidden mt-1 p-1 bg-gray-50 border">
                                 <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
-                                <div class="flex gap-1 mb-1"><button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
+                                <div class="flex gap-1 mb-1"><button onclick="window.executeOSMSearch('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
                                 <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
                                 <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
                             </div>
@@ -410,6 +404,60 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
+
+    // Filters Init
+    function renderAccessFilters() {
+        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
+        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    function renderComuniFilters() {
+        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
+        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
+    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
+        if(t.length<3){c.classList.add('hidden');return;}
+        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
+            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
+            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
+        });
+        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
+    });
+
+    // Helpers
+    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', ()=>{
+        map = L.map('map').setView([43.30,12.33],10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
+        map.addLayer(markersCluster);
+        
+        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
+        map.on('locationerror',e=>alert(e.message));
+
+        document.getElementById('csvInput').addEventListener('change', (e)=>{
+            const f=e.target.files[0]; if(!f)return;
+            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
+            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
+                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
+                else window.importCSVData(r.data,ow);
+            }});
+        });
+
+        initApp();
+    });
 </script>
 </body>
 </html>
