@@ -150,8 +150,8 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
     let db, auth, user, map, markersCluster, storage;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
@@ -223,6 +223,45 @@
     // Photo Modal
     window.openPhotoModal = (url) => { document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
     window.closePhotoModal = () => { document.getElementById('photoModal').classList.add('hidden'); document.getElementById('photoModalImage').src = ''; };
+
+    window.deletePhoto = async (pdr, url) => {
+        if (!confirm("Sei sicuro di voler eliminare questa foto?")) return;
+
+        try {
+            // 1. Rimuovere da Firebase Storage
+            const photoRef = ref(storage, url);
+            await deleteObject(photoRef);
+
+            // 2. Rimuovere da Firestore
+            if (isCloudMode) {
+                await updateDoc(doc(db, 'artifacts', localStorage.getItem('custom_app_id') || 'default-app-id', 'public', 'data', COLLECTION_NAME, pdr), {
+                    foto_urls: arrayRemove(url)
+                });
+            } else {
+                const index = allData[pdr].foto_urls.indexOf(url);
+                if (index > -1) {
+                    allData[pdr].foto_urls.splice(index, 1);
+                }
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+            }
+            
+            showToast("Foto eliminata!");
+            map.closePopup(); // Chiude e riapre il popup per forzare l'aggiornamento
+        } catch (error) {
+            console.error("Errore eliminazione foto:", error);
+            if (error.code === 'storage/object-not-found') {
+                 if (isCloudMode) {
+                    await updateDoc(doc(db, 'artifacts', localStorage.getItem('custom_app_id') || 'default-app-id', 'public', 'data', COLLECTION_NAME, pdr), {
+                        foto_urls: arrayRemove(url)
+                    });
+                    showToast("Riferimento foto rimosso.");
+                    map.closePopup();
+                }
+            } else {
+                showToast("Errore eliminazione foto", "error");
+            }
+        }
+    };
 
 
     // Selection
@@ -503,7 +542,12 @@
             if (item.foto_urls && item.foto_urls.length > 0) {
                 photoGallery = '<div class="grid grid-cols-4 gap-1 my-2">';
                 item.foto_urls.forEach(url => {
-                    photoGallery += `<div onclick="window.openPhotoModal('${url}')" class="w-full h-12 bg-cover bg-center rounded cursor-pointer" style="background-image:url('${url}')"></div>`;
+                    photoGallery += `
+                        <div class="relative group">
+                            <div onclick="window.openPhotoModal('${url}')" class="w-full h-12 bg-cover bg-center rounded cursor-pointer" style="background-image:url('${url}')"></div>
+                            <button onclick="window.deletePhoto('${item.pdr}', '${url}')" class="absolute top-0 right-0 bg-red-600 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                        </div>
+                    `;
                 });
                 photoGallery += '</div>';
             }
