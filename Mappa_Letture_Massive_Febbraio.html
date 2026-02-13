@@ -101,6 +101,7 @@
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterWaDate" onchange="window.toggleWaDate(this)"> <span class="text-xs font-bold text-gray-700">WA > 2 giorni</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterWarning" onchange="window.toggleWarning(this)"> <span class="text-xs font-bold text-yellow-500">Solo Avvisi</span></div>
             </div>
         </div>
 
@@ -125,6 +126,14 @@
 </div>
 <div id="map"></div>
 
+<!-- Photo Modal -->
+<div id="photoModal" class="modal-overlay hidden">
+    <div class="modal-content !max-w-3xl">
+        <img id="photoModalImage" src="" class="w-full h-auto rounded-lg">
+        <button onclick="window.closePhotoModal()" class="absolute top-2 right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg">&times;</button>
+    </div>
+</div>
+
 <!-- Settings Modal -->
 <div id="settingsModal" class="modal-overlay hidden">
     <div class="modal-content">
@@ -141,9 +150,10 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-    let db, auth, user, map, markersCluster;
+    let db, auth, user, map, markersCluster, storage;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
     let COLLECTION_NAME = 'letture_massive_febbraio'; 
     let selectedPDRs = new Set();
@@ -151,6 +161,7 @@
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false;
     let filterWaDate = false;
+    let filterWarning = false;
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -179,6 +190,7 @@
 
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app); db = getFirestore(app);
+            storage = getStorage(app);
             
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
@@ -206,6 +218,12 @@
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
     window.toggleWaDate = (e) => { filterWaDate = e.checked; updateMapAndUI(); };
+    window.toggleWarning = (e) => { filterWarning = e.checked; updateMapAndUI(); };
+
+    // Photo Modal
+    window.openPhotoModal = (url) => { document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
+    window.closePhotoModal = () => { document.getElementById('photoModal').classList.add('hidden'); document.getElementById('photoModalImage').src = ''; };
+
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -272,6 +290,7 @@
                     wa_inviato: existingWaDate,
                     val_lettura: valLett, data_lettura: datLett,
                     evidenziato: ex ? (ex.evidenziato||false) : false,
+                    foto_urls: ex ? (ex.foto_urls||[]) : [],
                     lat: lat, lng: lng, fatto: status
                 };
                 allData[pdr] = newData;
@@ -290,6 +309,60 @@
     // Actions
     window.savePdrNote = async (pdr) => { const txt = document.getElementById('note_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {nota_operatore:txt}); else { allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } showToast("Nota salvata"); };
     
+    // Photo Upload
+    window.triggerPhotoUpload = (pdr) => document.getElementById('photo_input_'+pdr).click();
+    window.handlePhotoUpload = async (pdr, file) => {
+        if (!file) return;
+        showToast("Compressione foto...");
+        try {
+            const compressedFile = await compressImage(file);
+            showToast("Caricamento foto...");
+            const storageRef = ref(storage, `${COLLECTION_NAME}/${pdr}/${Date.now()}.jpg`);
+            await uploadBytes(storageRef, compressedFile);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            if (isCloudMode) {
+                await updateDoc(doc(db, 'artifacts', localStorage.getItem('custom_app_id') || 'default-app-id', 'public', 'data', COLLECTION_NAME, pdr), {
+                    foto_urls: arrayUnion(downloadURL)
+                });
+            } else {
+                if (!allData[pdr].foto_urls) allData[pdr].foto_urls = [];
+                allData[pdr].foto_urls.push(downloadURL);
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+            }
+            showToast("Foto caricata!");
+            // Non è necessario un refresh completo, basta aggiornare il popup se è aperto
+        } catch (error) {
+            console.error("Errore upload foto:", error);
+            showToast("Errore upload foto", "error");
+        }
+    };
+
+    function compressImage(file, maxWidth = 1280, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = event => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.min(1, maxWidth / img.width);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.toBlob(blob => {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Compressione fallita.'));
+                    }, 'image/jpeg', quality);
+                };
+                img.onerror = error => reject(error);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
     // NUOVA FUNZIONE FOLLOW-UP WA
     window.saveWaDate = async (pdr) => { 
         const val = document.getElementById('wa_date_'+pdr).value; 
@@ -365,6 +438,10 @@
                 if(waDate > twoDaysAgo) return;
             }
 
+            let warn = false;
+            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
+            if(filterWarning && !warn) return;
+
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
             if(!activeAccess.has(cat)) return;
@@ -379,8 +456,6 @@
             vis++; if(item.fatto) done++;
 
             let col = '#dc2626';
-            let warn = false;
-            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
             
             if(item.evidenziato) col='#9333ea';
             else if(selectedPDRs.has(item.pdr)) col='#06b6d4';
@@ -403,6 +478,15 @@
             });
             const isSel = selectedPDRs.has(item.pdr);
             const selBtnClass = isSel ? "bg-cyan-600 text-white" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
+
+            let photoGallery = '<div class="text-[10px] text-gray-400 text-center my-1">Nessuna foto</div>';
+            if (item.foto_urls && item.foto_urls.length > 0) {
+                photoGallery = '<div class="grid grid-cols-4 gap-1 my-2">';
+                item.foto_urls.forEach(url => {
+                    photoGallery += `<div onclick="window.openPhotoModal('${url}')" class="w-full h-12 bg-cover bg-center rounded cursor-pointer" style="background-image:url('${url}')"></div>`;
+                });
+                photoGallery += '</div>';
+            }
 
             const content = `
                 <div class="font-sans">
@@ -430,7 +514,14 @@
                     <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
                     <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
                     
-                    <div class="flex gap-1 mb-1">
+                    <div class="border-t pt-2 mt-2">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Foto</label>
+                        ${photoGallery}
+                        <input type="file" id="photo_input_${item.pdr}" class="hidden" accept="image/*" onchange="window.handlePhotoUpload('${item.pdr}', this.files[0])">
+                        <button onclick="window.triggerPhotoUpload('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-camera mr-1"></i> Aggiungi Foto</button>
+                    </div>
+
+                    <div class="flex gap-1 my-2">
                         <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
                         <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
                     </div>
