@@ -375,6 +375,26 @@
     window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
     
+    window.updateCoordsWithGPS = (pdr) => {
+        if (!navigator.geolocation) {
+            alert("Geolocalizzazione non supportata da questo browser.");
+            return;
+        }
+        showToast("Acquisizione posizione GPS...");
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                document.getElementById(`coord_input_${pdr}`).value = `${lat}, ${lng}`;
+                window.savePdrPosition(pdr, lat, lng);
+                showToast("Posizione GPS aggiornata!");
+            },
+            () => {
+                alert("Impossibile recuperare la posizione. Assicurati di aver concesso i permessi.");
+            }
+        );
+    };
+
     // Tools
     window.searchBetterCoords = async (pdr) => {
         const q = document.getElementById('osm_search_'+pdr).value;
@@ -507,7 +527,10 @@
                                 <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
                                 <div class="flex gap-1 mb-1"><button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
                                 <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
-                                <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                                <div class="flex gap-1 mt-1">
+                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                                    <button onclick="window.updateCoordsWithGPS('${item.pdr}')" class="w-full bg-green-500 text-white text-[9px] py-1 rounded flex items-center justify-center gap-1"><i class="fa-solid fa-crosshairs"></i> Usa GPS Attuale</button>
+                                </div>
                             </div>
                         </div>
                     </div>
