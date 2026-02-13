@@ -100,6 +100,7 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterWaDate" onchange="window.toggleWaDate(this)"> <span class="text-xs font-bold text-gray-700">WA > 2 giorni</span></div>
             </div>
         </div>
 
@@ -149,6 +150,7 @@
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false;
+    let filterWaDate = false;
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -203,6 +205,7 @@
     window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
+    window.toggleWaDate = (e) => { filterWaDate = e.checked; updateMapAndUI(); };
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -353,6 +356,14 @@
         
         Object.values(allData).forEach(item => {
             if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
+
+            if(filterWaDate) {
+                if(!item.wa_inviato) return;
+                const waDate = new Date(item.wa_inviato);
+                const twoDaysAgo = new Date();
+                twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+                if(waDate > twoDaysAgo) return;
+            }
 
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
