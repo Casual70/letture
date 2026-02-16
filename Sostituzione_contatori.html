@@ -6,12 +6,12 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mappa Sostituzione Contatori - ASI</title>
+<title>Mappa Sostituzioni - ASI</title>
 
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- LIBRERIE ESTERNE -->
+<!-- LIBRERIE MAPPA -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -25,25 +25,34 @@
 <style>
     body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
     #map{height:100%;width:100%;z-index:1}
+    
+    /* Sidebar */
     .sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
     .sidebar.collapsed{transform:translateX(-100%)}
-    .sidebar-header{padding:1rem;background:#15803d;color:#fff;display:flex;justify-content:space-between;align-items:center} /* VERDE SCURO */
+    
+    /* Header Verde per Sostituzioni */
+    .sidebar-header{padding:1rem;background:#15803d;color:#fff;display:flex;justify-content:space-between;align-items:center}
     .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
     .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
+    
     .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
     .leaflet-popup-content-wrapper{border-radius:8px}.leaflet-popup-content{margin:12px;width:320px!important}
-    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
-    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
+    
+    /* Cluster Colors (Grigi neutri) */
+    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(100,116,139,.6)}
+    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(71,85,105,.6);color:#fff}
+    
     .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
     .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+    
     .filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
     .filter-checkbox:hover{background-color:#f3f4f6}
     .filter-checkbox input{margin-right:10px;accent-color:#16a34a;width:16px;height:16px}
     .gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
 </style>
 
-<!-- SCRIPT UI GLOBAL -->
 <script>
+    // Funzione UI sicura fuori dal modulo
     function toggleSidebar() {
         const sb = document.getElementById('sidebar');
         const btn = document.getElementById('toggleSidebar');
@@ -58,10 +67,14 @@
 <div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()"><i class="fa-solid fa-bars text-gray-700 text-xl"></i></div>
 
 <div id="sidebar" class="sidebar">
-    <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-wrench mr-2"></i>Sostituzioni</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
+    <div class="sidebar-header">
+        <h1 class="text-lg font-bold"><i class="fa-solid fa-wrench mr-2"></i>Sostituzioni</h1>
+        <button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button>
+    </div>
+    
     <div class="sidebar-content">
         <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati (GDM 16-02)</h3>
+            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa GDM (CSV)</h3>
             <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700"/>
         </div>
         
@@ -78,10 +91,8 @@
         <div class="mb-6 grid grid-cols-2 gap-2 text-center">
              <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
              <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
-             <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
-             <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">DA FARE (Verde)</span></div>
-             <!-- Giallo rimosso/nascosto per ora -->
-             <!-- <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div> -->
+             <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">SOSTITUITO</span></div>
+             <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">DA FARE</span></div>
              <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
              <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
         </div>
@@ -96,15 +107,6 @@
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
         
-        <!-- Filtri Speciali -->
-        <div class="mb-6">
-            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
-            <div class="space-y-1 bg-white border rounded p-2">
-                <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
-                <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up > 2gg</span></div>
-            </div>
-        </div>
-
         <!-- Search -->
         <div class="mb-4">
             <div class="relative"><input type="text" id="searchInput" placeholder="Cerca PDR, Nome..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none"><i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i></div>
@@ -112,13 +114,13 @@
         <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
         <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-2 gap-2">
             <div><div class="text-[10px] text-gray-500 uppercase">Visibili</div><div id="statVisible" class="text-xl font-bold text-gray-700">0</div></div>
-            <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-blue-600">0</div></div>
+            <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-green-700">0</div></div>
         </div>
         <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
     </div>
+    
     <div class="sidebar-footer">
          <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
-         <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
          <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
         <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
         <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
@@ -145,16 +147,11 @@
     import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     let db, auth, user, map, markersCluster;
-    let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
-    
-    // --- NUOVA COLLEZIONE ---
+    let allData = {}, isCloudMode = false, userLocationMarker = null;
     let COLLECTION_NAME = 'sostituzione_contatori'; 
-    
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
-    let filterTerrazzo = false;
-    let filterFollowUp = false;
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -206,10 +203,7 @@
         if(!c) { localStorage.removeItem('custom_firebase_config'); location.reload(); return;}
         try { JSON.parse(c); localStorage.setItem('custom_firebase_config', c); localStorage.setItem('custom_app_id', document.getElementById('appIdInput').value.trim()); location.reload(); } catch(e){ alert("JSON non valido"); }
     };
-    window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
-    window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
-    window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -249,10 +243,9 @@
             
             if(!isNaN(lat) && !isNaN(lng)) {
                 const ex = allData[pdr];
-                let status = ex ? (ex.fatto || false) : false; // Default: Maintains existing status
+                let status = ex ? (ex.fatto || false) : false; 
                 const existingWaDate = ex ? (ex.wa_inviato || '') : '';
                 
-                // MAPPING PER GDM CSV
                 const newData = {
                     pdr: pdr, 
                     nominativo: row['Nome utenza']||'Utente',
@@ -263,7 +256,7 @@
                     anno_fabb: row['Anno fabbricazione misuratore']||'',
                     classe: row['Classe misuratore']||'',
                     accessibilita: row["Accessibilita' PDR"]||row['Accessibilità gruppi misura']||'N/D',
-                    nota_accesso: '', // CSV GDM doesn't have explicit note column in snippet
+                    nota_accesso: '', 
                     nota_operatore: ex ? (ex.nota_operatore||'') : '',
                     wa_inviato: existingWaDate,
                     evidenziato: ex ? (ex.evidenziato||false) : false,
@@ -287,20 +280,7 @@
     window.saveWaDate = async (pdr) => { const v = document.getElementById('wa_date_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {wa_inviato:v}); else { allData[pdr].wa_inviato = v; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } showToast("Data WA salvata"); };
     window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
-    window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
     
-    // Tools
-    window.searchBetterCoords = async (pdr) => {
-        const q = document.getElementById('osm_search_'+pdr).value;
-        if(!q) return;
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'MappaPDR'}});
-            const d = await res.json();
-            if(d.length>0) { document.getElementById('coord_input_'+pdr).value = `${d[0].lat}, ${d[0].lon}`; showToast("Trovato!"); }
-            else alert("Non trovato");
-        } catch(e) { alert("Err OSM"); }
-    };
-
     window.clearData = async () => {
         if(!confirm(`Cancellare lista ${COLLECTION_NAME}?`)) return;
         if(!isCloudMode) { localStorage.removeItem('pdr_data_riepilogo'); allData={}; updateMapAndUI(); location.reload(); }
@@ -313,12 +293,7 @@
         }
     };
     
-    // UI Helpers
-    window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
-    window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
-    window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
-    
-    // Clean string for WA
+    // WA Clean
     const cleanStr = (s) => (s||'').replace(/\uFFFD/g,'-').replace(/[^\x20-\x7E\xA0-\xFF]/g,' ').replace(/\s+/g,' ').trim();
 
     window.openWhatsApp = (pdr, ph) => {
@@ -341,19 +316,6 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
-            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
-
-            // FILTER FOLLOWUP
-            if (filterFollowUp) {
-                if (!item.wa_inviato) return; 
-                const waDate = new Date(item.wa_inviato);
-                const today = new Date();
-                waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
-                const diffTime = today - waDate;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-                if (diffDays <= 2) return; 
-            }
-
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
             if(!activeAccess.has(cat)) return;
@@ -377,8 +339,7 @@
 
             const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
             
-            const m = L.marker([item.lat, item.lng], {icon:icon, draggable:isEditMode, autoPan:true});
-            m.on('dragend', (e) => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
+            const m = L.marker([item.lat, item.lng], {icon:icon, autoPan:true});
             
             // Build Popup
             let wa = '';
@@ -401,16 +362,6 @@
                         <div>🔢 Matr: ${item.matricola} (Anno: ${item.anno_fabb||'-'})</div>
                         <div>🚪 ${item.accessibilita}</div>
                         ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
-                        
-                        <div class="border-t pt-1 mt-1">
-                            <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
-                            <div id="coord_edit_${item.pdr}" class="hidden mt-1 p-1 bg-gray-50 border">
-                                <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
-                                <div class="flex gap-1 mb-1"><button onclick="window.executeOSMSearch('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
-                                <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
-                                <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
-                            </div>
-                        </div>
                     </div>
                     <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
                     <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
@@ -439,6 +390,60 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
+
+    // Filters Init
+    function renderAccessFilters() {
+        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
+        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    function renderComuniFilters() {
+        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
+        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
+    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
+        if(t.length<3){c.classList.add('hidden');return;}
+        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
+            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
+            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
+        });
+        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
+    });
+
+    // Helpers
+    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', ()=>{
+        map = L.map('map').setView([43.30,12.33],10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
+        map.addLayer(markersCluster);
+        
+        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
+        map.on('locationerror',e=>alert(e.message));
+
+        document.getElementById('csvInput').addEventListener('change', (e)=>{
+            const f=e.target.files[0]; if(!f)return;
+            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
+            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
+                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
+                else window.importCSVData(r.data,ow);
+            }});
+        });
+
+        initApp();
+    });
 </script>
 </body>
 </html>
