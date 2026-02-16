@@ -2,7 +2,6 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<!-- Meta tag anti-cache -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -28,7 +27,7 @@
     #map{height:100%;width:100%;z-index:1}
     .sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
     .sidebar.collapsed{transform:translateX(-100%)}
-    .sidebar-header{padding:1rem;background:#166534;color:#fff;display:flex;justify-content:space-between;align-items:center} /* Intestazione Verde per distinguere dalla mappa letture */
+    .sidebar-header{padding:1rem;background:#15803d;color:#fff;display:flex;justify-content:space-between;align-items:center} /* Intestazione Verde Sostituzioni */
     .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
     .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
     .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
@@ -62,7 +61,7 @@
     <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-wrench mr-2"></i>Sostituzioni</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
     <div class="sidebar-content">
         <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati (SotiContatori)</h3>
+            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati (GDM CSV)</h3>
             <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-green-600 file:text-white hover:file:bg-green-700"/>
         </div>
         
@@ -80,9 +79,10 @@
              <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
              <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
              <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
-             <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div>
-             <!-- Modificato colore DA FARE in VERDE come richiesto -->
-             <div class="p-2 bg-green-50 border border-green-200 rounded col-span-2"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">DA FARE (Default)</span></div>
+             <!-- Giallo rimosso/nascosto per ora se non usato nel GDM -->
+             <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">DA FARE</span></div>
+             <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
+             <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
         </div>
         
         <!-- Filtri -->
@@ -119,7 +119,7 @@
          <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
          <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
          <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
-        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Esporta CSV"><i class="fa-solid fa-download"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
         <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
     </div>
 </div>
@@ -146,7 +146,7 @@
     let db, auth, user, map, markersCluster;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
     
-    // --- NUOVA COLLEZIONE PER SOSTITUZIONI ---
+    // --- NUOVA COLLEZIONE DEDICATA ---
     let COLLECTION_NAME = 'sostituzione_contatori'; 
     
     let selectedPDRs = new Set();
@@ -214,13 +214,13 @@
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
     window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
     function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
-    window.exportSelectedData = () => { if(selectedPDRs.size===0) return; const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
-    window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "PDR_All_"); };
+    window.exportSelectedData = () => { if(selectedPDRs.size===0) return; const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "Sostituzioni_Sel_"); };
+    window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "Sostituzioni_All_"); };
 
     function generateCSV(items, prefix) {
-        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato;Data WA\n";
+        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Anno Fab;Classe;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato;Data WA\n";
         items.forEach(i => {
-            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO", i.wa_inviato||""].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
+            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.anno_fabb, i.classe, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO", i.wa_inviato||""].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
             content += row + "\n";
         });
         const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
@@ -238,42 +238,33 @@
 
     window.importCSVData = async function(csvData, overwrite) {
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
-        let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
         
         csvData.forEach(row => {
-            const pdr = String(row['Codice PDR']||row.PDR||row.pdr||Math.random().toString(36).substr(2,9));
-            let lat = parseFloat((row.Lat||row.LAT||row.lat||"").toString().replace(',','.').replace(/"/g,''));
-            let lng = parseFloat((row.Long||row.LON||row.lon||"").toString().replace(',','.').replace(/"/g,''));
+            const pdr = String(row['Nr. PDR']||row['Codice PDR']||Math.random().toString(36).substr(2,9));
+            let lat = parseFloat((row['Latitudine']||row.Lat||"").toString().replace(',','.').replace(/"/g,''));
+            let lng = parseFloat((row['Longitudine']||row.Long||"").toString().replace(',','.').replace(/"/g,''));
             
             if(!overwrite && allData[pdr]) { lat = allData[pdr].lat; lng = allData[pdr].lng; }
             
             if(!isNaN(lat) && !isNaN(lng)) {
                 const ex = allData[pdr];
-                let status = ex ? (ex.fatto || false) : false;
+                let status = ex ? (ex.fatto || false) : false; // Default: Maintains existing status
                 const existingWaDate = ex ? (ex.wa_inviato || '') : '';
                 
-                const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
-                const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
-                
-                let isNum = false;
-                if(valLett !== '' && valLett !== '0') {
-                    const chk = parseFloat(valLett.replace(',','.'));
-                    if(!isNaN(chk) && isFinite(chk)) isNum = true;
-                }
-                let isDate = (datLett !== '' && datLett !== '00/01/1900');
-                if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true; 
-
+                // MAPPING PER GDM CSV
                 const newData = {
-                    pdr: pdr, nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
-                    indirizzo: row['Indirizzo']||row.INDIRIZZO||'', zona: row['NOME ZONA']||row.Citta||row['Cod. zona']||'',
-                    telefono: (row['Telefono']||row.TELEFONO||'').toString().trim().replace(/^75/,'075'),
-                    matricola: row['Matricola misuratore']||row.MATRICOLA||'N/D',
-                    data_riferimento: row['Data ultima lettura']||row['ULTIMA LETTURA']||"",
-                    anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
-                    nota_accesso: row['Nota_accesso']||row['Note']||'',
+                    pdr: pdr, 
+                    nominativo: row['Nome utenza']||'Utente',
+                    indirizzo: row['Indirizzo']||'', 
+                    zona: row['Nome zona']||row['Zona']||'',
+                    telefono: (row['Telefono']||'').toString().trim().replace(/^75/,'075'),
+                    matricola: row['Matricola misuratore']||'N/D',
+                    anno_fabb: row['Anno fabbricazione misuratore']||'',
+                    classe: row['Classe misuratore']||'',
+                    accessibilita: row["Accessibilita' PDR"]||row['Accessibilità gruppi misura']||'N/D',
+                    nota_accesso: '', // CSV GDM doesn't have explicit note column in snippet
                     nota_operatore: ex ? (ex.nota_operatore||'') : '',
                     wa_inviato: existingWaDate,
-                    val_lettura: valLett, data_lettura: datLett,
                     evidenziato: ex ? (ex.evidenziato||false) : false,
                     lat: lat, lng: lng, fatto: status
                 };
@@ -332,15 +323,13 @@
     window.openWhatsApp = (pdr, ph) => {
         const item = allData[pdr];
         let cleanPh = (ph || item.telefono).replace(/[^0-9]/g, '');
-        // Fix Italia
         if (!cleanPh.startsWith('39') || (cleanPh.startsWith('39') && cleanPh.length <= 10)) {
             cleanPh = '39' + cleanPh;
         }
 
-        const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
+        const today = new Date().toLocaleDateString('it-IT');
         
-        // MESSAGGIO ADATTATO PER SOSTITUZIONE CONTATORI
-        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la *sostituzione* del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la sostituzione è stato lasciato un avviso di passaggio.\nLa invitiamo a contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
+        const msg = `Salve,\nin data ${today} è stato effettuato un passaggio per la *sostituzione* del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la sostituzione è stato lasciato un avviso di passaggio.\nLa invitiamo a contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
         window.open(`https://wa.me/${cleanPh}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
@@ -351,9 +340,9 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
-            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
+            if(filterTerrazzo && !(item.accessibilita||'').toLowerCase().includes('terrazzo')) return;
 
-             // FILTER FOLLOWUP
+            // FILTER FOLLOWUP
             if (filterFollowUp) {
                 if (!item.wa_inviato) return; 
                 const waDate = new Date(item.wa_inviato);
@@ -377,16 +366,13 @@
 
             vis++; if(item.fatto) done++;
 
-            let col = '#16a34a'; // DEFAULT VERDE (DA FARE)
-            let warn = false;
-            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
+            let col = '#16a34a'; // VERDE (Default)
             
             if(item.evidenziato) col='#9333ea';
             else if(selectedPDRs.has(item.pdr)) col='#06b6d4';
             else if(item.fatto) col='#2563eb';
-            else if(warn) col='#facc15';
-            else if(cat==='Inaccessibile') col='#f97316'; // ARANCIONE
-            else if(cat==='Accessibile') col='#16a34a'; // VERDE
+            else if(cat==='Inaccessibile') col='#f97316';
+            else if(cat==='Accessibile') col='#16a34a';
 
             const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
             
@@ -411,10 +397,9 @@
                     </div>
                     <div class="text-xs text-gray-600 space-y-1 mb-2">
                         <div>📍 ${item.indirizzo} (${item.zona})</div>
-                        <div>🔢 Matr: ${item.matricola}</div>
+                        <div>🔢 Matr: ${item.matricola} (Anno: ${item.anno_fabb||'-'})</div>
                         <div>🚪 ${item.accessibilita}</div>
-                        ${item.nota_accesso?`<div class="text-orange-600 bg-orange-50 p-1 border border-orange-100">⚠️ ${item.nota_accesso}</div>`:''}
-                        ${(item.val_lettura||item.data_lettura)?`<div class="bg-green-50 p-1 border border-green-200">📥 Lett: ${item.val_lettura||'-'} (${item.data_lettura||'-'})</div>`:''}
+                        ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
                         
                         <div class="border-t pt-1 mt-1">
                             <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
@@ -453,60 +438,6 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
-
-    // Filters Init
-    function renderAccessFilters() {
-        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
-        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    function renderComuniFilters() {
-        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
-        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
-    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
-
-    // Search
-    document.getElementById('searchInput').addEventListener('input', (e)=>{
-        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
-        if(t.length<3){c.classList.add('hidden');return;}
-        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
-            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
-            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
-        });
-        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
-    });
-
-    // Helpers
-    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
-
-    // Initial Load
-    document.addEventListener('DOMContentLoaded', ()=>{
-        map = L.map('map').setView([43.30,12.33],10);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
-        map.addLayer(markersCluster);
-        
-        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
-        map.on('locationerror',e=>alert(e.message));
-
-        document.getElementById('csvInput').addEventListener('change', (e)=>{
-            const f=e.target.files[0]; if(!f)return;
-            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
-            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
-                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
-                else window.importCSVData(r.data,ow);
-            }});
-        });
-
-        initApp();
-    });
 </script>
 </body>
 </html>
