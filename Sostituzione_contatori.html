@@ -32,7 +32,7 @@
     .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
     .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
     .leaflet-popup-content-wrapper{border-radius:8px}.leaflet-popup-content{margin:12px;width:320px!important}
-    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(100,116,139,.6)} /* GRIGIO */
+    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(100,116,139,.6)}
     .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(71,85,105,.6);color:#fff}
     .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
     .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
@@ -150,10 +150,7 @@
 
     let db, auth, user, map, markersCluster;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
-    
-    // --- NUOVA COLLEZIONE DEDICATA ---
     let COLLECTION_NAME = 'sostituzione_contatori'; 
-    
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
@@ -260,6 +257,7 @@
                 let status = ex ? (ex.fatto || false) : false; // Default: Maintains existing status
                 const existingWaDate = ex ? (ex.wa_inviato || '') : '';
                 
+                // MAPPING PER GDM CSV
                 const newData = {
                     pdr: pdr, 
                     nominativo: row['Nome utenza']||'Utente',
