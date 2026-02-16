@@ -107,6 +107,15 @@
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
         
+        <!-- Filtri Speciali -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
+            <div class="space-y-1 bg-white border rounded p-2">
+                <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up > 2gg</span></div>
+            </div>
+        </div>
+
         <!-- Search -->
         <div class="mb-4">
             <div class="relative"><input type="text" id="searchInput" placeholder="Cerca PDR, Nome..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none"><i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i></div>
@@ -118,7 +127,6 @@
         </div>
         <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
     </div>
-    
     <div class="sidebar-footer">
          <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
          <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
@@ -148,10 +156,15 @@
 
     let db, auth, user, map, markersCluster;
     let allData = {}, isCloudMode = false, userLocationMarker = null;
+    
+    // --- NUOVA COLLEZIONE DEDICATA ---
     let COLLECTION_NAME = 'sostituzione_contatori'; 
+    
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
+    let filterTerrazzo = false;
+    let filterFollowUp = false;
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -204,6 +217,8 @@
         try { JSON.parse(c); localStorage.setItem('custom_firebase_config', c); localStorage.setItem('custom_app_id', document.getElementById('appIdInput').value.trim()); location.reload(); } catch(e){ alert("JSON non valido"); }
     };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
+    window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
+    window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -235,6 +250,10 @@
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
         
         csvData.forEach(row => {
+             // FILTRO COMUNICAZIONE: Importa solo se Comunicati/Comunicazione è 1
+             const commVal = row['Comunicati'] || row['Comunicazione'];
+             if (commVal !== undefined && String(commVal).trim() !== '1') return;
+
             const pdr = String(row['Nr. PDR']||row['Codice PDR']||Math.random().toString(36).substr(2,9));
             let lat = parseFloat((row['Latitudine']||row.Lat||"").toString().replace(',','.').replace(/"/g,''));
             let lng = parseFloat((row['Longitudine']||row.Long||"").toString().replace(',','.').replace(/"/g,''));
@@ -243,7 +262,7 @@
             
             if(!isNaN(lat) && !isNaN(lng)) {
                 const ex = allData[pdr];
-                let status = ex ? (ex.fatto || false) : false; 
+                let status = ex ? (ex.fatto || false) : false; // Default: Maintains existing status
                 const existingWaDate = ex ? (ex.wa_inviato || '') : '';
                 
                 const newData = {
@@ -316,6 +335,19 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
+            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
+
+            // FILTER FOLLOWUP
+            if (filterFollowUp) {
+                if (!item.wa_inviato) return; 
+                const waDate = new Date(item.wa_inviato);
+                const today = new Date();
+                waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                const diffTime = today - waDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                if (diffDays <= 2) return; 
+            }
+
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
             if(!activeAccess.has(cat)) return;
@@ -390,60 +422,6 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
-
-    // Filters Init
-    function renderAccessFilters() {
-        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
-        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    function renderComuniFilters() {
-        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
-        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
-    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
-
-    // Search
-    document.getElementById('searchInput').addEventListener('input', (e)=>{
-        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
-        if(t.length<3){c.classList.add('hidden');return;}
-        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
-            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
-            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
-        });
-        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
-    });
-
-    // Helpers
-    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
-
-    // Initial Load
-    document.addEventListener('DOMContentLoaded', ()=>{
-        map = L.map('map').setView([43.30,12.33],10);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
-        map.addLayer(markersCluster);
-        
-        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
-        map.on('locationerror',e=>alert(e.message));
-
-        document.getElementById('csvInput').addEventListener('change', (e)=>{
-            const f=e.target.files[0]; if(!f)return;
-            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
-            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
-                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
-                else window.importCSVData(r.data,ow);
-            }});
-        });
-
-        initApp();
-    });
 </script>
 </body>
 </html>
