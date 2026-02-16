@@ -444,6 +444,60 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
+
+    // Filters Init
+    function renderAccessFilters() {
+        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
+        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    function renderComuniFilters() {
+        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
+        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
+    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', (e)=>{
+        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
+        if(t.length<3){c.classList.add('hidden');return;}
+        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
+            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
+            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
+        });
+        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
+    });
+
+    // Helpers
+    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', ()=>{
+        map = L.map('map').setView([43.30,12.33],10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+        markersCluster = L.markerClusterGroup({maxClusterRadius:40,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
+        map.addLayer(markersCluster);
+        
+        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
+        map.on('locationerror',e=>alert(e.message));
+
+        document.getElementById('csvInput').addEventListener('change', (e)=>{
+            const f=e.target.files[0]; if(!f)return;
+            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
+            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
+                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
+                else window.importCSVData(r.data,ow);
+            }});
+        });
+
+        initApp();
+    });
 </script>
 </body>
 </html>
