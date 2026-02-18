@@ -101,7 +101,9 @@
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterWaDate" onchange="window.toggleWaDate(this)"> <span class="text-xs font-bold text-gray-700">WA > 2 giorni</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterWaDate3Days" onchange="window.toggleWaDate3Days(this)"> <span class="text-xs font-bold text-gray-700">WA > 3 giorni</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterWarning" onchange="window.toggleWarning(this)"> <span class="text-xs font-bold text-yellow-500">Solo Avvisi</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterNonFatto" onchange="window.toggleNonFatto(this)"> <span class="text-xs font-bold text-red-600">Solo NON Completati</span></div>
             </div>
         </div>
 
@@ -162,6 +164,8 @@
     let filterTerrazzo = false;
     let filterWaDate = false;
     let filterWarning = false;
+    let filterNonFatto = false;
+    let filterWaDate3Days = false;
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -218,7 +222,9 @@
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
     window.toggleWaDate = (e) => { filterWaDate = e.checked; updateMapAndUI(); };
+    window.toggleWaDate3Days = (e) => { filterWaDate3Days = e.checked; updateMapAndUI(); };
     window.toggleWarning = (e) => { filterWarning = e.checked; updateMapAndUI(); };
+    window.toggleNonFatto = (e) => { filterNonFatto = e.checked; updateMapAndUI(); };
 
     // Photo Modal
     window.openPhotoModal = (url) => { document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
@@ -487,6 +493,8 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
+            if(filterNonFatto && item.fatto) return;
+            
             if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
 
             if(filterWaDate) {
@@ -495,6 +503,14 @@
                 const twoDaysAgo = new Date();
                 twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
                 if(waDate > twoDaysAgo) return;
+            }
+
+            if(filterWaDate3Days) {
+                if(!item.wa_inviato) return;
+                const waDate = new Date(item.wa_inviato);
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                if(waDate > threeDaysAgo) return;
             }
 
             let warn = false;
