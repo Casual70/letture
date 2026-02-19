@@ -31,7 +31,7 @@
     .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
     .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
     .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
-    .leaflet-popup-content-wrapper{border-radius:8px}.leaflet-popup-content{margin:12px;width:320px!important}
+    /* Popup width handled by .leaflet-popup-content override below */
     .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
     .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
     .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
@@ -40,9 +40,53 @@
     .filter-checkbox:hover{background-color:#f3f4f6}
     .filter-checkbox input{margin-right:10px;accent-color:#2563eb;width:16px;height:16px}
     .gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
-    /* Estensioni Scrollbar per Popup Via */
-    .popup-street-scroll::-webkit-scrollbar { width: 6px; }
-    .popup-street-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    /* Popup responsive mobile */
+    .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important}
+    .leaflet-popup-content{margin:0!important;width:min(88vw,360px)!important;max-width:360px}
+    .popup-pdr, .popup-via{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px}
+    .popup-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0}
+    .popup-body{padding:10px 14px 12px}
+    .popup-name{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3}
+    .popup-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .popup-badge.fatto{background:#dbeafe;color:#1d4ed8}
+    .popup-badge.dafare{background:#fee2e2;color:#dc2626}
+    .popup-info-row{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#475569;padding:3px 0}
+    .popup-info-row .icon{font-size:13px;flex-shrink:0;margin-top:1px}
+    .popup-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:7px 10px;font-size:12px;color:#c2410c;font-weight:600}
+    .popup-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:8px;font-size:13px;font-weight:700;border:1.5px solid transparent;cursor:pointer;transition:opacity .15s;width:100%}
+    .popup-btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
+    .popup-btn-primary:active{opacity:.8}
+    .popup-btn-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}
+    .popup-btn-purple{background:#9333ea;color:#fff;border-color:#9333ea}
+    .popup-btn-cyan{background:#06b6d4;color:#fff;border-color:#06b6d4}
+    .popup-btn-green{background:#22c55e;color:#fff;border-color:#22c55e}
+    .popup-btn-outline-green{background:#fff;color:#16a34a;border-color:#bbf7d0}
+    .popup-btn-sm{min-height:34px;font-size:12px;padding:0 10px;border-radius:7px}
+    .popup-input{width:100%;border:1.5px solid #cbd5e1;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;box-sizing:border-box}
+    .popup-input:focus{border-color:#2563eb}
+    .popup-section{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+    .popup-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+    .popup-nav-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:none;font-weight:600;padding:8px;background:#eff6ff;border-radius:7px;margin-top:8px}
+    /* Popup Via - card utenze */
+    .popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;position:sticky;top:0;z-index:10}
+    .popup-via-scroll{max-height:52vh;overflow-y:auto;padding:10px 12px 12px}
+    .popup-via-scroll::-webkit-scrollbar{width:5px}
+    .popup-via-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    .pdr-card{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+    .pdr-card.done{background:#eff6ff;border-color:#bfdbfe}
+    .pdr-card-name{font-size:13px;font-weight:700;color:#1e293b;padding-right:60px;line-height:1.3}
+    .pdr-card-meta{font-size:11px;color:#64748b;margin-top:2px}
+    .pdr-card-warn{font-size:11px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:4px 8px;margin-top:5px}
+    .pdr-card-actions{display:flex;gap:6px;margin-top:8px}
+    .pdr-card-btn{flex:1;min-height:38px;border-radius:7px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+    .pdr-card-note{display:flex;gap:6px;margin-top:6px}
+    .pdr-card-note input{flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 10px;font-size:12px;outline:none}
+    .pdr-card-note input:focus{border-color:#2563eb}
+    .pdr-card-note button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;background:#f1f5f9;color:#334155;border:1.5px solid #cbd5e1;cursor:pointer}
+    .pdr-card-followup{display:flex;align-items:center;gap:6px;margin-top:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px}
+    .pdr-card-followup .label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
+    .pdr-card-followup input{flex:1;border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
+    .pdr-card-followup button{min-height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer}
 </style>
 
 <script>
@@ -537,47 +581,72 @@
                 const selBtnClass = selectedPDRs.has(item.pdr) ? "bg-cyan-600 text-white" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
 
                 const content = `
-                    <div class="font-sans">
-                        <div class="border-b pb-1 mb-2">
-                            <div class="font-bold text-gray-800">${item.nominativo}</div>
-                            <div class="flex justify-between items-center mt-1"><span class="text-[10px] text-gray-500">${item.pdr}</span><span class="px-2 rounded text-[9px] font-bold ${item.fatto?'bg-blue-100 text-blue-800':'bg-red-100 text-red-800'}">${item.fatto?'FATTO':'DA FARE'}</span></div>
+                    <div class="popup-pdr">
+                        <!-- HEADER -->
+                        <div class="popup-header">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="popup-name">${item.nominativo}</div>
+                                <span class="popup-badge ${item.fatto?'fatto':'dafare'}">${item.fatto?'<i class="fa-solid fa-check"></i> FATTO':'<i class="fa-solid fa-clock"></i> DA FARE'}</span>
+                            </div>
+                            <div style="font-size:11px;color:#94a3b8;margin-top:4px">PDR&nbsp;${item.pdr}</div>
                         </div>
-                        <div class="text-xs text-gray-600 space-y-1 mb-2">
-                            <div>📍 ${item.indirizzo} (${item.zona})</div>
-                            <div>🔢 Matr: ${item.matricola}</div>
-                            <div>🚪 ${item.accessibilita}</div>
-                            ${item.nota_accesso?`<div class="text-orange-600 bg-orange-50 p-1 border border-orange-100">⚠️ ${item.nota_accesso}</div>`:''}
-                            ${(item.val_lettura||item.data_lettura)?`<div class="bg-green-50 p-1 border border-green-200">📥 Lett: ${item.val_lettura||'-'} (${item.data_lettura||'-'})</div>`:''}
-                            <div class="border-t pt-1 mt-1">
-                                <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
-                                <div id="coord_edit_${item.pdr}" class="hidden mt-1 p-1 bg-gray-50 border">
-                                    <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
-                                    <div class="flex gap-1 mb-1"><button onclick="window.executeOSMSearch('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
-                                    <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
-                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                        <!-- BODY -->
+                        <div class="popup-body">
+                            <!-- INFO -->
+                            <div class="popup-info-row"><span class="icon">📍</span><span>${item.indirizzo}${item.zona?' — '+item.zona:''}</span></div>
+                            <div class="popup-info-row"><span class="icon">🔢</span><span>Matr:&nbsp;<b>${item.matricola}</b></span></div>
+                            <div class="popup-info-row"><span class="icon">🚪</span><span>${item.accessibilita}</span></div>
+                            ${item.nota_accesso?`<div class="popup-warn" style="margin-top:6px">⚠️ ${item.nota_accesso}</div>`:''}
+                            ${(item.val_lettura||item.data_lettura)?`<div class="popup-info-row" style="background:#f0fdf4;border-radius:6px;padding:5px 8px;margin-top:4px"><span class="icon">📥</span><span>Lettura: <b>${item.val_lettura||'—'}</b> (${item.data_lettura||'—'})</span></div>`:''}
+
+                            <!-- AZIONI PRINCIPALI -->
+                            <div class="popup-section">
+                                <div style="display:flex;gap:8px;margin-bottom:8px">
+                                    <button onclick="window.togglePdrStatus('${item.pdr}')" class="popup-btn ${item.fatto?'popup-btn-secondary':'popup-btn-primary'}">${item.fatto?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>
+                                    <button onclick="window.togglePdrHighlight('${item.pdr}')" class="popup-btn ${item.evidenziato?'popup-btn-purple':'popup-btn-secondary'}"><i class="fa-solid fa-star"></i> ${item.evidenziato?'Evid.':'Evidenzia'}</button>
+                                </div>
+                                <button onclick="window.togglePdrSelection('${item.pdr}')" class="popup-btn popup-btn-sm" style="background:${selectedPDRs.has(item.pdr)?'#0891b2':'#fff'};color:${selectedPDRs.has(item.pdr)?'#fff':'#0891b2'};border-color:#a5f3fc;margin-bottom:8px">${selectedPDRs.has(item.pdr)?'<i class="fa-solid fa-xmark"></i> Deseleziona':'<i class="fa-solid fa-check-double"></i> Seleziona'}</button>
+                                ${wa}
+                            </div>
+
+                            <!-- NOTE -->
+                            <div class="popup-section">
+                                <div class="popup-section-title">Note operative</div>
+                                <textarea id="note_${item.pdr}" class="popup-input" rows="2" placeholder="Scrivi una nota..." style="resize:none">${item.nota_operatore||''}</textarea>
+                                <button onclick="window.savePdrNote('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm" style="margin-top:6px"><i class="fa-solid fa-floppy-disk"></i> Salva nota</button>
+                            </div>
+
+                            <!-- FOLLOW-UP -->
+                            <div class="popup-section">
+                                <div class="popup-section-title">Follow-up WhatsApp</div>
+                                <div style="display:flex;gap:8px">
+                                    <input type="date" id="wa_date_${item.pdr}" class="popup-input" style="flex:1" value="${item.wa_inviato||''}">
+                                    <button onclick="window.saveWaDate('${item.pdr}')" class="popup-btn popup-btn-sm" style="width:auto;padding:0 14px;background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe">OK</button>
                                 </div>
                             </div>
-                        </div>
-                        <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
-                        <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
-                        
-                        <div class="flex gap-1 mb-1">
-                            <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
-                            <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
-                        </div>
-                        <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-1 rounded text-[10px] font-bold border ${selBtnClass}">${selectedPDRs.has(item.pdr)?'Deseleziona':'Seleziona'}</button>
-                        ${wa}
-                        
-                        <!-- FOLLOW-UP RIPRISTINATO -->
-                        <div class="mt-2 border-t pt-1">
-                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Follow-up WA</label>
-                            <div class="flex gap-1">
-                                <input type="date" id="wa_date_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.wa_inviato||''}">
-                                <button onclick="window.saveWaDate('${item.pdr}')" class="bg-blue-100 text-blue-600 border border-blue-200 rounded px-2 text-xs font-bold hover:bg-blue-200">OK</button>
-                            </div>
-                        </div>
 
-                        <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-1">Naviga qui</a>
+                            <!-- COORDINATE (collassabile) -->
+                            <div class="popup-section">
+                                <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:#2563eb" onclick="window.toggleCoordInput('${item.pdr}')">
+                                    <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px">Coordinate GPS</span>
+                                    <i class="fa-solid fa-pen" style="font-size:11px"></i>
+                                </div>
+                                <div id="coord_edit_${item.pdr}" class="hidden" style="margin-top:8px">
+                                    <input id="osm_search_${item.pdr}" class="popup-input" style="margin-bottom:6px" value="${item.indirizzo} ${item.zona}">
+                                    <div style="display:flex;gap:6px;margin-bottom:6px">
+                                        <button onclick="window.executeOSMSearch('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm">Cerca OSM</button>
+                                        <button onclick="window.searchGoogleMaps('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm">Google Maps</button>
+                                    </div>
+                                    <input id="coord_input_${item.pdr}" class="popup-input" style="margin-bottom:6px" value="${item.lat}, ${item.lng}">
+                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="popup-btn popup-btn-primary popup-btn-sm"><i class="fa-solid fa-floppy-disk"></i> Aggiorna coordinate</button>
+                                </div>
+                            </div>
+
+                            <!-- NAVIGA -->
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="popup-nav-link">
+                                <i class="fa-solid fa-location-arrow"></i> Naviga con Google Maps
+                            </a>
+                        </div>
                     </div>
                 `;
                 m.bindPopup(content);
@@ -637,22 +706,27 @@
 
                 // Inizio Popup Via
                 let popupContent = `
-                    <div class="font-sans w-64">
-                        <div class="border-b pb-2 mb-2 sticky top-0 bg-white z-10">
-                            <div class="font-bold text-gray-800 text-[13px] leading-tight">${key}</div>
-                            <div class="flex justify-between items-center text-[10px] text-gray-500 mt-1">
-                                <span>${items.length} Utenze</span>
-                                <a href="https://www.google.com/maps/dir/?api=1&destination=${group.lat},${group.lng}" target="_blank" class="text-blue-600 font-bold hover:underline"><i class="fa-solid fa-location-arrow"></i> Naviga</a>
+                    <div class="popup-via">
+                        <!-- HEADER STICKY -->
+                        <div class="popup-via-header">
+                            <div class="popup-name" style="font-size:14px">${key}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+                                <span style="font-size:12px;color:#64748b;font-weight:600">${items.length} utenze</span>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${group.lat},${group.lng}" target="_blank" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#2563eb;font-weight:700;text-decoration:none">
+                                    <i class="fa-solid fa-location-arrow"></i> Naviga
+                                </a>
                             </div>
-                            <div class="mt-1 flex items-center justify-between text-[10px] text-blue-600 cursor-pointer border border-blue-100 bg-blue-50 p-1 rounded" onclick="window.toggleCoordInput('street_${safeStreetId}')">
-                                <span><i class="fa-solid fa-pen"></i> Riassegna Coordinate a tutta la via</span>
+                            <!-- Coordinate via -->
+                            <div style="margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;color:#2563eb;font-weight:700;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:6px 10px" onclick="window.toggleCoordInput('street_${safeStreetId}')">
+                                <i class="fa-solid fa-pen"></i> Riassegna coordinate a tutta la via
                             </div>
-                            <div id="coord_edit_street_${safeStreetId}" class="hidden mt-1 p-1.5 bg-gray-50 border rounded shadow-sm">
-                                <input id="coord_input_street_${safeStreetId}" class="w-full mb-1 border rounded text-[10px] p-1" value="${group.lat}, ${group.lng}">
-                                <button onclick="window.saveStreetCoords('${safeKey}', 'coord_input_street_${safeStreetId}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold py-1 rounded">Applica a tutti i ${items.length} marker</button>
+                            <div id="coord_edit_street_${safeStreetId}" class="hidden" style="margin-top:8px">
+                                <input id="coord_input_street_${safeStreetId}" class="popup-input" style="margin-bottom:6px" value="${group.lat}, ${group.lng}">
+                                <button onclick="window.saveStreetCoords('${safeKey}', 'coord_input_street_${safeStreetId}')" class="popup-btn popup-btn-primary popup-btn-sm">Applica a tutti i ${items.length} marker</button>
                             </div>
                         </div>
-                        <div class="max-h-[300px] popup-street-scroll overflow-y-auto space-y-2 pr-1 pb-1">
+                        <!-- LISTA UTENZE -->
+                        <div class="popup-via-scroll">
                 `;
 
                 // Ordina per Fatto/Da Fare
@@ -667,35 +741,37 @@
                     if(phones.length > 0) {
                         let cleanPh = phones[0].replace(/[^0-9]/g, '');
                         if (!cleanPh.startsWith('39') && cleanPh.length>5) cleanPh = '39' + cleanPh;
-                        waBtn = `<button onclick="window.openWhatsApp('${item.pdr}', '${cleanPh}')" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded shadow-sm text-[10px]" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></button>`;
+                        waBtn = `<button onclick="window.openWhatsApp('${item.pdr}', '${cleanPh}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>`;
                     }
-                    
-                    let bgCard = isDone ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200 shadow-sm';
-                    let statusLabel = isDone ? '<span class="text-blue-600">FATTO</span>' : '<span class="text-red-600">DA FARE</span>';
 
                     popupContent += `
-                        <div class="border rounded p-2 ${bgCard} relative">
-                            <div class="absolute top-2 right-2 text-[9px] font-bold">${statusLabel}</div>
-                            <div class="font-bold text-[11px] text-gray-800 pr-12 leading-tight">${item.nominativo}</div>
-                            <div class="text-[10px] text-gray-600 mt-0.5">Civico: <span class="font-bold text-black">${civico}</span> | Matr: ${item.matricola}</div>
-                            <div class="text-[9px] text-gray-400">PDR: ${item.pdr}</div>
-                            ${item.nota_accesso ? `<div class="text-[9px] text-orange-600 bg-orange-50 px-1 py-0.5 rounded mt-0.5 border border-orange-100">${item.nota_accesso}</div>` : ''}
+                        <div class="pdr-card ${isDone?'done':''}">
+                            <!-- STATUS BADGE -->
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                                <div class="pdr-card-name">${item.nominativo}</div>
+                                <span class="popup-badge ${isDone?'fatto':'dafare'}" style="flex-shrink:0;margin-left:8px">${isDone?'FATTO':'DA FARE'}</span>
+                            </div>
+                            <div class="pdr-card-meta">Civico: <b style="color:#1e293b">${civico}</b> &nbsp;|&nbsp; Matr: ${item.matricola}</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>
+                            ${item.nota_accesso ? `<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>` : ''}
                             
-                            <div class="mt-2 flex gap-1 items-center">
-                                <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border transition ${isDone ? 'bg-white text-gray-600 border-gray-300' : 'bg-blue-600 text-white border-blue-600'}">${isDone ? '<i class="fa-solid fa-rotate-left"></i> Riapri' : '<i class="fa-solid fa-check"></i> Fatto'}</button>
+                            <!-- AZIONI -->
+                            <div class="pdr-card-actions">
+                                <button onclick="window.togglePdrStatus('${item.pdr}')" class="pdr-card-btn" style="background:${isDone?'#f1f5f9':'#2563eb'};color:${isDone?'#334155':'#fff'};border-color:${isDone?'#cbd5e1':'#2563eb'}">${isDone?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>
                                 ${waBtn}
                             </div>
                             
-                            <div class="mt-1 flex gap-1">
-                                <input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note op..." class="flex-1 text-[10px] border border-gray-300 rounded px-1.5 py-0.5 outline-none focus:border-blue-500">
-                                <button onclick="window.savePdrNote('${item.pdr}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 rounded text-[9px] font-bold border border-gray-300 transition">Salva</button>
+                            <!-- NOTA -->
+                            <div class="pdr-card-note">
+                                <input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note operative...">
+                                <button onclick="window.savePdrNote('${item.pdr}')"><i class="fa-solid fa-floppy-disk"></i></button>
                             </div>
 
-                            <!-- FOLLOW UP STREET MODE -->
-                            <div class="mt-1 flex gap-1 items-center bg-gray-50 p-1 border rounded">
-                                <span class="text-[9px] text-gray-500 font-bold uppercase w-12">Follow-up</span>
-                                <input type="date" id="wa_date_${item.pdr}" class="flex-1 text-[9px] border border-gray-300 rounded px-1" value="${item.wa_inviato||''}">
-                                <button onclick="window.saveWaDate('${item.pdr}')" class="bg-blue-100 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[9px] font-bold hover:bg-blue-200 transition">OK</button>
+                            <!-- FOLLOW-UP -->
+                            <div class="pdr-card-followup">
+                                <span class="label">Follow-up</span>
+                                <input type="date" id="wa_date_${item.pdr}" value="${item.wa_inviato||''}">
+                                <button onclick="window.saveWaDate('${item.pdr}')">OK</button>
                             </div>
                         </div>
                     `;
