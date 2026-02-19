@@ -178,10 +178,13 @@
                     <input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> 
                     <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span>
                 </div>
-                <!-- RIPRISTINATO FILTRO FOLLOW UP -->
                 <div class="filter-checkbox">
                     <input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> 
                     <span class="text-xs font-bold text-gray-700">Follow-up WA > 2gg</span>
+                </div>
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)">
+                    <span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span>
                 </div>
             </div>
         </div>
@@ -235,6 +238,7 @@
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false; 
     let filterFollowUp = false; // RIPRISTINATO
+    let filterAvviso = false;
     let activeStato = 'tutti';  // NUOVO
 
     // VARIABILE STATO VISUALIZZAZIONE MAPPA
@@ -337,6 +341,7 @@
     // FUNZIONI FILTRI SPECIALI
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
     window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
+    window.toggleAvviso = (e) => { filterAvviso = e.checked; updateMapAndUI(); };
     window.changeFilterStato = (val) => { activeStato = val; updateMapAndUI(); };
 
     // TOGGLE MODALITÀ VISUALIZZAZIONE
@@ -567,6 +572,9 @@
             // Filtro Terrazzo
             if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return false;
 
+            // Filtro Avviso (lettura non numerica)
+            if(filterAvviso && !(item.val_lettura && isNaN((item.val_lettura+'').replace(',','.').trim()))) return false;
+
             // Filtro Stato
             if(activeStato === 'da_fare' && item.fatto) return false;
             if(activeStato === 'fatti' && !item.fatto) return false;
@@ -778,8 +786,21 @@
                         <div class="popup-via-scroll">
                 `;
 
-                // Ordina per Fatto/Da Fare
-                items.sort((a,b) => (a.fatto === b.fatto) ? 0 : a.fatto ? 1 : -1);
+                // Ordina per civico crescente (numerico, poi alfabetico per suffissi tipo 3A)
+                items.sort((a,b) => {
+                    const extractCiv = (item) => {
+                        let civ = item.indirizzo.toUpperCase().replace(group.street,'').trim() || 'SNC';
+                        const m = civ.match(/^(\d+)/);
+                        return m ? parseInt(m[1], 10) : Infinity;
+                    };
+                    const extractSuffix = (item) => {
+                        let civ = item.indirizzo.toUpperCase().replace(group.street,'').trim() || '';
+                        return civ.replace(/^\d+/,'') || '';
+                    };
+                    const diff = extractCiv(a) - extractCiv(b);
+                    if(diff !== 0) return diff;
+                    return extractSuffix(a).localeCompare(extractSuffix(b));
+                });
 
                 items.forEach(item => {
                     let isDone = item.fatto;
