@@ -43,7 +43,9 @@
     /* Popup responsive mobile */
     .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important}
     .leaflet-popup-content{margin:0!important;width:min(88vw,360px)!important;max-width:360px}
+    .leaflet-popup-content-wrapper{overflow:visible!important}
     .popup-pdr, .popup-via{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px}
+    .popup-via{display:flex;flex-direction:column;max-height:75vh;overflow:hidden;border-radius:12px}
     .popup-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0}
     .popup-body{padding:10px 14px 12px}
     .popup-name{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3}
@@ -68,8 +70,8 @@
     .popup-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
     .popup-nav-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:none;font-weight:600;padding:8px;background:#eff6ff;border-radius:7px;margin-top:8px}
     /* Popup Via - card utenze */
-    .popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;position:sticky;top:0;z-index:10}
-    .popup-via-scroll{max-height:52vh;overflow-y:auto;padding:10px 12px 12px}
+    .popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;flex-shrink:0}
+    .popup-via-scroll{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 12px}
     .popup-via-scroll::-webkit-scrollbar{width:5px}
     .popup-via-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
     .pdr-card{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
@@ -87,6 +89,14 @@
     .pdr-card-followup .label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
     .pdr-card-followup input{flex:1;border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
     .pdr-card-followup button{min-height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer}
+    /* Bollino accessibilità */
+    .acc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
+    /* Card selezione */
+    .pdr-card.selected{outline:2px solid #06b6d4;outline-offset:1px}
+    /* Foto */
+    .pdr-photo-preview{width:100%;max-height:140px;object-fit:cover;border-radius:7px;margin-top:6px;border:1px solid #e2e8f0;display:block}
+    .pdr-photo-row{display:flex;gap:6px;margin-top:6px}
+    .pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
 </style>
 
 <script>
@@ -410,6 +420,7 @@
                     anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
                     nota_accesso: row['Nota_accesso']||row['Note']||'',
                     nota_operatore: ex ? (ex.nota_operatore||'') : '',
+                    foto_base64: ex ? (ex.foto_base64||'') : '',
                     wa_inviato: existingWaDate, // SALVO DATA WA
                     val_lettura: valLett, data_lettura: datLett,
                     evidenziato: ex ? (ex.evidenziato||false) : false,
@@ -442,6 +453,44 @@
     window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
+
+    // FOTO PDR
+    window.triggerPhotoInput = (pdr) => { document.getElementById('photo_input_'+pdr).click(); };
+    window.handlePhotoUpload = (pdr, input) => {
+        const file = input.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX = 800;
+                let w = img.width, h = img.height;
+                if(w > MAX || h > MAX) { if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+                const canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
+                canvas.getContext('2d').drawImage(img,0,0,w,h);
+                const b64 = canvas.toDataURL('image/jpeg', 0.7);
+                window.savePhoto(pdr, b64);
+                const prev = document.getElementById('photo_preview_'+pdr);
+                if(prev){ prev.src = b64; prev.classList.remove('hidden'); }
+                const delBtn = document.getElementById('photo_del_'+pdr);
+                if(delBtn) delBtn.classList.remove('hidden');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+    window.savePhoto = async (pdr, b64) => {
+        if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {foto_base64:b64});
+        else { allData[pdr].foto_base64 = b64; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); }
+        showToast('Foto salvata');
+    };
+    window.deletePhoto = async (pdr) => {
+        if(!confirm('Eliminare la foto?')) return;
+        if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {foto_base64:''});
+        else { allData[pdr].foto_base64 = ''; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); }
+        const prev = document.getElementById('photo_preview_'+pdr); if(prev){ prev.src=''; prev.classList.add('hidden'); }
+        const delBtn = document.getElementById('photo_del_'+pdr); if(delBtn) delBtn.classList.add('hidden');
+        showToast('Foto eliminata');
+    };
     
     // SAVE MULTIPLE COORDS FOR STREET
     window.saveStreetCoords = function(streetKey, inputId) {
@@ -736,7 +785,15 @@
                     let isDone = item.fatto;
                     let civico = item.indirizzo.toUpperCase().replace(group.street, '').trim() || 'SNC';
                     let waBtn = '';
-                    
+                    let isSel = selectedPDRs.has(item.pdr);
+
+                    // --- Bollino accessibilità ---
+                    let accStr = (item.accessibilita||'').toLowerCase();
+                    let accColor = '#94a3b8'; let accLabel = item.accessibilita||'N/D';
+                    if(accStr.includes('inaccessibile'))      { accColor='#f97316'; }
+                    else if(accStr.includes('accessibile'))   { accColor='#22c55e'; }
+                    if(item.val_lettura && isNaN(item.val_lettura.replace(',','.').trim())) { accColor='#facc15'; accLabel+=' ⚠️'; }
+
                     const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
                     if(phones.length > 0) {
                         let cleanPh = phones[0].replace(/[^0-9]/g, '');
@@ -744,23 +801,50 @@
                         waBtn = `<button onclick="window.openWhatsApp('${item.pdr}', '${cleanPh}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>`;
                     }
 
+                    const hasFoto = !!(item.foto_base64);
+
                     popupContent += `
-                        <div class="pdr-card ${isDone?'done':''}">
-                            <!-- STATUS BADGE -->
+                        <div class="pdr-card ${isDone?'done':''} ${isSel?'selected':''}" id="card_${item.pdr}">
+                            <!-- HEADER CARD -->
                             <div style="display:flex;justify-content:space-between;align-items:flex-start">
-                                <div class="pdr-card-name">${item.nominativo}</div>
+                                <div class="pdr-card-name" style="padding-right:0">${item.nominativo}</div>
                                 <span class="popup-badge ${isDone?'fatto':'dafare'}" style="flex-shrink:0;margin-left:8px">${isDone?'FATTO':'DA FARE'}</span>
                             </div>
-                            <div class="pdr-card-meta">Civico: <b style="color:#1e293b">${civico}</b> &nbsp;|&nbsp; Matr: ${item.matricola}</div>
+                            <!-- META con bollino accessibilità -->
+                            <div class="pdr-card-meta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                                <span class="acc-dot" style="background:${accColor}" title="${accLabel}"></span>
+                                <span>Civico: <b style="color:#1e293b">${civico}</b></span>
+                                <span style="color:#cbd5e1">|</span>
+                                <span>Matr: ${item.matricola}</span>
+                                <span style="color:#cbd5e1">|</span>
+                                <span style="color:${accColor};font-weight:600;font-size:10px">${accLabel}</span>
+                            </div>
                             <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>
                             ${item.nota_accesso ? `<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>` : ''}
-                            
-                            <!-- AZIONI -->
+
+                            <!-- FOTO preview -->
+                            ${hasFoto ? `<img id="photo_preview_${item.pdr}" class="pdr-photo-preview" src="${item.foto_base64}">` : `<img id="photo_preview_${item.pdr}" class="pdr-photo-preview hidden" src="">`}
+                            <input type="file" id="photo_input_${item.pdr}" accept="image/*" capture="environment" class="hidden" onchange="window.handlePhotoUpload('${item.pdr}', this)">
+
+                            <!-- AZIONI PRINCIPALI -->
                             <div class="pdr-card-actions">
                                 <button onclick="window.togglePdrStatus('${item.pdr}')" class="pdr-card-btn" style="background:${isDone?'#f1f5f9':'#2563eb'};color:${isDone?'#334155':'#fff'};border-color:${isDone?'#cbd5e1':'#2563eb'}">${isDone?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>
                                 ${waBtn}
                             </div>
-                            
+
+                            <!-- RIGA 2: Seleziona + Foto -->
+                            <div class="pdr-photo-row">
+                                <button onclick="window.togglePdrSelection('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isSel?'#06b6d4':'#e2e8f0'};background:${isSel?'#06b6d4':'#f8fafc'};color:${isSel?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+                                    <i class="fa-solid ${isSel?'fa-xmark':'fa-check-double'}"></i> ${isSel?'Deseleziona':'Seleziona'}
+                                </button>
+                                <button onclick="window.triggerPhotoInput('${item.pdr}')" class="pdr-photo-row button" title="Scatta / allega foto" style="flex:none;width:44px;justify-content:center">
+                                    <i class="fa-solid fa-camera" style="font-size:15px;color:${hasFoto?'#2563eb':'#94a3b8'}"></i>
+                                </button>
+                                <button id="photo_del_${item.pdr}" onclick="window.deletePhoto('${item.pdr}')" class="${hasFoto?'':'hidden'} pdr-photo-row button" title="Elimina foto" style="flex:none;width:38px;justify-content:center">
+                                    <i class="fa-solid fa-trash" style="font-size:13px;color:#ef4444"></i>
+                                </button>
+                            </div>
+
                             <!-- NOTA -->
                             <div class="pdr-card-note">
                                 <input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note operative...">
