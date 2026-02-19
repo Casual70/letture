@@ -633,7 +633,10 @@
                 const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
                 phones.forEach(p => {
                     let clean = p.replace(/\s+/g,''); if(clean.startsWith('75')) clean='0'+clean;
-                    wa += `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="w-full mb-1 py-1 text-[10px] font-bold bg-green-500 hover:bg-green-600 text-white rounded"><i class="fa-brands fa-whatsapp"></i> WA ${clean}</button>`;
+                    wa += '<div style="display:flex;gap:6px;margin-bottom:6px">'
+                        + `<a href="tel:${clean}" class="popup-btn popup-btn-secondary popup-btn-sm" style="flex:1;text-decoration:none;justify-content:center"><i class="fa-solid fa-phone"></i>&nbsp;${clean}</a>`
+                        + `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>`
+                        + '</div>';
                 });
                 const selBtnClass = selectedPDRs.has(item.pdr) ? "bg-cyan-600 text-white" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
 
@@ -806,6 +809,7 @@
                     let isDone = item.fatto;
                     let civico = item.indirizzo.toUpperCase().replace(group.street, '').trim() || 'SNC';
                     let waBtn = '';
+                    let callBtns = '';
                     let isSel = selectedPDRs.has(item.pdr);
 
                     // --- Bollino accessibilità ---
@@ -820,6 +824,10 @@
                         let cleanPh = phones[0].replace(/[^0-9]/g, '');
                         if (!cleanPh.startsWith('39') && cleanPh.length>5) cleanPh = '39' + cleanPh;
                         waBtn = `<button onclick="window.openWhatsApp('${item.pdr}', '${cleanPh}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>`;
+                        callBtns = phones.map(p => {
+                            let c = p.replace(/\s+/g,''); if(c.startsWith('75')) c='0'+c;
+                            return `<a href="tel:${c}" style="font-size:11px;color:#2563eb;font-weight:600;display:inline-flex;align-items:center;gap:3px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:4px 8px;text-decoration:none"><i class="fa-solid fa-phone" style="font-size:10px"></i>&nbsp;${c}</a>`;
+                        }).join('');
                     }
 
                     const hasFoto = !!(item.foto_base64);
@@ -841,6 +849,7 @@
                                 <span style="color:${accColor};font-weight:600;font-size:10px">${accLabel}</span>
                             </div>
                             <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>
+                            ${callBtns ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${callBtns}</div>` : ''}
                             ${item.nota_accesso ? `<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>` : ''}
 
                             <!-- FOTO preview -->
