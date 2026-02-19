@@ -87,8 +87,8 @@
              <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
         </div>
         
-        <!-- MODALITÀ VISUALIZZAZIONE (NUOVO) -->
-        <div class="mb-4">
+        <!-- MODALITÀ VISUALIZZAZIONE -->
+        <div class="mb-4 border-t pt-4">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Modalità Mappa</label></div>
             <div class="flex bg-gray-200 rounded p-1">
                 <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition">Marker PDR</button>
@@ -96,7 +96,17 @@
             </div>
         </div>
 
-        <!-- Filtri -->
+        <!-- Filtro Stato (Nuovo e Utile) -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1"><label class="block text-xs font-bold text-gray-700 uppercase">Stato Lettura</label></div>
+            <select id="filterStato" onchange="window.changeFilterStato(this.value)" class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Mostra Tutti</option>
+                <option value="da_fare">Mostra Solo "DA FARE"</option>
+                <option value="fatti">Mostra Solo "FATTO"</option>
+            </select>
+        </div>
+
+        <!-- Filtri Base -->
         <div class="mb-4">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
@@ -106,13 +116,18 @@
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
 
-        <!-- Filtri Speciali (Terrazzo) -->
+        <!-- Filtri Speciali RIPRISTINATI -->
         <div class="mb-6">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox">
                     <input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> 
                     <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span>
+                </div>
+                <!-- RIPRISTINATO FILTRO FOLLOW UP -->
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> 
+                    <span class="text-xs font-bold text-gray-700">Follow-up WA > 2gg</span>
                 </div>
             </div>
         </div>
@@ -160,10 +175,14 @@
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
     let COLLECTION_NAME = 'letture_massive_febbraio'; 
     let selectedPDRs = new Set();
+    
+    // STATO FILTRI
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false; 
-    
+    let filterFollowUp = false; // RIPRISTINATO
+    let activeStato = 'tutti';  // NUOVO
+
     // VARIABILE STATO VISUALIZZAZIONE MAPPA
     window.viewMode = 'pdr'; // 'pdr' o 'street'
 
@@ -197,7 +216,7 @@
             const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
             Papa.parse(file, {
                 header: true, skipEmptyLines: true, complete: r => {
-                    if (r.meta.fields.length < 2) Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
+                    if (r.meta.fields.length < 2) Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
                     else window.importCSVData(r.data, ow);
                 }
             });
@@ -260,7 +279,11 @@
     };
     window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
+    
+    // FUNZIONI FILTRI SPECIALI
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
+    window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
+    window.changeFilterStato = (val) => { activeStato = val; updateMapAndUI(); };
 
     // TOGGLE MODALITÀ VISUALIZZAZIONE
     window.setViewMode = (mode) => {
@@ -275,7 +298,7 @@
         } else {
             btnStreet.className = "flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition";
             btnPdr.className = "flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition";
-            markersCluster.options.maxClusterRadius = 40; // Leggero raggruppamento se vie troppo vicine
+            markersCluster.options.maxClusterRadius = 40; // Leggero raggruppamento
         }
         updateMapAndUI();
     };
@@ -287,10 +310,11 @@
     window.exportSelectedData = () => { if(selectedPDRs.size===0) { alert("Nessun PDR selezionato"); return; } const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
     window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "PDR_All_"); };
 
+    // AGGIORNATO: ESPORTAZIONE INCLUDE DATA WA
     function generateCSV(items, prefix) {
-        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato\n";
+        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato;Data WA\n";
         items.forEach(i => {
-            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO"].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
+            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO", i.wa_inviato||""].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
             content += row + "\n";
         });
         const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
@@ -320,6 +344,8 @@
             if(!isNaN(lat) && !isNaN(lng)) {
                 const ex = allData[pdr];
                 let status = ex ? (ex.fatto || false) : false;
+                const existingWaDate = ex ? (ex.wa_inviato || '') : ''; // RECUPERO DATA WA
+                
                 const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
                 const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
                 
@@ -340,6 +366,7 @@
                     anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
                     nota_accesso: row['Nota_accesso']||row['Note']||'',
                     nota_operatore: ex ? (ex.nota_operatore||'') : '',
+                    wa_inviato: existingWaDate, // SALVO DATA WA
                     val_lettura: valLett, data_lettura: datLett,
                     evidenziato: ex ? (ex.evidenziato||false) : false,
                     lat: lat, lng: lng, fatto: status
@@ -359,6 +386,15 @@
 
     // Actions
     window.savePdrNote = async (pdr) => { const txt = document.getElementById('note_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {nota_operatore:txt}); else { allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } showToast("Nota salvata"); };
+    
+    // NUOVA AZIONE: SALVA DATA WA
+    window.saveWaDate = async (pdr) => { 
+        const val = document.getElementById('wa_date_'+pdr).value;
+        if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {wa_inviato:val}); 
+        else { allData[pdr].wa_inviato = val; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } 
+        showToast("Data WA salvata"); 
+    };
+
     window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
@@ -408,6 +444,7 @@
         }
     };
     
+    // UI Helpers
     window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
     window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
     window.toggleCoordInput = (pdr) => { const e = document.getElementById('coord_edit_'+pdr); if(e) e.classList.toggle('hidden'); };
@@ -422,7 +459,7 @@
 
         const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
         
-        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.\nIn alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
+        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.\nIn alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
         window.open(`https://wa.me/${cleanPh}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
@@ -432,9 +469,25 @@
         markersCluster.clearLayers();
         let vis=0, done=0;
         
-        // 1. FILTRA I DATI
+        // 1. FILTRA I DATI (CON RIPRISTINO FILTRI MANCANTI)
         let filteredData = Object.values(allData).filter(item => {
+            // Filtro Terrazzo
             if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return false;
+
+            // Filtro Stato
+            if(activeStato === 'da_fare' && item.fatto) return false;
+            if(activeStato === 'fatti' && !item.fatto) return false;
+
+            // Filtro Follow-up
+            if (filterFollowUp) {
+                if (!item.wa_inviato) return false;
+                const waDate = new Date(item.wa_inviato);
+                const today = new Date();
+                waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                const diffTime = today - waDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays <= 2) return false;
+            }
 
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
@@ -507,12 +560,23 @@
                         </div>
                         <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
                         <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
+                        
                         <div class="flex gap-1 mb-1">
                             <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
                             <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
                         </div>
                         <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-1 rounded text-[10px] font-bold border ${selBtnClass}">${selectedPDRs.has(item.pdr)?'Deseleziona':'Seleziona'}</button>
                         ${wa}
+                        
+                        <!-- FOLLOW-UP RIPRISTINATO -->
+                        <div class="mt-2 border-t pt-1">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Follow-up WA</label>
+                            <div class="flex gap-1">
+                                <input type="date" id="wa_date_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.wa_inviato||''}">
+                                <button onclick="window.saveWaDate('${item.pdr}')" class="bg-blue-100 text-blue-600 border border-blue-200 rounded px-2 text-xs font-bold hover:bg-blue-200">OK</button>
+                            </div>
+                        </div>
+
                         <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-1">Naviga qui</a>
                     </div>
                 `;
@@ -529,7 +593,6 @@
                 vis++; if(item.fatto) done++;
                 
                 let addr = (item.indirizzo || '').toUpperCase().trim();
-                // Rimuove la parte finale con numeri o "SNC" per estrarre la Via
                 let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
                 let key = `${streetName} (${item.zona || 'N/D'})`;
                 
@@ -569,7 +632,6 @@
                     items.forEach(i => window.savePdrPosition(i.pdr, newLat, newLng));
                 });
 
-                // Sicurezza per JS string template
                 let safeKey = key.replace(/'/g, "\\'");
                 let safeStreetId = group.street.replace(/[^a-zA-Z0-9]/g,'');
 
@@ -627,6 +689,13 @@
                             <div class="mt-1 flex gap-1">
                                 <input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note op..." class="flex-1 text-[10px] border border-gray-300 rounded px-1.5 py-0.5 outline-none focus:border-blue-500">
                                 <button onclick="window.savePdrNote('${item.pdr}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 rounded text-[9px] font-bold border border-gray-300 transition">Salva</button>
+                            </div>
+
+                            <!-- FOLLOW UP STREET MODE -->
+                            <div class="mt-1 flex gap-1 items-center bg-gray-50 p-1 border rounded">
+                                <span class="text-[9px] text-gray-500 font-bold uppercase w-12">Follow-up</span>
+                                <input type="date" id="wa_date_${item.pdr}" class="flex-1 text-[9px] border border-gray-300 rounded px-1" value="${item.wa_inviato||''}">
+                                <button onclick="window.saveWaDate('${item.pdr}')" class="bg-blue-100 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 text-[9px] font-bold hover:bg-blue-200 transition">OK</button>
                             </div>
                         </div>
                     `;
