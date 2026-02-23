@@ -667,6 +667,11 @@
                                 </div>
                                 <button onclick="window.togglePdrSelection('${item.pdr}')" class="popup-btn popup-btn-sm" style="background:${selectedPDRs.has(item.pdr)?'#0891b2':'#fff'};color:${selectedPDRs.has(item.pdr)?'#fff':'#0891b2'};border-color:#a5f3fc;margin-bottom:8px">${selectedPDRs.has(item.pdr)?'<i class="fa-solid fa-xmark"></i> Deseleziona':'<i class="fa-solid fa-check-double"></i> Seleziona'}</button>
                                 ${wa}
+                                <button onclick="(function(el){el.style.display=el.style.display==='none'?'flex':'none'})(document.getElementById('wa_custom_${item.pdr}'))" class="popup-btn popup-btn-sm" style="width:100%;background:#fff;color:#16a34a;border-color:#bbf7d0;margin-top:2px"><i class="fa-brands fa-whatsapp"></i>&nbsp;WA a numero diverso</button>
+                                <div id="wa_custom_${item.pdr}" style="display:none;gap:6px;margin-top:8px;align-items:center">
+                                    <input id="wa_custom_num_${item.pdr}" type="tel" class="popup-input" placeholder="Es. 3331234567" style="flex:1">
+                                    <button onclick="window.openWhatsApp('${item.pdr}',document.getElementById('wa_custom_num_${item.pdr}').value)" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="Invia WA"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>
+                                </div>
                             </div>
 
                             <!-- NOTE -->
