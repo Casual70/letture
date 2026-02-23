@@ -557,7 +557,7 @@
 
         const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
         
-        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa.\n\nAl fine di facilitare la lettura è stato lasciato un avviso di passaggio che può restituirci compilato.\nIn alternativa può inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
+        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa o non sono riusciti ad effettuare la lettura (contatore all'interno delle proprietà o su terrazza).\n\nPuò inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
         window.open(`https://wa.me/${cleanPh}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
