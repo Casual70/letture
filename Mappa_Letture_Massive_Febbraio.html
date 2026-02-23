@@ -625,7 +625,7 @@
                 else if(cat==='Inaccessibile') col='#f97316';
                 else if(cat==='Accessibile') col='#16a34a';
 
-                const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
+                const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid ${item.wa_inviato ? '#22c55e' : 'white'};box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
                 const m = L.marker([item.lat, item.lng], {icon:icon, draggable:isEditMode, autoPan:true});
                 m.on('dragend', (e) => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
                 
@@ -811,6 +811,7 @@
                     let waBtn = '';
                     let callBtns = '';
                     let isSel = selectedPDRs.has(item.pdr);
+                    let isEvid = !!(item.evidenziato);
 
                     // --- Bollino accessibilità ---
                     let accStr = (item.accessibilita||'').toLowerCase();
@@ -862,13 +863,20 @@
                                 ${waBtn}
                             </div>
 
-                            <!-- RIGA 2: Seleziona + Foto -->
+                            <!-- RIGA 2: Seleziona + Evidenzia -->
                             <div class="pdr-photo-row">
                                 <button onclick="window.togglePdrSelection('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isSel?'#06b6d4':'#e2e8f0'};background:${isSel?'#06b6d4':'#f8fafc'};color:${isSel?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
-                                    <i class="fa-solid ${isSel?'fa-xmark':'fa-check-double'}"></i> ${isSel?'Deseleziona':'Seleziona'}
+                                    <i class="fa-solid ${isSel?'fa-xmark':'fa-check-double'}"></i> ${isSel?'Desel.':'Seleziona'}
                                 </button>
-                                <button onclick="window.triggerPhotoInput('${item.pdr}')" class="pdr-photo-row button" title="Scatta / allega foto" style="flex:none;width:44px;justify-content:center">
-                                    <i class="fa-solid fa-camera" style="font-size:15px;color:${hasFoto?'#2563eb':'#94a3b8'}"></i>
+                                <button onclick="window.togglePdrHighlight('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isEvid?'#9333ea':'#e2e8f0'};background:${isEvid?'#9333ea':'#f8fafc'};color:${isEvid?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px">
+                                    <i class="fa-solid fa-star"></i> ${isEvid?'Evid.':'Evidenzia'}
+                                </button>
+                            </div>
+                            <!-- RIGA 3: Foto -->
+                            <div class="pdr-photo-row">
+                                <button onclick="window.triggerPhotoInput('${item.pdr}')" class="pdr-photo-row button" title="Scatta / allega foto" style="flex:1;justify-content:center;gap:6px">
+                                    <i class="fa-solid fa-camera" style="font-size:14px;color:${hasFoto?'#2563eb':'#94a3b8'}"></i>
+                                    <span style="font-size:11px;color:${hasFoto?'#2563eb':'#94a3b8'}">${hasFoto?'Cambia foto':'Aggiungi foto'}</span>
                                 </button>
                                 <button id="photo_del_${item.pdr}" onclick="window.deletePhoto('${item.pdr}')" class="${hasFoto?'':'hidden'} pdr-photo-row button" title="Elimina foto" style="flex:none;width:38px;justify-content:center">
                                     <i class="fa-solid fa-trash" style="font-size:13px;color:#ef4444"></i>
