@@ -154,6 +154,22 @@
             <div id="geocodeProgress" class="mt-2" style="display:none"></div>
         </div>
 
+        <!-- Motore Geocodifica -->
+        <div class="mb-4 p-3 bg-white border border-gray-200 rounded-lg">
+            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-wide"><i class="fa-solid fa-satellite-dish mr-1"></i> Motore Geocodifica</label>
+            <div class="flex gap-1">
+                <button id="geoEngineOSM" onclick="window.setGeoEngine('osm')"
+                    class="flex-1 text-[10px] font-bold py-1.5 rounded transition bg-blue-100 text-blue-700">
+                    <i class="fa-solid fa-map mr-1"></i> OSM
+                </button>
+                <button id="geoEngineGoogle" onclick="window.setGeoEngine('google')"
+                    class="flex-1 text-[10px] font-bold py-1.5 rounded transition bg-gray-100 text-gray-400">
+                    <i class="fa-brands fa-google mr-1"></i> Google API
+                </button>
+            </div>
+            <p class="text-[9px] text-gray-400 mt-1.5">Google API: più preciso e veloce. OSM: gratuito (1.2 s/PDR).</p>
+        </div>
+
         <!-- Legend -->
         <div class="mb-6 grid grid-cols-2 gap-2 text-center">
              <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
@@ -275,6 +291,8 @@
     let LOCALSTORAGE_KEY = 'pdr_data_recupero_2025';
     let selectedPDRs = new Set();
     let isGeocoding = false;
+    let useGoogleGeo = false;
+    const GOOGLE_GEO_KEY = 'AIzaSyBMyr_dYfCDi7Xl5H8cMcy1ROqhjMtLHr4';
 
     // STATO FILTRI
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
@@ -453,6 +471,23 @@
         showToast("Template CSV scaricato");
     };
 
+    // ─── GEOCODIFICA HELPER (OSM / Google API) ────────────────────────────────
+    async function geocodeAddress(q) {
+        if(useGoogleGeo) {
+            const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${GOOGLE_GEO_KEY}&region=it`);
+            const d = await res.json();
+            if(d.status === 'OK' && d.results.length > 0) {
+                return { lat: d.results[0].geometry.location.lat, lng: d.results[0].geometry.location.lng, display: d.results[0].formatted_address };
+            }
+            return null;
+        } else {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'RecuperoLetture2025-ASIMultiservices'}});
+            const d = await res.json();
+            if(d.length > 0) return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon), display: d[0].display_name };
+            return null;
+        }
+    }
+
     // ─── GEOCODIFICA ───────────────────────────────────────────────────────────
     async function geocodePDRList(pdrs) {
         if(isGeocoding) { showToast("Geocodifica già in corso..."); return; }
@@ -461,18 +496,17 @@
         const prog = document.getElementById('geocodeProgress');
         prog.style.display = 'block';
         let ok = 0, fail = 0, total = pdrs.length;
+        const engineLabel = useGoogleGeo ? '🟡 Google' : '🔵 OSM';
         for(let pdr of pdrs) {
             const item = allData[pdr];
             if(!item) continue;
-            prog.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> ${ok+fail+1}/${total} — ✅ ${ok} &nbsp; ❌ ${fail}`;
+            prog.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> ${ok+fail+1}/${total} — ✅ ${ok} &nbsp; ❌ ${fail} &nbsp;<span style="font-size:10px;opacity:.7">${engineLabel}</span>`;
             const q = [item.indirizzo, item.zona, 'Italy'].filter(Boolean).join(', ');
             try {
-                await new Promise(r => setTimeout(r, 1200)); // rispetta rate limit Nominatim
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'RecuperoLetture2025'}});
-                const d = await res.json();
-                if(d.length > 0) {
-                    const lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
-                    await window.savePdrPosition(pdr, lat, lng);
+                if(!useGoogleGeo) await new Promise(r => setTimeout(r, 1200)); // rispetta rate limit Nominatim
+                const result = await geocodeAddress(q);
+                if(result) {
+                    await window.savePdrPosition(pdr, result.lat, result.lng);
                     ok++;
                 } else { fail++; }
             } catch(e) { fail++; }
@@ -991,11 +1025,11 @@
                     <div style="display:flex;gap:6px;margin-bottom:8px">
                         <button onclick="event.stopPropagation();window.listGeoOSM('${pdrSafe}')"
                             style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;background:#ede9fe;color:#7c3aed;border:1.5px solid #ddd6fe;cursor:pointer">
-                            <i class="fa-solid fa-magnifying-glass"></i> OSM
+                            <i class="fa-solid fa-magnifying-glass"></i> ${useGoogleGeo ? '<i class="fa-brands fa-google"></i> Google API' : 'OSM'}
                         </button>
                         <button onclick="event.stopPropagation();window.listGeoGoogle('${pdrSafe}')"
                             style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;cursor:pointer">
-                            <i class="fa-brands fa-google"></i> Google Maps
+                            <i class="fa-brands fa-google"></i> Maps (browser)
                         </button>
                     </div>
                     <div style="margin-bottom:6px">
@@ -1023,6 +1057,16 @@
     }
     window.renderListView = renderListView;
 
+    window.setGeoEngine = (engine) => {
+        useGoogleGeo = (engine === 'google');
+        const btnOSM = document.getElementById('geoEngineOSM');
+        const btnGoo = document.getElementById('geoEngineGoogle');
+        if(btnOSM) btnOSM.className = `flex-1 text-[10px] font-bold py-1.5 rounded transition ${useGoogleGeo ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-700'}`;
+        if(btnGoo) btnGoo.className = `flex-1 text-[10px] font-bold py-1.5 rounded transition ${useGoogleGeo ? 'bg-yellow-400 text-gray-900' : 'bg-gray-100 text-gray-400'}`;
+        showToast('Geocodifica: ' + (useGoogleGeo ? 'Google API attiva' : 'OSM Nominatim attivo'));
+        if(window.viewMode === 'list') renderListView();
+    };
+
     window.toggleListRow = (pdr) => {
         const row = document.getElementById('listrow_'+pdr);
         const form = document.getElementById('geoform_'+pdr);
@@ -1044,22 +1088,19 @@
         const addr = addrEl?.value?.trim();
         if(!addr) return;
         const status = document.getElementById('list_geo_status_'+pdr);
-        status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ricerca OSM in corso...';
+        const engineLabel = useGoogleGeo ? 'Google API' : 'OSM';
+        status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Ricerca ${engineLabel} in corso...`;
         try {
-            const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=5&countrycodes=it`,
-                {headers:{'User-Agent':'RecuperoLetture2025-ASIMultiservices'}}
-            );
-            const d = await res.json();
-            if(d.length > 0) {
+            const result = await geocodeAddress(addr);
+            if(result) {
                 const coordEl = document.getElementById('list_coord_'+pdr);
-                if(coordEl) coordEl.value = `${parseFloat(d[0].lat).toFixed(6)}, ${parseFloat(d[0].lon).toFixed(6)}`;
-                const name = d[0].display_name.length > 70 ? d[0].display_name.substring(0,70)+'...' : d[0].display_name;
-                status.innerHTML = `<span style="color:#16a34a">✓ ${name}</span>`;
+                if(coordEl) coordEl.value = `${parseFloat(result.lat).toFixed(6)}, ${parseFloat(result.lng).toFixed(6)}`;
+                const name = result.display.length > 80 ? result.display.substring(0,80)+'...' : result.display;
+                status.innerHTML = `<span style="color:#16a34a">✓ <b>${engineLabel}</b>: ${name}</span>`;
             } else {
-                status.innerHTML = `<span style="color:#dc2626">✗ Non trovato. Prova a modificare l\'indirizzo o usa Google Maps.</span>`;
+                status.innerHTML = `<span style="color:#dc2626">✗ Non trovato con ${engineLabel}. Prova a modificare l'indirizzo o apri Google Maps (browser).</span>`;
             }
-        } catch(e) { status.innerHTML = `<span style="color:#dc2626">✗ Errore connessione a Nominatim</span>`; }
+        } catch(e) { status.innerHTML = `<span style="color:#dc2626">✗ Errore connessione (${engineLabel})</span>`; }
     };
 
     window.listGeoGoogle = (pdr) => {
