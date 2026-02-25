@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recupero Letture 2025 - ASI Multiservices</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- LIBRERIE ESTERNE -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
+    #map{height:100%;width:100%;z-index:1}
+    .sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
+    .sidebar.collapsed{transform:translateX(-100%)}
+    .sidebar-header{padding:1rem;background:#7c3aed;color:#fff;display:flex;justify-content:space-between;align-items:center}
+    .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
+    .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem;flex-wrap:wrap}
+    .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
+    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
+    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
+    .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+    .filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
+    .filter-checkbox:hover{background-color:#f3f4f6}
+    .filter-checkbox input{margin-right:10px;accent-color:#7c3aed;width:16px;height:16px}
+    .gps-active{color:#7c3aed;border-color:#7c3aed;background-color:#f5f3ff}
+    /* Popup */
+    .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important}
+    .leaflet-popup-content{margin:0!important;width:min(88vw,360px)!important;max-width:360px}
+    .leaflet-popup-content-wrapper{overflow:visible!important}
+    .popup-pdr, .popup-via{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px}
+    .popup-via{display:flex;flex-direction:column;max-height:75vh;overflow:hidden;border-radius:12px}
+    .popup-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0}
+    .popup-body{padding:10px 14px 12px}
+    .popup-name{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3}
+    .popup-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .popup-badge.fatto{background:#dbeafe;color:#1d4ed8}
+    .popup-badge.dafare{background:#fee2e2;color:#dc2626}
+    .popup-info-row{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#475569;padding:3px 0}
+    .popup-info-row .icon{font-size:13px;flex-shrink:0;margin-top:1px}
+    .popup-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:7px 10px;font-size:12px;color:#c2410c;font-weight:600}
+    .popup-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:8px;font-size:13px;font-weight:700;border:1.5px solid transparent;cursor:pointer;transition:opacity .15s;width:100%}
+    .popup-btn-primary{background:#7c3aed;color:#fff;border-color:#7c3aed}
+    .popup-btn-primary:active{opacity:.8}
+    .popup-btn-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}
+    .popup-btn-purple{background:#9333ea;color:#fff;border-color:#9333ea}
+    .popup-btn-cyan{background:#06b6d4;color:#fff;border-color:#06b6d4}
+    .popup-btn-green{background:#22c55e;color:#fff;border-color:#22c55e}
+    .popup-btn-outline-green{background:#fff;color:#16a34a;border-color:#bbf7d0}
+    .popup-btn-sm{min-height:34px;font-size:12px;padding:0 10px;border-radius:7px}
+    .popup-input{width:100%;border:1.5px solid #cbd5e1;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;box-sizing:border-box}
+    .popup-input:focus{border-color:#7c3aed}
+    .popup-section{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+    .popup-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+    .popup-nav-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:#7c3aed;text-decoration:none;font-weight:600;padding:8px;background:#f5f3ff;border-radius:7px;margin-top:8px}
+    /* Via */
+    .popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;flex-shrink:0}
+    .popup-via-scroll{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 12px}
+    .popup-via-scroll::-webkit-scrollbar{width:5px}
+    .popup-via-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    .pdr-card{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+    .pdr-card.done{background:#eff6ff;border-color:#bfdbfe}
+    .pdr-card-name{font-size:13px;font-weight:700;color:#1e293b;padding-right:60px;line-height:1.3}
+    .pdr-card-meta{font-size:11px;color:#64748b;margin-top:2px}
+    .pdr-card-warn{font-size:11px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:4px 8px;margin-top:5px}
+    .pdr-card-actions{display:flex;gap:6px;margin-top:8px}
+    .pdr-card-btn{flex:1;min-height:38px;border-radius:7px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+    .pdr-card-note{display:flex;gap:6px;margin-top:6px}
+    .pdr-card-note input{flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 10px;font-size:12px;outline:none}
+    .pdr-card-note input:focus{border-color:#7c3aed}
+    .pdr-card-note button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;background:#f1f5f9;color:#334155;border:1.5px solid #cbd5e1;cursor:pointer}
+    .pdr-card-followup{display:flex;align-items:center;gap:6px;margin-top:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px}
+    .pdr-card-followup .label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
+    .pdr-card-followup input{flex:1;border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
+    .pdr-card-followup button{min-height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:700;background:#ede9fe;color:#7c3aed;border:1px solid #ddd6fe;cursor:pointer}
+    .acc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
+    .pdr-card.selected{outline:2px solid #06b6d4;outline-offset:1px}
+    .pdr-photo-preview{width:100%;max-height:140px;object-fit:cover;border-radius:7px;margin-top:6px;border:1px solid #e2e8f0;display:block}
+    .pdr-photo-row{display:flex;gap:6px;margin-top:6px}
+    .pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
+    /* Geocodifica progress */
+    #geocodeProgress{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 12px;font-size:11px;color:#6d28d9;font-weight:600;display:none}
+</style>
+
+<script>
+    function toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        const btn = document.getElementById('toggleSidebar');
+        sb.classList.toggle('collapsed');
+        if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
+        else btn.classList.add('hidden');
+    }
+</script>
+</head>
+<body>
+
+<div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()"><i class="fa-solid fa-bars text-gray-700 text-xl"></i></div>
+
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h1 class="text-base font-bold leading-tight"><i class="fa-solid fa-rotate-left mr-2"></i>Recupero Letture 2025</h1>
+        <button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button>
+    </div>
+    <div class="sidebar-content">
+
+        <!-- Import CSV -->
+        <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati CSV</h3>
+            <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-violet-600 file:text-white hover:file:bg-violet-700"/>
+            <p class="text-[10px] text-gray-400 mt-2">📌 Le righe senza coordinate GPS vengono importate ugualmente e potranno essere geocodificate in seguito.</p>
+        </div>
+
+        <!-- Selezione Panel -->
+        <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
+            <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span><span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span></div>
+            <div class="flex gap-2">
+                <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded transition"><i class="fa-solid fa-file-export mr-1"></i> Esporta</button>
+                <button onclick="geocodeSelected()" class="flex-1 bg-violet-100 text-violet-700 border border-violet-300 hover:bg-violet-200 text-xs font-bold py-1.5 rounded transition"><i class="fa-solid fa-location-dot mr-1"></i> Geocodifica</button>
+                <button onclick="clearSelection()" class="w-8 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+
+        <!-- Pannello GPS mancanti -->
+        <div id="noCoordPanel" class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg hidden">
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-1"></i> PDR senza coordinate: <span id="noCoordCount">0</span></span>
+                <button onclick="geocodeAll()" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded transition">Geocodifica tutti</button>
+            </div>
+            <div id="geocodeProgress" class="mt-2" style="display:none"></div>
+        </div>
+
+        <!-- Legend -->
+        <div class="mb-6 grid grid-cols-2 gap-2 text-center">
+             <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
+             <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
+             <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
+             <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div>
+             <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span></div>
+             <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
+             <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO / SENZA GPS</span></div>
+        </div>
+
+        <!-- Modalità visualizzazione -->
+        <div class="mb-4 border-t pt-4">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Modalità Mappa</label>
+            <div class="flex bg-gray-200 rounded p-1">
+                <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition">Marker PDR</button>
+                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition">Marker Via</button>
+            </div>
+        </div>
+
+        <!-- Filtro Stato -->
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stato Lettura</label>
+            <select id="filterStato" onchange="window.changeFilterStato(this.value)" class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Mostra Tutti</option>
+                <option value="da_fare">Mostra Solo "DA FARE"</option>
+                <option value="fatti">Mostra Solo "FATTO"</option>
+            </select>
+        </div>
+
+        <!-- Filtri Accessibilità -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-violet-600 hover:underline">Tutti</button></div>
+            <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+
+        <!-- Filtri Comune -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-violet-600 hover:underline">Tutti</button></div>
+            <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+
+        <!-- Filtri Speciali -->
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Filtri Speciali</label>
+            <div class="space-y-1 bg-white border rounded p-2">
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)">
+                    <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span>
+                </div>
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)">
+                    <span class="text-xs font-bold text-gray-700">Follow-up WA > 2gg</span>
+                </div>
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)">
+                    <span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span>
+                </div>
+                <div class="filter-checkbox">
+                    <input type="checkbox" id="filterNoCoord" onchange="window.toggleNoCoord(this)">
+                    <span class="text-xs font-bold text-amber-600"><i class="fa-solid fa-location-dot mr-1"></i>Solo senza GPS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div class="mb-4">
+            <div class="relative"><input type="text" id="searchInput" placeholder="Cerca PDR, Nome..." class="w-full p-2 pl-8 border rounded text-sm focus:outline-none"><i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i></div>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
+
+        <!-- Stats -->
+        <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-3 gap-2">
+            <div><div class="text-[10px] text-gray-500 uppercase">Visibili</div><div id="statVisible" class="text-xl font-bold text-gray-700">0</div></div>
+            <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-blue-600">0</div></div>
+            <div><div class="text-[10px] text-gray-500 uppercase">Senza GPS</div><div id="statNoCoord" class="text-xl font-bold text-amber-500">0</div></div>
+        </div>
+
+        <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
+    </div>
+
+    <div class="sidebar-footer">
+        <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
+        <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
+        <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        <button onclick="exportTemplate()" class="w-10 bg-violet-100 hover:bg-violet-200 text-violet-700 rounded border border-violet-300 transition flex items-center justify-center py-2" title="Scarica Template CSV vuoto"><i class="fa-solid fa-file-csv"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Esporta dati CSV"><i class="fa-solid fa-download"></i></button>
+        <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
+        <textarea id="firebaseConfigInput" rows="6" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4"></textarea>
+        <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+        <div class="flex justify-end gap-2">
+            <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
+            <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-violet-600 text-white hover:bg-violet-700 rounded">Salva</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    let db, auth, user, map, markersCluster;
+    let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
+    let COLLECTION_NAME = 'recupero_letture_2025';
+    let LOCALSTORAGE_KEY = 'pdr_data_recupero_2025';
+    let selectedPDRs = new Set();
+    let isGeocoding = false;
+
+    // STATO FILTRI
+    let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
+    let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
+    let filterTerrazzo = false;
+    let filterFollowUp = false;
+    let filterAvviso = false;
+    let filterNoCoord = false;
+    let activeStato = 'tutti';
+
+    window.viewMode = 'pdr';
+
+    const HARDCODED_FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
+        authDomain: "letture-asimultiservices.firebaseapp.com",
+        projectId: "letture-asimultiservices",
+        storageBucket: "letture-asimultiservices.firebasestorage.app",
+        messagingSenderId: "412990381286",
+        appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+    };
+
+    // ─── INIT MAP ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        map = L.map('map').setView([43.30, 12.33], 10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+        markersCluster = L.markerClusterGroup({
+            maxClusterRadius: 0,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true
+        });
+        map.addLayer(markersCluster);
+
+        map.on('locationfound', e => { if(userLocationMarker) map.removeLayer(userLocationMarker); userLocationMarker = L.circle(e.latlng, e.accuracy/2).addTo(map); });
+        map.on('locationerror', e => alert(e.message));
+
+        document.getElementById('csvInput').addEventListener('change', (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const ow = confirm("Sovrascrivere coordinate GPS esistenti?\nOK=Sì (usa file), Annulla=No (mantieni manuali)");
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true, complete: r => {
+                    if (r.meta.fields.length < 2) Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
+                    else window.importCSVData(r.data, ow);
+                }
+            });
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML = '';
+            if (t.length < 3) { c.classList.add('hidden'); return; }
+            Object.values(allData).filter(x => (String(x.pdr).includes(t) || x.nominativo.toLowerCase().includes(t) || String(x.matricola).includes(t))).slice(0, 5).forEach(x => {
+                const d = document.createElement('div'); d.className = "p-2 hover:bg-violet-50 cursor-pointer border-b text-xs";
+                const hasCoord = hasValidCoords(x);
+                d.innerHTML = `<b>${x.nominativo}</b><br>${x.pdr}${!hasCoord ? ' <span class="text-amber-500">⚠ No GPS</span>' : ''}`;
+                d.onclick = () => { if(hasCoord) map.flyTo([x.lat, x.lng], 18); else showToast("Nessuna coordinata GPS per questo PDR"); };
+                c.appendChild(d);
+            });
+            c.children.length > 0 ? c.classList.remove('hidden') : c.classList.add('hidden');
+        });
+
+        initApp();
+    });
+
+    function hasValidCoords(item) {
+        return item && !isNaN(item.lat) && !isNaN(item.lng) && item.lat !== null && item.lng !== null && !(item.lat === 0 && item.lng === 0);
+    }
+
+    async function initApp() {
+        try {
+            renderAccessFilters(); renderComuniFilters();
+            let firebaseConfig = null; let appId = 'default-app-id';
+
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
+                if (typeof __app_id !== 'undefined') appId = __app_id;
+            }
+            const localConfigStr = localStorage.getItem('custom_firebase_config');
+            const localAppId = localStorage.getItem('custom_app_id');
+            if (localConfigStr) {
+                try { firebaseConfig = JSON.parse(localConfigStr); if (localAppId) appId = localAppId; } catch (e) {}
+            }
+            if (!firebaseConfig) firebaseConfig = HARDCODED_FIREBASE_CONFIG;
+
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app); db = getFirestore(app);
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            } catch (err) { try { await signInAnonymously(auth); } catch(e) { throw e; } }
+
+            onAuthStateChanged(auth, (u) => {
+                if (u) { user = u; isCloudMode = true; document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`; startCloudListener(appId); }
+            });
+        } catch (e) {
+            isCloudMode = false;
+            document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer" onclick="toggleSettings()">Locale (Err Auth)</span>`;
+            loadLocalData();
+        }
+    }
+
+    // ─── SETTINGS ──────────────────────────────────────────────────────────────
+    window.toggleSettings = () => { document.getElementById('settingsModal').classList.toggle('hidden'); if(!document.getElementById('settingsModal').classList.contains('hidden')){ const c = localStorage.getItem('custom_firebase_config'); document.getElementById('firebaseConfigInput').value = c ? c : JSON.stringify(HARDCODED_FIREBASE_CONFIG,null,2); } };
+    window.saveSettings = () => {
+        const c = document.getElementById('firebaseConfigInput').value.trim();
+        if(!c) { localStorage.removeItem('custom_firebase_config'); location.reload(); return; }
+        try { JSON.parse(c); localStorage.setItem('custom_firebase_config', c); localStorage.setItem('custom_app_id', document.getElementById('appIdInput').value.trim()); location.reload(); } catch(e){ alert("JSON non valido"); }
+    };
+    window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
+    window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
+
+    // ─── FILTRI ────────────────────────────────────────────────────────────────
+    window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
+    window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
+    window.toggleAvviso = (e) => { filterAvviso = e.checked; updateMapAndUI(); };
+    window.toggleNoCoord = (e) => { filterNoCoord = e.checked; updateMapAndUI(); };
+    window.changeFilterStato = (val) => { activeStato = val; updateMapAndUI(); };
+
+    // ─── MODALITÀ VISUALIZZAZIONE ──────────────────────────────────────────────
+    window.setViewMode = (mode) => {
+        window.viewMode = mode;
+        const btnPdr = document.getElementById('btnViewPDR');
+        const btnStreet = document.getElementById('btnViewStreet');
+        if (mode === 'pdr') {
+            btnPdr.className = "flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition";
+            btnStreet.className = "flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition";
+            markersCluster.options.maxClusterRadius = 0;
+        } else {
+            btnStreet.className = "flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition";
+            btnPdr.className = "flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition";
+            markersCluster.options.maxClusterRadius = 40;
+        }
+        updateMapAndUI();
+    };
+
+    // ─── SELEZIONE ─────────────────────────────────────────────────────────────
+    window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
+    window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
+    function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
+    window.exportSelectedData = () => { if(selectedPDRs.size===0) { alert("Nessun PDR selezionato"); return; } const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "Recupero_Sel_"); };
+    window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "Recupero_All_"); };
+
+    function generateCSV(items, prefix) {
+        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato;Data WA\n";
+        items.forEach(i => {
+            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat||'').replace('.',','), String(i.lng||'').replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO", i.wa_inviato||""].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
+            content += row + "\n";
+        });
+        const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
+        const link = document.createElement("a"); link.href = url; link.download = `${prefix}${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // ─── TEMPLATE CSV VUOTO ────────────────────────────────────────────────────
+    window.exportTemplate = () => {
+        const header = "Codice PDR;Nome utenza;Indirizzo;NOME ZONA;Telefono;Matricola misuratore;Data ultima lettura;Accessibilità;Nota_accesso;Lat;Long\n";
+        const example = [
+            "12345678;Mario Rossi;VIA ROMA 1;Umbertide;0759417861;12345678;01/01/2025;Accessibile;;\n",
+            "87654321;Anna Bianchi;VIA MAZZINI 10 SNC;San Giustino;0759417862;87654321;01/01/2025;Inaccessibile;Terrazzo;\n",
+            ";; (compila Codice PDR Nome Indirizzo Città e lascia Lat Long vuoti per geocodificare in seguito);\n"
+        ];
+        const content = "\uFEFF" + header + example.join('');
+        const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
+        const link = document.createElement("a"); link.href = url; link.download = "Template_Recupero_2025.csv"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        showToast("Template CSV scaricato");
+    };
+
+    // ─── GEOCODIFICA ───────────────────────────────────────────────────────────
+    async function geocodePDRList(pdrs) {
+        if(isGeocoding) { showToast("Geocodifica già in corso..."); return; }
+        if(pdrs.length === 0) { showToast("Nessun PDR da geocodificare"); return; }
+        isGeocoding = true;
+        const prog = document.getElementById('geocodeProgress');
+        prog.style.display = 'block';
+        let ok = 0, fail = 0, total = pdrs.length;
+        for(let pdr of pdrs) {
+            const item = allData[pdr];
+            if(!item) continue;
+            prog.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> ${ok+fail+1}/${total} — ✅ ${ok} &nbsp; ❌ ${fail}`;
+            const q = [item.indirizzo, item.zona, 'Italy'].filter(Boolean).join(', ');
+            try {
+                await new Promise(r => setTimeout(r, 1200)); // rispetta rate limit Nominatim
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'RecuperoLetture2025'}});
+                const d = await res.json();
+                if(d.length > 0) {
+                    const lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
+                    await window.savePdrPosition(pdr, lat, lng);
+                    ok++;
+                } else { fail++; }
+            } catch(e) { fail++; }
+        }
+        prog.innerHTML = `✅ Completato: ${ok} trovati, ${fail} non trovati`;
+        setTimeout(() => { prog.style.display='none'; }, 4000);
+        isGeocoding = false;
+        if(!isCloudMode) updateMapAndUI();
+        showToast(`Geocodifica: ${ok} OK, ${fail} non trovati`);
+    }
+
+    window.geocodeSelected = () => {
+        const targets = [...selectedPDRs].filter(pdr => !hasValidCoords(allData[pdr]));
+        if(targets.length === 0) { showToast("Tutti i PDR selezionati hanno già le coordinate"); return; }
+        geocodePDRList(targets);
+    };
+
+    window.geocodeAll = () => {
+        const targets = Object.keys(allData).filter(pdr => !hasValidCoords(allData[pdr]));
+        geocodePDRList(targets);
+    };
+
+    window.geocodeSingle = async (pdr) => {
+        const prog = document.getElementById('geocodeProgress');
+        prog.style.display='block'; prog.innerHTML='<i class="fa-solid fa-spinner fa-spin mr-1"></i> Geocodifica in corso...';
+        await geocodePDRList([pdr]);
+    };
+
+    // ─── DATA ─────────────────────────────────────────────────────────────────
+    function startCloudListener(appId) {
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), (snap) => {
+            snap.docChanges().forEach(c => { const d = c.doc.data(); c.type === "removed" ? delete allData[c.doc.id] : allData[c.doc.id] = d; if(c.type==="removed" && selectedPDRs.has(c.doc.id)) selectedPDRs.delete(c.doc.id); });
+            updateMapAndUI(); updateSelectionUI();
+        }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
+    }
+    function loadLocalData() { const s = localStorage.getItem(LOCALSTORAGE_KEY); if(s) { allData = JSON.parse(s); updateMapAndUI(); } }
+
+    window.importCSVData = async function(csvData, overwrite) {
+        let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
+        let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
+        let imported = 0, skipped = 0;
+
+        csvData.forEach(row => {
+            const pdr = String(row['Codice PDR']||row.PDR||row.pdr||'').trim();
+            if(!pdr) { skipped++; return; }
+
+            let lat = parseFloat((row.Lat||row.LAT||row.lat||'').toString().replace(',','.').replace(/"/g,''));
+            let lng = parseFloat((row.Long||row.LON||row.lon||row.Lng||'').toString().replace(',','.').replace(/"/g,''));
+
+            const ex = allData[pdr];
+            
+            // Gestione coordinate: mantieni esistenti se no overwrite, null se non presenti
+            if(!overwrite && ex && hasValidCoords(ex)) { lat = ex.lat; lng = ex.lng; }
+            else if(isNaN(lat) || isNaN(lng)) { lat = null; lng = null; }
+
+            let status = ex ? (ex.fatto || false) : false;
+            const existingWaDate = ex ? (ex.wa_inviato || '') : '';
+
+            const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
+            const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
+
+            let isNum = false;
+            if(valLett !== '' && valLett !== '0') { const chk = parseFloat(valLett.replace(',','.')); if(!isNaN(chk) && isFinite(chk)) isNum = true; }
+            let isDate = (datLett !== '' && datLett !== '00/01/1900');
+            if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
+
+            const newData = {
+                pdr: pdr,
+                nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
+                indirizzo: row['Indirizzo']||row.INDIRIZZO||'',
+                zona: row['NOME ZONA']||row.Citta||row['Cod. zona']||'',
+                telefono: (row['Telefono']||row.TELEFONO||'').toString().trim().replace(/^75/,'075'),
+                matricola: row['Matricola misuratore']||row.MATRICOLA||'N/D',
+                data_riferimento: row['Data ultima lettura']||row['ULTIMA LETTURA']||'',
+                accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
+                nota_accesso: row['Nota_accesso']||row['Note']||'',
+                nota_operatore: ex ? (ex.nota_operatore||'') : '',
+                foto_base64: ex ? (ex.foto_base64||'') : '',
+                wa_inviato: existingWaDate,
+                val_lettura: valLett,
+                data_lettura: datLett,
+                evidenziato: ex ? (ex.evidenziato||false) : false,
+                lat: lat,
+                lng: lng,
+                fatto: status
+            };
+            allData[pdr] = newData;
+            imported++;
+
+            if(isCloudMode) {
+                const ref = doc(db, 'artifacts', localStorage.getItem('custom_app_id')||'default-app-id', 'public', 'data', COLLECTION_NAME, pdr);
+                batch.set(ref, newData); count++;
+                if(count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
+            }
+        });
+
+        if(isCloudMode && count>0) await batch.commit();
+        else if(!isCloudMode) { localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); updateMapAndUI(); }
+
+        const noCoord = Object.values(allData).filter(i => !hasValidCoords(i)).length;
+        showToast(`Importati: ${imported} PDR${noCoord>0?' ('+noCoord+' senza GPS)':''}`);
+    };
+
+    // ─── AZIONI ────────────────────────────────────────────────────────────────
+    window.savePdrNote = async (pdr) => { const txt = document.getElementById('note_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {nota_operatore:txt}); else { allData[pdr].nota_operatore = txt; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); } showToast("Nota salvata"); };
+    window.saveWaDate = async (pdr) => { const val = document.getElementById('wa_date_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {wa_inviato:val}); else { allData[pdr].wa_inviato = val; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); } showToast("Data WA salvata"); };
+    window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); updateMapAndUI(); } };
+    window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); updateMapAndUI(); } };
+    window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); } };
+
+    // FOTO
+    window.triggerPhotoInput = (pdr) => { document.getElementById('photo_input_'+pdr).click(); };
+    window.handlePhotoUpload = (pdr, input) => {
+        const file = input.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX = 800; let w = img.width, h = img.height;
+                if(w > MAX || h > MAX) { if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+                const canvas = document.createElement('canvas'); canvas.width=w; canvas.height=h;
+                canvas.getContext('2d').drawImage(img,0,0,w,h);
+                const b64 = canvas.toDataURL('image/jpeg', 0.7);
+                window.savePhoto(pdr, b64);
+                const prev = document.getElementById('photo_preview_'+pdr); if(prev){ prev.src=b64; prev.classList.remove('hidden'); }
+                const delBtn = document.getElementById('photo_del_'+pdr); if(delBtn) delBtn.classList.remove('hidden');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+    window.savePhoto = async (pdr, b64) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {foto_base64:b64}); else { allData[pdr].foto_base64=b64; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); } showToast('Foto salvata'); };
+    window.deletePhoto = async (pdr) => { if(!confirm('Eliminare la foto?')) return; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {foto_base64:''}); else { allData[pdr].foto_base64=''; localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(allData)); } const prev=document.getElementById('photo_preview_'+pdr); if(prev){prev.src='';prev.classList.add('hidden');} const delBtn=document.getElementById('photo_del_'+pdr); if(delBtn) delBtn.classList.add('hidden'); showToast('Foto eliminata'); };
+
+    // COORDINATE VIA
+    window.saveStreetCoords = function(streetKey, inputId) {
+        const val = document.getElementById(inputId).value.replace(';',',').split(',');
+        if (val.length === 2) {
+            let nLat = parseFloat(val[0].trim()), nLng = parseFloat(val[1].trim());
+            if(!isNaN(nLat) && !isNaN(nLng)) {
+                let updatedCount = 0;
+                Object.values(allData).forEach(item => {
+                    let addr = (item.indirizzo || '').toUpperCase().trim();
+                    let sName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
+                    let key = `${sName} (${item.zona || 'N/D'})`;
+                    if (key === streetKey) { window.savePdrPosition(item.pdr, nLat, nLng); updatedCount++; }
+                });
+                showToast(`Aggiornate coordinate per ${updatedCount} utenze`);
+            } else { alert("Coordinate non valide."); }
+        }
+    };
+
+    window.clearData = async () => {
+        if(!confirm(`Cancellare lista ${COLLECTION_NAME}?`)) return;
+        if(!isCloudMode) { localStorage.removeItem(LOCALSTORAGE_KEY); allData={}; updateMapAndUI(); location.reload(); }
+        else {
+            const snap = await getDocs(collection(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME));
+            let b = writeBatch(db), c=0;
+            snap.docs.forEach(d=>{ b.delete(d.ref); c++; if(c>=450){b.commit(); b=writeBatch(db); c=0;} });
+            if(c>0) await b.commit();
+            allData={}; updateMapAndUI();
+        }
+    };
+
+    window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
+    window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
+    window.toggleCoordInput = (pdr) => { const e = document.getElementById('coord_edit_'+pdr); if(e) e.classList.toggle('hidden'); };
+    window.executeOSMSearch = async (pdr) => { const q = document.getElementById('osm_search_'+pdr).value; if(!q) return; try { const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`,{headers:{'User-Agent':'RecuperoLetture2025'}}); const d = await res.json(); if(d.length>0){document.getElementById('coord_input_'+pdr).value=`${d[0].lat}, ${d[0].lon}`;showToast("Trovato!");}else alert("Non trovato"); } catch(e){alert("Err OSM");} };
+
+    // WA
+    const cleanStr = (s) => (s||'').replace(/\uFFFD/g,'-').replace(/[^\x20-\x7E\xA0-\xFF]/g,' ').replace(/\s+/g,' ').trim();
+    window.openWhatsApp = (pdr, ph) => {
+        const item = allData[pdr];
+        let cleanPh = (ph || item.telefono).replace(/[^0-9]/g, '');
+        if (!cleanPh.startsWith('39') && cleanPh.length>5) cleanPh = '39' + cleanPh;
+        const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
+        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${cleanStr(item.nominativo)}\n📍 ${cleanStr(item.indirizzo)} ${cleanStr(item.zona)}\n🔢 Matricola: ${cleanStr(item.matricola)}\n\nGli operatori incaricati da ASI Multiservices non hanno trovato nessuno in casa o non sono riusciti ad effettuare la lettura (contatore all'interno delle proprietà o su terrazza).\n\nPuò inviare una foto del contatore in risposta a questo messaggio oppure contattarci telefonicamente allo 0759417861 per concordare un appuntamento (Siamo disponibili la mattina dalle 09:00 alle 13:30).\n\nGrazie.\nUffici: Via Alberti 29/31 ad Umbertide`;
+        window.open(`https://wa.me/${cleanPh}?text=${encodeURIComponent(msg)}`, '_blank');
+    };
+
+    // ─── RENDER MAPPA ─────────────────────────────────────────────────────────
+    function updateMapAndUI() {
+        if(!markersCluster) return;
+        markersCluster.clearLayers();
+        let vis=0, done=0, noCoord=0;
+
+        // FILTRA
+        let filteredData = Object.values(allData).filter(item => {
+            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return false;
+            if(filterAvviso && !(item.val_lettura && isNaN((item.val_lettura+'').replace(',','.').trim()))) return false;
+            if(filterNoCoord && hasValidCoords(item)) return false;
+            if(activeStato === 'da_fare' && item.fatto) return false;
+            if(activeStato === 'fatti' && !item.fatto) return false;
+            if(filterFollowUp) {
+                if (!item.wa_inviato) return false;
+                const waDate = new Date(item.wa_inviato); const today = new Date();
+                waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                if(Math.ceil((today-waDate)/(1000*60*60*24)) <= 2) return false;
+            }
+            let acc = (item.accessibilita||'').toLowerCase();
+            let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
+            if(!activeAccess.has(cat)) return false;
+            let search = ((item.zona||'')+' '+(item.indirizzo||'')).toLowerCase();
+            let com = 'Altro';
+            if(search.includes('umbertide')||search.includes('54056')) com='Umbertide';
+            else if(search.includes('san giustino')||search.includes('54044')) com='San Giustino';
+            else if(search.includes('montone')||search.includes('54033')) com='Montone';
+            if(!activeComuni.has(com)) return false;
+            return true;
+        });
+
+        // Conta senza GPS (su tutto allData, non solo filtrati)
+        noCoord = Object.values(allData).filter(i => !hasValidCoords(i)).length;
+        const noCoordPanel = document.getElementById('noCoordPanel');
+        document.getElementById('noCoordCount').innerText = noCoord;
+        noCoord > 0 ? noCoordPanel.classList.remove('hidden') : noCoordPanel.classList.add('hidden');
+
+        if (window.viewMode === 'pdr') {
+            filteredData.forEach(item => {
+                vis++; if(item.fatto) done++;
+
+                // PDR senza coordinate: non li mettiamo sulla mappa ma li contiamo
+                if(!hasValidCoords(item)) return;
+
+                let col = '#dc2626';
+                let warn = false;
+                if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
+                let acc = (item.accessibilita||'').toLowerCase();
+                let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
+
+                if(item.evidenziato) col='#9333ea';
+                else if(selectedPDRs.has(item.pdr)) col='#06b6d4';
+                else if(item.fatto) col='#2563eb';
+                else if(warn) col='#facc15';
+                else if(cat==='Inaccessibile') col='#f97316';
+                else if(cat==='Accessibile') col='#16a34a';
+
+                const borderColor = item.wa_inviato ? '#22c55e' : 'white';
+                const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid ${borderColor};box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
+                const m = L.marker([item.lat, item.lng], {icon:icon, draggable:isEditMode, autoPan:true});
+                m.on('dragend', (e) => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
+
+                let wa = '';
+                const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
+                phones.forEach(p => {
+                    let clean = p.replace(/\s+/g,''); if(clean.startsWith('75')) clean='0'+clean;
+                    wa += '<div style="display:flex;gap:6px;margin-bottom:6px">'
+                        + `<a href="tel:${clean}" class="popup-btn popup-btn-secondary popup-btn-sm" style="flex:1;text-decoration:none;justify-content:center"><i class="fa-solid fa-phone"></i>&nbsp;${clean}</a>`
+                        + `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>`
+                        + '</div>';
+                });
+
+                const content = `
+                    <div class="popup-pdr">
+                        <div class="popup-header">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="popup-name">${item.nominativo}</div>
+                                <span class="popup-badge ${item.fatto?'fatto':'dafare'}">${item.fatto?'<i class="fa-solid fa-check"></i> FATTO':'<i class="fa-solid fa-clock"></i> DA FARE'}</span>
+                            </div>
+                            <div style="font-size:11px;color:#94a3b8;margin-top:4px">PDR&nbsp;${item.pdr}</div>
+                        </div>
+                        <div class="popup-body">
+                            <div class="popup-info-row"><span class="icon">📍</span><span>${item.indirizzo}${item.zona?' — '+item.zona:''}</span></div>
+                            <div class="popup-info-row"><span class="icon">🔢</span><span>Matr:&nbsp;<b>${item.matricola}</b></span></div>
+                            <div class="popup-info-row"><span class="icon">🚪</span><span>${item.accessibilita}</span></div>
+                            ${item.nota_accesso?`<div class="popup-warn" style="margin-top:6px">⚠️ ${item.nota_accesso}</div>`:''}
+                            ${(item.val_lettura||item.data_lettura)?`<div class="popup-info-row" style="background:#f0fdf4;border-radius:6px;padding:5px 8px;margin-top:4px"><span class="icon">📥</span><span>Lettura: <b>${item.val_lettura||'—'}</b> (${item.data_lettura||'—'})</span></div>`:''}
+
+                            <div class="popup-section">
+                                <div style="display:flex;gap:8px;margin-bottom:8px">
+                                    <button onclick="window.togglePdrStatus('${item.pdr}')" class="popup-btn ${item.fatto?'popup-btn-secondary':'popup-btn-primary'}">${item.fatto?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>
+                                    <button onclick="window.togglePdrHighlight('${item.pdr}')" class="popup-btn ${item.evidenziato?'popup-btn-purple':'popup-btn-secondary'}"><i class="fa-solid fa-star"></i> ${item.evidenziato?'Evid.':'Evidenzia'}</button>
+                                </div>
+                                <button onclick="window.togglePdrSelection('${item.pdr}')" class="popup-btn popup-btn-sm" style="background:${selectedPDRs.has(item.pdr)?'#0891b2':'#fff'};color:${selectedPDRs.has(item.pdr)?'#fff':'#0891b2'};border-color:#a5f3fc;margin-bottom:8px">${selectedPDRs.has(item.pdr)?'<i class="fa-solid fa-xmark"></i> Deseleziona':'<i class="fa-solid fa-check-double"></i> Seleziona'}</button>
+                                ${wa}
+                                <button onclick="(function(el){el.style.display=el.style.display==='none'?'flex':'none'})(document.getElementById('wa_custom_${item.pdr}'))" class="popup-btn popup-btn-sm" style="width:100%;background:#fff;color:#16a34a;border-color:#bbf7d0;margin-top:2px"><i class="fa-brands fa-whatsapp"></i>&nbsp;WA a numero diverso</button>
+                                <div id="wa_custom_${item.pdr}" style="display:none;gap:6px;margin-top:8px;align-items:center">
+                                    <input id="wa_custom_num_${item.pdr}" type="tel" class="popup-input" placeholder="Es. 3331234567" style="flex:1">
+                                    <button onclick="window.openWhatsApp('${item.pdr}',document.getElementById('wa_custom_num_${item.pdr}').value)" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="Invia WA"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>
+                                </div>
+                            </div>
+
+                            <div class="popup-section">
+                                <div class="popup-section-title">Note operative</div>
+                                <textarea id="note_${item.pdr}" class="popup-input" rows="2" placeholder="Scrivi una nota..." style="resize:none">${item.nota_operatore||''}</textarea>
+                                <button onclick="window.savePdrNote('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm" style="margin-top:6px"><i class="fa-solid fa-floppy-disk"></i> Salva nota</button>
+                            </div>
+
+                            <div class="popup-section">
+                                <div class="popup-section-title">Follow-up WhatsApp</div>
+                                <div style="display:flex;gap:8px">
+                                    <input type="date" id="wa_date_${item.pdr}" class="popup-input" style="flex:1" value="${item.wa_inviato||''}">
+                                    <button onclick="window.saveWaDate('${item.pdr}')" class="popup-btn popup-btn-sm" style="width:auto;padding:0 14px;background:#ede9fe;color:#7c3aed;border-color:#ddd6fe">OK</button>
+                                </div>
+                            </div>
+
+                            <div class="popup-section">
+                                <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:#7c3aed" onclick="window.toggleCoordInput('${item.pdr}')">
+                                    <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px">Coordinate GPS</span>
+                                    <i class="fa-solid fa-pen" style="font-size:11px"></i>
+                                </div>
+                                <div id="coord_edit_${item.pdr}" class="hidden" style="margin-top:8px">
+                                    <input id="osm_search_${item.pdr}" class="popup-input" style="margin-bottom:6px" value="${item.indirizzo} ${item.zona}">
+                                    <div style="display:flex;gap:6px;margin-bottom:6px">
+                                        <button onclick="window.executeOSMSearch('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm">Cerca OSM</button>
+                                        <button onclick="window.searchGoogleMaps('${item.pdr}')" class="popup-btn popup-btn-secondary popup-btn-sm">Google Maps</button>
+                                    </div>
+                                    <input id="coord_input_${item.pdr}" class="popup-input" style="margin-bottom:6px" value="${item.lat||''}, ${item.lng||''}">
+                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="popup-btn popup-btn-primary popup-btn-sm"><i class="fa-solid fa-floppy-disk"></i> Aggiorna coordinate</button>
+                                </div>
+                            </div>
+
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="popup-nav-link">
+                                <i class="fa-solid fa-location-arrow"></i> Naviga con Google Maps
+                            </a>
+                        </div>
+                    </div>
+                `;
+                m.bindPopup(content);
+                markersCluster.addLayer(m);
+            });
+
+        } else {
+            // MODALITÀ PER VIA
+            let groups = {};
+            filteredData.forEach(item => {
+                vis++; if(item.fatto) done++;
+                if(!hasValidCoords(item)) return;
+                let addr = (item.indirizzo || '').toUpperCase().trim();
+                let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
+                let key = `${streetName} (${item.zona || 'N/D'})`;
+                if(!groups[key]) groups[key] = { items: [], lat: item.lat, lng: item.lng, street: streetName };
+                groups[key].items.push(item);
+            });
+
+            Object.keys(groups).forEach(key => {
+                let group = groups[key];
+                let items = group.items;
+                let allDone = true, anyEvid = false, anySel = false, anyInacc = false, anyWarn = false;
+                items.forEach(i => {
+                    if(!i.fatto) allDone = false;
+                    if(i.evidenziato) anyEvid = true;
+                    if(selectedPDRs.has(i.pdr)) anySel = true;
+                    if((i.accessibilita||'').toLowerCase().includes('inaccessibile')) anyInacc = true;
+                    if(i.val_lettura && isNaN(i.val_lettura.replace(',','.').trim())) anyWarn = true;
+                });
+
+                let col = '#dc2626';
+                if(anyEvid) col = '#9333ea';
+                else if(anySel) col = '#06b6d4';
+                else if(allDone) col = '#2563eb';
+                else if(anyWarn) col = '#facc15';
+                else if(anyInacc) col = '#f97316';
+
+                const iconHtml = `<div style="background-color:${col};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:bold">${items.length}</div>`;
+                const icon = L.divIcon({className:'custom-pin', html:iconHtml, iconSize:[24,24], iconAnchor:[12,12]});
+                const m = L.marker([group.lat, group.lng], {icon:icon, draggable:isEditMode, autoPan:true});
+                m.on('dragend', (e) => { let newLat=e.target.getLatLng().lat, newLng=e.target.getLatLng().lng; items.forEach(i=>window.savePdrPosition(i.pdr,newLat,newLng)); });
+
+                let safeKey = key.replace(/'/g, "\\'");
+                let safeStreetId = group.street.replace(/[^a-zA-Z0-9]/g,'');
+
+                let popupContent = `
+                    <div class="popup-via">
+                        <div class="popup-via-header">
+                            <div class="popup-name" style="font-size:14px">${key}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+                                <span style="font-size:12px;color:#64748b;font-weight:600">${items.length} utenze</span>
+                                <a href="https://www.google.com/maps/dir/?api=1&destination=${group.lat},${group.lng}" target="_blank" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#7c3aed;font-weight:700;text-decoration:none"><i class="fa-solid fa-location-arrow"></i> Naviga</a>
+                            </div>
+                            <div style="margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;color:#7c3aed;font-weight:700;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:7px;padding:6px 10px" onclick="window.toggleCoordInput('street_${safeStreetId}')">
+                                <i class="fa-solid fa-pen"></i> Riassegna coordinate a tutta la via
+                            </div>
+                            <div id="coord_edit_street_${safeStreetId}" class="hidden" style="margin-top:8px">
+                                <input id="coord_input_street_${safeStreetId}" class="popup-input" style="margin-bottom:6px" value="${group.lat}, ${group.lng}">
+                                <button onclick="window.saveStreetCoords('${safeKey}', 'coord_input_street_${safeStreetId}')" class="popup-btn popup-btn-primary popup-btn-sm">Applica a tutti i ${items.length} marker</button>
+                            </div>
+                        </div>
+                        <div class="popup-via-scroll">
+                `;
+
+                items.sort((a,b) => {
+                    const extractCiv = (item) => { let civ=item.indirizzo.toUpperCase().replace(group.street,'').trim()||'SNC'; const mm=civ.match(/^(\d+)/); return mm?parseInt(mm[1],10):Infinity; };
+                    const extractSuffix = (item) => { let civ=item.indirizzo.toUpperCase().replace(group.street,'').trim()||''; return civ.replace(/^\d+/,'')||''; };
+                    const diff=extractCiv(a)-extractCiv(b); if(diff!==0) return diff; return extractSuffix(a).localeCompare(extractSuffix(b));
+                });
+
+                items.forEach(item => {
+                    let isDone=item.fatto, civico=item.indirizzo.toUpperCase().replace(group.street,'').trim()||'SNC';
+                    let waBtn='', callBtns='', isSel=selectedPDRs.has(item.pdr), isEvid=!!(item.evidenziato), hasFoto=!!(item.foto_base64);
+                    let accStr=(item.accessibilita||'').toLowerCase(), accColor='#94a3b8', accLabel=item.accessibilita||'N/D';
+                    if(accStr.includes('inaccessibile')) accColor='#f97316';
+                    else if(accStr.includes('accessibile')) accColor='#22c55e';
+                    if(item.val_lettura && isNaN(item.val_lettura.replace(',','.').trim())) { accColor='#facc15'; accLabel+=' ⚠️'; }
+                    const phones=(item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
+                    if(phones.length>0) {
+                        let cleanPh=phones[0].replace(/[^0-9]/g,''); if(!cleanPh.startsWith('39')&&cleanPh.length>5) cleanPh='39'+cleanPh;
+                        waBtn=`<button onclick="window.openWhatsApp('${item.pdr}','${cleanPh}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>`;
+                        callBtns=phones.map(p=>{let c=p.replace(/\s+/g,'');if(c.startsWith('75'))c='0'+c;return`<a href="tel:${c}" style="font-size:11px;color:#7c3aed;font-weight:600;display:inline-flex;align-items:center;gap:3px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:5px;padding:4px 8px;text-decoration:none"><i class="fa-solid fa-phone" style="font-size:10px"></i>&nbsp;${c}</a>`;}).join('');
+                    }
+                    const waBorder = item.wa_inviato ? '2px solid #22c55e' : '1.5px solid #e2e8f0';
+                    popupContent += `
+                        <div class="pdr-card ${isDone?'done':''} ${isSel?'selected':''}" id="card_${item.pdr}" style="border:${waBorder}">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                                <div class="pdr-card-name" style="padding-right:0">${item.nominativo}</div>
+                                <span class="popup-badge ${isDone?'fatto':'dafare'}" style="flex-shrink:0;margin-left:8px">${isDone?'FATTO':'DA FARE'}</span>
+                            </div>
+                            <div class="pdr-card-meta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                                <span class="acc-dot" style="background:${accColor}" title="${accLabel}"></span>
+                                <span>Civico: <b style="color:#1e293b">${civico}</b></span>
+                                <span style="color:#cbd5e1">|</span>
+                                <span>Matr: ${item.matricola}</span>
+                                <span style="color:#cbd5e1">|</span>
+                                <span style="color:${accColor};font-weight:600;font-size:10px">${accLabel}</span>
+                            </div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>
+                            ${callBtns?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${callBtns}</div>`:''}
+                            ${item.nota_accesso?`<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>`:''}
+                            ${hasFoto?`<img id="photo_preview_${item.pdr}" class="pdr-photo-preview" src="${item.foto_base64}">`:`<img id="photo_preview_${item.pdr}" class="pdr-photo-preview hidden" src="">`}
+                            <input type="file" id="photo_input_${item.pdr}" accept="image/*" capture="environment" class="hidden" onchange="window.handlePhotoUpload('${item.pdr}', this)">
+                            <div class="pdr-card-actions">
+                                <button onclick="window.togglePdrStatus('${item.pdr}')" class="pdr-card-btn" style="background:${isDone?'#f1f5f9':'#7c3aed'};color:${isDone?'#334155':'#fff'};border-color:${isDone?'#cbd5e1':'#7c3aed'}">${isDone?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>
+                                ${waBtn}
+                            </div>
+                            <div class="pdr-photo-row">
+                                <button onclick="window.togglePdrSelection('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isSel?'#06b6d4':'#e2e8f0'};background:${isSel?'#06b6d4':'#f8fafc'};color:${isSel?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid ${isSel?'fa-xmark':'fa-check-double'}"></i> ${isSel?'Desel.':'Seleziona'}</button>
+                                <button onclick="window.togglePdrHighlight('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isEvid?'#9333ea':'#e2e8f0'};background:${isEvid?'#9333ea':'#f8fafc'};color:${isEvid?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid fa-star"></i> ${isEvid?'Evid.':'Evidenzia'}</button>
+                            </div>
+                            <div class="pdr-photo-row">
+                                <button onclick="window.triggerPhotoInput('${item.pdr}')" class="pdr-photo-row button" title="Scatta/allega foto" style="flex:1;justify-content:center;gap:6px"><i class="fa-solid fa-camera" style="font-size:14px;color:${hasFoto?'#7c3aed':'#94a3b8'}"></i><span style="font-size:11px;color:${hasFoto?'#7c3aed':'#94a3b8'}">${hasFoto?'Cambia foto':'Aggiungi foto'}</span></button>
+                                <button id="photo_del_${item.pdr}" onclick="window.deletePhoto('${item.pdr}')" class="${hasFoto?'':'hidden'} pdr-photo-row button" title="Elimina foto" style="flex:none;width:38px;justify-content:center"><i class="fa-solid fa-trash" style="font-size:13px;color:#ef4444"></i></button>
+                            </div>
+                            <div class="pdr-card-note">
+                                <input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note operative...">
+                                <button onclick="window.savePdrNote('${item.pdr}')"><i class="fa-solid fa-floppy-disk"></i></button>
+                            </div>
+                            <div class="pdr-card-followup">
+                                <span class="label">Follow-up</span>
+                                <input type="date" id="wa_date_${item.pdr}" value="${item.wa_inviato||''}">
+                                <button onclick="window.saveWaDate('${item.pdr}')">OK</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                popupContent += `</div></div>`;
+                m.bindPopup(popupContent);
+                markersCluster.addLayer(m);
+            });
+        }
+
+        document.getElementById('statVisible').innerText = vis;
+        document.getElementById('statDone').innerText = done;
+        document.getElementById('statNoCoord').innerText = noCoord;
+    }
+
+    // ─── FILTRI INIT ──────────────────────────────────────────────────────────
+    function renderAccessFilters() {
+        const c = document.getElementById('accessFiltersContainer'); if(!c) return; c.innerHTML='';
+        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    function renderComuniFilters() {
+        const c = document.getElementById('comuniFiltersContainer'); if(!c) return; c.innerHTML='';
+        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
+            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
+        });
+    }
+    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
+    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+
+    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3500);}
+
+</script>
+</body>
+</html>
