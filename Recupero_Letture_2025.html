@@ -95,6 +95,16 @@
     .pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
     /* Geocodifica progress */
     #geocodeProgress{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 12px;font-size:11px;color:#6d28d9;font-weight:600;display:none}
+    /* Lista PDR */
+    #listPanel{position:absolute;left:350px;right:0;top:0;bottom:0;z-index:500;background:#f8fafc;overflow-y:auto;display:none;flex-direction:column}
+    .list-search-bar{position:sticky;top:0;background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 12px;z-index:10;display:flex;gap:8px;align-items:center}
+    .pdr-list-row{background:#fff;border-bottom:1px solid #f1f5f9;padding:10px 14px;cursor:pointer;transition:background .15s}
+    .pdr-list-row:hover{background:#faf5ff}
+    .pdr-list-row.expanded{background:#faf5ff;border-left:3px solid #7c3aed}
+    .pdr-list-row .geo-form{border-top:1px solid #ede9fe;margin-top:10px;padding-top:10px;display:none}
+    .pdr-list-row.expanded .geo-form{display:block}
+    .pdr-no-gps{display:inline-flex;align-items:center;gap:3px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #fde68a;white-space:nowrap}
+    .pdr-has-gps{display:inline-flex;align-items:center;gap:3px;background:#d1fae5;color:#065f46;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #a7f3d0;white-space:nowrap}
 </style>
 
 <script>
@@ -158,9 +168,10 @@
         <!-- Modalità visualizzazione -->
         <div class="mb-4 border-t pt-4">
             <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Modalità Mappa</label>
-            <div class="flex bg-gray-200 rounded p-1">
-                <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition">Marker PDR</button>
-                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition">Marker Via</button>
+            <div class="flex bg-gray-200 rounded p-1 gap-0.5">
+                <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-1 rounded bg-white shadow font-bold text-violet-600 transition">Marker PDR</button>
+                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-1 rounded text-gray-600 font-medium hover:text-gray-800 transition">Per Via</button>
+                <button id="btnViewList" onclick="window.setViewMode('list')" class="flex-1 text-xs py-1.5 px-1 rounded text-gray-600 font-medium hover:text-gray-800 transition"><i class="fa-solid fa-list mr-0.5"></i> Lista</button>
             </div>
         </div>
 
@@ -236,6 +247,9 @@
 </div>
 
 <div id="map"></div>
+
+<!-- Lista PDR Panel -->
+<div id="listPanel"></div>
 
 <!-- Settings Modal -->
 <div id="settingsModal" class="modal-overlay hidden">
@@ -385,16 +399,27 @@
         window.viewMode = mode;
         const btnPdr = document.getElementById('btnViewPDR');
         const btnStreet = document.getElementById('btnViewStreet');
+        const btnList = document.getElementById('btnViewList');
+        const listPanel = document.getElementById('listPanel');
+        const activeClass = 'flex-1 text-xs py-1.5 px-1 rounded bg-white shadow font-bold text-violet-600 transition';
+        const inactiveClass = 'flex-1 text-xs py-1.5 px-1 rounded text-gray-600 font-medium hover:text-gray-800 transition';
+        btnPdr.className = inactiveClass;
+        btnStreet.className = inactiveClass;
+        btnList.className = inactiveClass;
         if (mode === 'pdr') {
-            btnPdr.className = "flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition";
-            btnStreet.className = "flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition";
+            btnPdr.className = activeClass;
             markersCluster.options.maxClusterRadius = 0;
-        } else {
-            btnStreet.className = "flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-violet-600 transition";
-            btnPdr.className = "flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition";
+            listPanel.style.display = 'none';
+        } else if (mode === 'street') {
+            btnStreet.className = activeClass;
             markersCluster.options.maxClusterRadius = 40;
+            listPanel.style.display = 'none';
+        } else if (mode === 'list') {
+            btnList.className = activeClass;
+            listPanel.style.display = 'flex';
+            renderListView();
         }
-        updateMapAndUI();
+        if (mode !== 'list') updateMapAndUI();
     };
 
     // ─── SELEZIONE ─────────────────────────────────────────────────────────────
@@ -902,7 +927,162 @@
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
         document.getElementById('statNoCoord').innerText = noCoord;
+        if (window.viewMode === 'list') renderListView();
     }
+
+    // ─── VISTA LISTA ──────────────────────────────────────────────────────────
+    function renderListView() {
+        const panel = document.getElementById('listPanel');
+        if(!panel) return;
+        const searchVal = (document.getElementById('listSearch')?.value || '').toLowerCase();
+        const items = Object.values(allData).sort((a, b) => {
+            const aHas = hasValidCoords(a) ? 1 : 0;
+            const bHas = hasValidCoords(b) ? 1 : 0;
+            if(aHas !== bHas) return aHas - bHas;
+            return (a.nominativo||'').localeCompare(b.nominativo||'');
+        });
+        const filtered = searchVal.length > 1 ? items.filter(i =>
+            String(i.pdr).toLowerCase().includes(searchVal) ||
+            (i.nominativo||'').toLowerCase().includes(searchVal) ||
+            (i.indirizzo||'').toLowerCase().includes(searchVal)
+        ) : items;
+        const noCoordCount = items.filter(i => !hasValidCoords(i)).length;
+
+        let html = `
+            <div class="list-search-bar">
+                <input id="listSearch" type="text" placeholder="Cerca PDR, nome, indirizzo..."
+                    style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:13px;outline:none"
+                    oninput="renderListView()" value="${searchVal.replace(/"/g,'&quot;')}">
+                <span style="font-size:11px;font-weight:700;color:#b45309;white-space:nowrap">${noCoordCount} senza GPS</span>
+            </div>
+            <div style="padding:8px 14px;background:#f5f3ff;border-bottom:1px solid #ede9fe;font-size:11px;color:#6d28d9;font-weight:600">
+                ${filtered.length} PDR — <span style="color:#b45309">${noCoordCount} senza coordinate</span> — clicca su un PDR per geocodificarlo
+            </div>`;
+
+        filtered.forEach(item => {
+            const hasCoord = hasValidCoords(item);
+            const gpsLabel = hasCoord
+                ? `<span class="pdr-has-gps"><i class="fa-solid fa-check"></i> GPS OK</span>`
+                : `<span class="pdr-no-gps"><i class="fa-solid fa-xmark"></i> Senza GPS</span>`;
+            const coordVal = hasCoord ? `${parseFloat(item.lat).toFixed(6)}, ${parseFloat(item.lng).toFixed(6)}` : '';
+            const pdrSafe = String(item.pdr).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            const addrVal = ((item.indirizzo||'')+' '+(item.zona||'')).trim();
+            html += `
+            <div class="pdr-list-row" id="listrow_${item.pdr}" onclick="window.toggleListRow('${pdrSafe}')">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                    <div style="min-width:0">
+                        <div style="font-size:13px;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.nominativo}</div>
+                        <div style="font-size:11px;color:#64748b;margin-top:1px">${item.indirizzo||''}${item.zona?' — '+item.zona:''}</div>
+                        <div style="font-size:10px;color:#94a3b8">PDR: ${item.pdr} · Matr: ${item.matricola||'N/D'}</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+                        ${gpsLabel}
+                        <i class="fa-solid fa-chevron-down" style="font-size:10px;color:#94a3b8"></i>
+                    </div>
+                </div>
+                <div class="geo-form" id="geoform_${item.pdr}" onclick="event.stopPropagation()">
+                    <div style="font-size:10px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Geocodifica indirizzo</div>
+                    <div style="margin-bottom:6px">
+                        <label style="font-size:10px;color:#64748b;font-weight:600;display:block;margin-bottom:3px">Indirizzo da cercare</label>
+                        <input id="list_addr_${item.pdr}" value="${addrVal.replace(/"/g,'&quot;')}"
+                            style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 10px;font-size:12px;outline:none;box-sizing:border-box"
+                            placeholder="Via, Città" onclick="event.stopPropagation()">
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:8px">
+                        <button onclick="event.stopPropagation();window.listGeoOSM('${pdrSafe}')"
+                            style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;background:#ede9fe;color:#7c3aed;border:1.5px solid #ddd6fe;cursor:pointer">
+                            <i class="fa-solid fa-magnifying-glass"></i> OSM
+                        </button>
+                        <button onclick="event.stopPropagation();window.listGeoGoogle('${pdrSafe}')"
+                            style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;cursor:pointer">
+                            <i class="fa-brands fa-google"></i> Google Maps
+                        </button>
+                    </div>
+                    <div style="margin-bottom:6px">
+                        <label style="font-size:10px;color:#64748b;font-weight:600;display:block;margin-bottom:3px">Coordinate trovate (lat, lng)</label>
+                        <input id="list_coord_${item.pdr}" value="${coordVal}"
+                            style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:7px 10px;font-size:12px;outline:none;box-sizing:border-box"
+                            placeholder="es. 43.361400, 12.330800" onclick="event.stopPropagation()">
+                    </div>
+                    <div style="display:flex;gap:6px;margin-bottom:6px">
+                        <button onclick="event.stopPropagation();window.listSaveCoords('${pdrSafe}')"
+                            style="flex:1;min-height:36px;border-radius:7px;font-size:12px;font-weight:700;background:#7c3aed;color:#fff;border:none;cursor:pointer">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Salva GPS
+                        </button>
+                        ${hasCoord ? `<button onclick="event.stopPropagation();map.flyTo([${item.lat},${item.lng}],18);window.setViewMode('pdr')"
+                            style="flex:none;width:44px;min-height:36px;border-radius:7px;font-size:13px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;cursor:pointer" title="Vedi su mappa">
+                            <i class="fa-solid fa-map-pin"></i></button>` : ''}
+                    </div>
+                    <div id="list_geo_status_${item.pdr}" style="font-size:11px;color:#64748b;min-height:16px"></div>
+                </div>
+            </div>`;
+        });
+
+        if(filtered.length === 0) html += `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:13px">Nessun PDR trovato</div>`;
+        panel.innerHTML = html;
+    }
+    window.renderListView = renderListView;
+
+    window.toggleListRow = (pdr) => {
+        const row = document.getElementById('listrow_'+pdr);
+        const form = document.getElementById('geoform_'+pdr);
+        if(!row || !form) return;
+        const isExp = row.classList.contains('expanded');
+        document.querySelectorAll('.pdr-list-row.expanded').forEach(r => {
+            r.classList.remove('expanded');
+            const f = r.querySelector('.geo-form'); if(f) f.style.display='none';
+        });
+        if(!isExp) {
+            row.classList.add('expanded');
+            form.style.display = 'block';
+            setTimeout(() => form.scrollIntoView({behavior:'smooth',block:'nearest'}), 50);
+        }
+    };
+
+    window.listGeoOSM = async (pdr) => {
+        const addrEl = document.getElementById('list_addr_'+pdr);
+        const addr = addrEl?.value?.trim();
+        if(!addr) return;
+        const status = document.getElementById('list_geo_status_'+pdr);
+        status.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ricerca OSM in corso...';
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=5&countrycodes=it`,
+                {headers:{'User-Agent':'RecuperoLetture2025-ASIMultiservices'}}
+            );
+            const d = await res.json();
+            if(d.length > 0) {
+                const coordEl = document.getElementById('list_coord_'+pdr);
+                if(coordEl) coordEl.value = `${parseFloat(d[0].lat).toFixed(6)}, ${parseFloat(d[0].lon).toFixed(6)}`;
+                const name = d[0].display_name.length > 70 ? d[0].display_name.substring(0,70)+'...' : d[0].display_name;
+                status.innerHTML = `<span style="color:#16a34a">✓ ${name}</span>`;
+            } else {
+                status.innerHTML = `<span style="color:#dc2626">✗ Non trovato. Prova a modificare l\'indirizzo o usa Google Maps.</span>`;
+            }
+        } catch(e) { status.innerHTML = `<span style="color:#dc2626">✗ Errore connessione a Nominatim</span>`; }
+    };
+
+    window.listGeoGoogle = (pdr) => {
+        const addr = document.getElementById('list_addr_'+pdr)?.value?.trim();
+        if(!addr) return;
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`, '_blank');
+        const status = document.getElementById('list_geo_status_'+pdr);
+        if(status) status.innerHTML = '<span style="color:#64748b">Aperto Google Maps. Clicca con tasto destro sul punto esatto → <b>"Queste sono le coordinate"</b>, copia lat,lng nel campo sopra e clicca Salva GPS.</span>';
+    };
+
+    window.listSaveCoords = async (pdr) => {
+        const coordInput = document.getElementById('list_coord_'+pdr);
+        if(!coordInput) return;
+        const parts = coordInput.value.replace(';',',').split(',');
+        if(parts.length < 2) { alert('Formato non valido. Usa: lat, lng'); return; }
+        const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
+        if(isNaN(lat)||isNaN(lng)) { alert('Coordinate non valide'); return; }
+        await window.savePdrPosition(pdr, lat, lng);
+        const status = document.getElementById('list_geo_status_'+pdr);
+        if(status) status.innerHTML = `<span style="color:#16a34a;font-weight:700">✓ GPS salvato! Torna alla vista Mappa per vedere il marker.</span>`;
+        showToast('GPS salvato — '+(allData[pdr]?.nominativo||pdr));
+        if(!isCloudMode) renderListView();
+    };
 
     // ─── FILTRI INIT ──────────────────────────────────────────────────────────
     function renderAccessFilters() {
