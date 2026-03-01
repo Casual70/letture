@@ -40,6 +40,54 @@
     .filter-checkbox:hover{background-color:#f3f4f6}
     .filter-checkbox input{margin-right:10px;accent-color:#2563eb;width:16px;height:16px}
     .gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
+    /* Popup responsive mobile */
+    .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important}
+    .leaflet-popup-content{margin:0!important;width:min(88vw,360px)!important;max-width:360px}
+    .leaflet-popup-content-wrapper{overflow:visible!important}
+    .popup-pdr, .popup-via{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px}
+    .popup-via{display:flex;flex-direction:column;max-height:75vh;overflow:hidden;border-radius:12px}
+    .popup-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0}
+    .popup-body{padding:10px 14px 12px}
+    .popup-name{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3}
+    .popup-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .popup-badge.fatto{background:#dbeafe;color:#1d4ed8}
+    .popup-badge.dafare{background:#fee2e2;color:#dc2626}
+    .popup-info-row{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#475569;padding:3px 0}
+    .popup-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:7px 10px;font-size:12px;color:#c2410c;font-weight:600}
+    .popup-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:8px;font-size:13px;font-weight:700;border:1.5px solid transparent;cursor:pointer;transition:opacity .15s;width:100%}
+    .popup-btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
+    .popup-btn-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}
+    .popup-btn-purple{background:#9333ea;color:#fff;border-color:#9333ea}
+    .popup-btn-sm{min-height:34px;font-size:12px;padding:0 10px;border-radius:7px}
+    .popup-input{width:100%;border:1.5px solid #cbd5e1;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;box-sizing:border-box}
+    .popup-input:focus{border-color:#2563eb}
+    .popup-section{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+    .popup-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+    .popup-nav-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:none;font-weight:600;padding:8px;background:#eff6ff;border-radius:7px;margin-top:8px}
+    /* Popup Via */
+    .popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;flex-shrink:0}
+    .popup-via-scroll{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 12px}
+    .popup-via-scroll::-webkit-scrollbar{width:5px}
+    .popup-via-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+    .pdr-card{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+    .pdr-card.done{background:#eff6ff;border-color:#bfdbfe}
+    .pdr-card.selected{outline:2px solid #06b6d4;outline-offset:1px}
+    .pdr-card-name{font-size:13px;font-weight:700;color:#1e293b;line-height:1.3}
+    .pdr-card-meta{font-size:11px;color:#64748b;margin-top:2px}
+    .pdr-card-warn{font-size:11px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:4px 8px;margin-top:5px}
+    .pdr-card-actions{display:flex;gap:6px;margin-top:8px}
+    .pdr-card-btn{flex:1;min-height:38px;border-radius:7px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+    .pdr-card-note{display:flex;gap:6px;margin-top:6px}
+    .pdr-card-note input{flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 10px;font-size:12px;outline:none}
+    .pdr-card-note input:focus{border-color:#2563eb}
+    .pdr-card-note button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;background:#f1f5f9;color:#334155;border:1.5px solid #cbd5e1;cursor:pointer}
+    .pdr-card-followup{display:flex;align-items:center;gap:6px;margin-top:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px}
+    .pdr-card-followup .label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
+    .pdr-card-followup input{flex:1;border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
+    .pdr-card-followup button{min-height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer}
+    .acc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
+    .pdr-photo-row{display:flex;gap:6px;margin-top:6px}
+    .pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
 </style>
 
 <!-- SCRIPT UI SICURO (Funziona sempre per aprire/chiudere sidebar) -->
@@ -85,6 +133,25 @@
              <div class="p-2 bg-red-50 border border-red-200 rounded"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
         </div>
         
+        <!-- MODALITÀ VISUALIZZAZIONE -->
+        <div class="mb-4 border-t pt-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Modalità Mappa</label></div>
+            <div class="flex bg-gray-200 rounded p-1">
+                <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition">Marker PDR</button>
+                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition">Marker Via</button>
+            </div>
+        </div>
+
+        <!-- Filtro Stato -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1"><label class="block text-xs font-bold text-gray-700 uppercase">Stato Lettura</label></div>
+            <select id="filterStato" onchange="window.changeFilterStato(this.value)" class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Mostra Tutti</option>
+                <option value="da_fare">Mostra Solo "DA FARE"</option>
+                <option value="fatti">Mostra Solo "FATTO"</option>
+            </select>
+        </div>
+
         <!-- Filtri -->
         <div class="mb-4">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
@@ -100,8 +167,8 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
-                <div class="filter-checkbox"><input type="checkbox" id="filterWaDate" onchange="window.toggleWaDate(this)"> <span class="text-xs font-bold text-gray-700">WA > 2 giorni</span></div>
-                <div class="filter-checkbox"><input type="checkbox" id="filterWarning" onchange="window.toggleWarning(this)"> <span class="text-xs font-bold text-yellow-500">Solo Avvisi</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up WA &gt; 2gg</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)"><span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span></div>
             </div>
         </div>
 
@@ -163,8 +230,10 @@
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false;
-    let filterWaDate = false;
-    let filterWarning = false;
+    let filterFollowUp = false;
+    let filterAvviso = false;
+    let activeStato = 'tutti';
+    window.viewMode = 'pdr'; // 'pdr' o 'street'
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -220,8 +289,22 @@
     window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
     window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
-    window.toggleWaDate = (e) => { filterWaDate = e.checked; updateMapAndUI(); };
-    window.toggleWarning = (e) => { filterWarning = e.checked; updateMapAndUI(); };
+    window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
+    window.toggleAvviso = (e) => { filterAvviso = e.checked; updateMapAndUI(); };
+    window.changeFilterStato = (v) => { activeStato = v; updateMapAndUI(); };
+    window.setViewMode = (mode) => {
+        window.viewMode = mode;
+        const btnPDR = document.getElementById('btnViewPDR');
+        const btnStreet = document.getElementById('btnViewStreet');
+        if (mode === 'pdr') {
+            btnPDR.className = 'flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition';
+            btnStreet.className = 'flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition';
+        } else {
+            btnStreet.className = 'flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition';
+            btnPDR.className = 'flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition';
+        }
+        updateMapAndUI();
+    };
 
     // Photo Modal
     window.openPhotoModal = (url) => { document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
@@ -528,6 +611,28 @@
     window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
     window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
     window.toggleSection = (id) => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden'); };
+
+    // SAVE MULTIPLE COORDS FOR STREET
+    window.saveStreetCoords = function(streetKey, inputId) {
+        const val = document.getElementById(inputId).value.replace(';',',').split(',');
+        if (val.length === 2) {
+            let nLat = parseFloat(val[0].trim());
+            let nLng = parseFloat(val[1].trim());
+            if(!isNaN(nLat) && !isNaN(nLng)) {
+                let updatedCount = 0;
+                Object.values(allData).forEach(item => {
+                    let addr = (item.indirizzo || '').toUpperCase().trim();
+                    let sName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
+                    let key = `${sName} (${item.zona || 'N/D'})`;
+                    if (key === streetKey) {
+                        window.savePdrPosition(item.pdr, nLat, nLng);
+                        updatedCount++;
+                    }
+                });
+                showToast(`Aggiornate le coordinate per ${updatedCount} utenze.`);
+            } else { alert('Coordinate non valide.'); }
+        }
+    };
     
     // WA Clean
     const cleanStr = (s) => (s||'').replace(/\uFFFD/g,'-').replace(/[^\x20-\x7E\xA0-\xFF]/g,' ').replace(/\s+/g,' ').trim();
@@ -551,34 +656,40 @@
         if(!markersCluster) return;
         markersCluster.clearLayers();
         let vis=0, done=0;
-        
-        Object.values(allData).forEach(item => {
-            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
 
-            if(filterWaDate) {
-                if(!item.wa_inviato) return;
+        // 1. FILTRO COMUNE
+        let filteredData = Object.values(allData).filter(item => {
+            if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return false;
+            if(filterAvviso) { const v=(item.val_lettura||'').replace(',','.').trim(); if(!(v!==''&&isNaN(v))) return false; }
+            if(activeStato === 'da_fare' && item.fatto) return false;
+            if(activeStato === 'fatti' && !item.fatto) return false;
+            if(filterFollowUp) {
+                if(!item.wa_inviato) return false;
                 const waDate = new Date(item.wa_inviato);
-                const twoDaysAgo = new Date();
-                twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-                if(waDate > twoDaysAgo) return;
+                const today = new Date(); waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                if(Math.ceil((today-waDate)/(1000*60*60*24)) <= 2) return false;
             }
-
-            let warn = false;
-            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
-            if(filterWarning && !warn) return;
-
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
-            if(!activeAccess.has(cat)) return;
-            
+            if(!activeAccess.has(cat)) return false;
             let search = ((item.zona||'')+' '+(item.indirizzo||'')).toLowerCase();
             let com = 'Altro';
             if(search.includes('umbertide')||search.includes('54056')) com='Umbertide';
             else if(search.includes('san giustino')||search.includes('54044')) com='San Giustino';
             else if(search.includes('montone')||search.includes('54033')) com='Montone';
-            if(!activeComuni.has(com)) return;
+            if(!activeComuni.has(com)) return false;
+            return true;
+        });
 
+        // 2. MODALITÀ PDR (marker singoli)
+        if(window.viewMode !== 'street') {
+        filteredData.forEach(item => {
             vis++; if(item.fatto) done++;
+            let warn = false;
+            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
+
+            let acc = (item.accessibilita||'').toLowerCase();
+            let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
 
             let col = '#dc2626';
             
@@ -599,8 +710,14 @@
             const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
             phones.forEach(p => {
                 let clean = p.replace(/\s+/g,''); if(clean.startsWith('75')) clean='0'+clean;
-                wa += `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="w-full mb-1 py-1 text-[10px] font-bold bg-green-500 hover:bg-green-600 text-white rounded"><i class="fa-brands fa-whatsapp"></i> WA ${clean}</button>`;
+                wa += '<div style="display:flex;gap:6px;margin-bottom:6px">'
+                    + `<a href="tel:${clean}" class="popup-btn popup-btn-secondary popup-btn-sm" style="flex:1;text-decoration:none;justify-content:center"><i class="fa-solid fa-phone"></i>&nbsp;${clean}</a>`
+                    + `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>`
+                    + '</div>';
             });
+            // WA a numero diverso
+            wa += `<button onclick="(function(el){el.style.display=el.style.display==='none'?'flex':'none'})(document.getElementById('wa_custom_${item.pdr}'))" class="w-full mb-1 py-1 text-[10px] font-bold bg-white text-green-700 border border-green-200 rounded"><i class="fa-brands fa-whatsapp"></i> WA a numero diverso</button>`;
+            wa += `<div id="wa_custom_${item.pdr}" style="display:none;gap:6px;margin-bottom:6px;align-items:center"><input id="wa_custom_num_${item.pdr}" type="tel" class="w-full border rounded text-xs p-1" placeholder="Es. 3331234567" style="flex:1"><button onclick="window.openWhatsApp('${item.pdr}',document.getElementById('wa_custom_num_${item.pdr}').value)" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center"><i class="fa-brands fa-whatsapp"></i></button></div>`;
             const isSel = selectedPDRs.has(item.pdr);
             const selBtnClass = isSel ? "bg-cyan-600 text-white" : "bg-white text-cyan-600 border-cyan-200 hover:bg-cyan-50";
 
@@ -677,6 +794,67 @@
             m.bindPopup(content);
             markersCluster.addLayer(m);
         });
+
+        } else {
+            // MODALITÀ STREET (raggruppamento per via)
+            let groups = {};
+            filteredData.forEach(item => {
+                vis++; if(item.fatto) done++;
+                let addr = (item.indirizzo || '').toUpperCase().trim();
+                let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
+                let key = `${streetName} (${item.zona || 'N/D'})`;
+                if(!groups[key]) groups[key] = { items: [], lat: item.lat, lng: item.lng, street: streetName };
+                groups[key].items.push(item);
+            });
+
+            Object.keys(groups).forEach(key => {
+                let group = groups[key]; let items = group.items;
+                let allDone=true, anyEvid=false, anySel=false, anyInacc=false, anyWarn=false;
+                items.forEach(i => {
+                    if(!i.fatto) allDone=false;
+                    if(i.evidenziato) anyEvid=true;
+                    if(selectedPDRs.has(i.pdr)) anySel=true;
+                    if((i.accessibilita||'').toLowerCase().includes('inaccessibile')) anyInacc=true;
+                    if(i.val_lettura && isNaN(i.val_lettura.replace(',','.').trim())) anyWarn=true;
+                });
+                let col='#dc2626';
+                if(anyEvid) col='#9333ea'; else if(anySel) col='#06b6d4'; else if(allDone) col='#2563eb'; else if(anyWarn) col='#facc15'; else if(anyInacc) col='#f97316';
+                const iconHtml=`<div style="background-color:${col};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:bold">${items.length}</div>`;
+                const icon=L.divIcon({className:'custom-pin',html:iconHtml,iconSize:[24,24],iconAnchor:[12,12]});
+                const m=L.marker([group.lat,group.lng],{icon:icon,draggable:isEditMode,autoPan:true});
+                m.on('dragend',(e)=>{let nLat=e.target.getLatLng().lat,nLng=e.target.getLatLng().lng; items.forEach(i=>window.savePdrPosition(i.pdr,nLat,nLng));});
+                let safeKey=key.replace(/'/g,"\\'");
+                let safeStreetId=group.street.replace(/[^a-zA-Z0-9]/g,'');
+
+                let popupContent=`<div class="popup-via"><div class="popup-via-header"><div class="popup-name" style="font-size:14px">${key}</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px"><span style="font-size:12px;color:#64748b;font-weight:600">${items.length} utenze</span><a href="https://www.google.com/maps/dir/?api=1&destination=${group.lat},${group.lng}" target="_blank" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#2563eb;font-weight:700;text-decoration:none"><i class="fa-solid fa-location-arrow"></i> Naviga</a></div><div style="margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;color:#2563eb;font-weight:700;background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:6px 10px" onclick="window.toggleCoordInput('street_${safeStreetId}')"><i class="fa-solid fa-pen"></i> Riassegna coordinate a tutta la via</div><div id="coord_edit_street_${safeStreetId}" class="hidden" style="margin-top:8px"><input id="coord_input_street_${safeStreetId}" class="popup-input" style="margin-bottom:6px" value="${group.lat}, ${group.lng}"><button onclick="window.saveStreetCoords('${safeKey}','coord_input_street_${safeStreetId}')" class="popup-btn popup-btn-primary popup-btn-sm">Applica a tutti i ${items.length} marker</button></div></div><div class="popup-via-scroll">`;
+
+                items.sort((a,b)=>{
+                    const ex=(item)=>{let civ=item.indirizzo.toUpperCase().replace(group.street,'').trim()||'SNC';const m=civ.match(/^(\d+)/);return m?parseInt(m[1],10):Infinity;};
+                    const sf=(item)=>{let civ=item.indirizzo.toUpperCase().replace(group.street,'').trim()||'';return civ.replace(/^\d+/,'')||'';};
+                    const diff=ex(a)-ex(b); if(diff!==0)return diff; return sf(a).localeCompare(sf(b));
+                });
+
+                items.forEach(item => {
+                    let isDone=item.fatto, isSel=selectedPDRs.has(item.pdr), isEvid=!!(item.evidenziato);
+                    let civico=item.indirizzo.toUpperCase().replace(group.street,'').trim()||'SNC';
+                    let accStr=(item.accessibilita||'').toLowerCase(), accColor='#94a3b8', accLabel=item.accessibilita||'N/D';
+                    if(accStr.includes('inaccessibile')) accColor='#f97316'; else if(accStr.includes('accessibile')) accColor='#22c55e';
+                    if(item.val_lettura && isNaN(item.val_lettura.replace(',','.').trim())) { accColor='#facc15'; accLabel+=' ⚠️'; }
+                    let waBtn='', callBtns='';
+                    const phones2=(item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
+                    if(phones2.length>0) {
+                        let cleanPh=phones2[0].replace(/[^0-9]/g,''); if(!cleanPh.startsWith('39')&&cleanPh.length>5) cleanPh='39'+cleanPh;
+                        waBtn=`<button onclick="window.openWhatsApp('${item.pdr}','${cleanPh}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>`;
+                        callBtns=phones2.map(p=>{let c=p.replace(/\s+/g,'');if(c.startsWith('75'))c='0'+c;return `<a href="tel:${c}" style="font-size:11px;color:#2563eb;font-weight:600;display:inline-flex;align-items:center;gap:3px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:4px 8px;text-decoration:none"><i class="fa-solid fa-phone" style="font-size:10px"></i>&nbsp;${c}</a>`;}).join('');
+                    }
+                    popupContent+=`<div class="pdr-card ${isDone?'done':''} ${isSel?'selected':''}" id="card_${item.pdr}"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="pdr-card-name">${item.nominativo}</div><span class="popup-badge ${isDone?'fatto':'dafare'}" style="flex-shrink:0;margin-left:8px">${isDone?'FATTO':'DA FARE'}</span></div><div class="pdr-card-meta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span class="acc-dot" style="background:${accColor}" title="${accLabel}"></span><span>Civico: <b style="color:#1e293b">${civico}</b></span><span style="color:#cbd5e1">|</span><span>Matr: ${item.matricola}</span><span style="color:#cbd5e1">|</span><span style="color:${accColor};font-weight:600;font-size:10px">${accLabel}</span></div><div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>${callBtns?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${callBtns}</div>`:''}${item.nota_accesso?`<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>`:''}<div class="pdr-card-actions"><button onclick="window.togglePdrStatus('${item.pdr}')" class="pdr-card-btn" style="background:${isDone?'#f1f5f9':'#2563eb'};color:${isDone?'#334155':'#fff'};border-color:${isDone?'#cbd5e1':'#2563eb'}">${isDone?'<i class="fa-solid fa-rotate-left"></i> Riapri':'<i class="fa-solid fa-check"></i> Fatto'}</button>${waBtn}</div><div class="pdr-photo-row"><button onclick="window.togglePdrSelection('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isSel?'#06b6d4':'#e2e8f0'};background:${isSel?'#06b6d4':'#f8fafc'};color:${isSel?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid ${isSel?'fa-xmark':'fa-check-double'}"></i> ${isSel?'Desel.':'Seleziona'}</button><button onclick="window.togglePdrHighlight('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isEvid?'#9333ea':'#e2e8f0'};background:${isEvid?'#9333ea':'#f8fafc'};color:${isEvid?'#fff':'#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid fa-star"></i> ${isEvid?'Evid.':'Evidenzia'}</button></div><div class="pdr-card-note"><input type="text" id="note_${item.pdr}" value="${item.nota_operatore||''}" placeholder="Note operative..."><button onclick="window.savePdrNote('${item.pdr}')"><i class="fa-solid fa-floppy-disk"></i></button></div><div class="pdr-card-followup"><span class="label">Follow-up</span><input type="date" id="wa_date_${item.pdr}" value="${item.wa_inviato||''}"><button onclick="window.saveWaDate('${item.pdr}')">OK</button></div></div>`;
+                });
+                popupContent+=`</div></div>`;
+                m.bindPopup(popupContent);
+                markersCluster.addLayer(m);
+            });
+        }
+
         document.getElementById('statVisible').innerText = vis;
         document.getElementById('statDone').innerText = done;
     }
