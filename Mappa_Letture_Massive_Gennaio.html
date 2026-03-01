@@ -2,17 +2,16 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<!-- Meta tag anti-cache -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mappa PDR - ASI Multiservices</title>
+<title>Mappa PDR Gennaio - ASI Multiservices</title>
 
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- LIBRERIE ESTERNE (Spostate nella HEAD per evitare errori "L is not defined") -->
+<!-- LIBRERIE ESTERNE (Caricate subito nella head) -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -23,28 +22,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
-    body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
-    #map{height:100%;width:100%;z-index:1}
-    .sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
-    .sidebar.collapsed{transform:translateX(-100%)}
-    .sidebar-header{padding:1rem;background:#1e293b;color:#fff;display:flex;justify-content:space-between;align-items:center}
-    .sidebar-content{flex:1;overflow-y:auto;padding:1rem}
-    .sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
-    .toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
-    .leaflet-popup-content-wrapper{border-radius:8px}.leaflet-popup-content{margin:12px;width:320px!important}
-    .marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
-    .marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
-    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
-    .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
-    .filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
-    .filter-checkbox:hover{background-color:#f3f4f6}
-    .filter-checkbox input{margin-right:10px;accent-color:#2563eb;width:16px;height:16px}
-    .gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
-</style>
+<link rel="stylesheet" href="shared/shared.css">
+<!-- SCRIPT UI SICURO (Funziona sempre per aprire/chiudere sidebar) -->
+<script>
+    function toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        const btn = document.getElementById('toggleSidebar');
+        sb.classList.toggle('collapsed');
+        if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
+        else btn.classList.add('hidden');
+    }
+</script>
 </head>
 <body>
+
 <div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()"><i class="fa-solid fa-bars text-gray-700 text-xl"></i></div>
+
 <div id="sidebar" class="sidebar">
     <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
     <div class="sidebar-content">
@@ -53,31 +46,43 @@
             <input type="file" id="csvInput" accept=".csv" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"/>
         </div>
         
-        <!-- PANNELLO SELEZIONE -->
+        <!-- Selezione Panel -->
         <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span>
-                <span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
-            </div>
+            <div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span><span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span></div>
             <div class="flex gap-2">
-                <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded transition">
-                    <i class="fa-solid fa-file-export mr-1"></i> Esporta Selezionati
-                </button>
-                <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded transition" title="Deseleziona Tutti">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-file-export mr-1"></i> Esporta</button>
+                <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
 
         <!-- Legend -->
         <div class="mb-6 grid grid-cols-2 gap-2 text-center">
-             <div class="p-2 bg-cyan-50 border border-cyan-200 rounded col-span-2"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
-             <div class="p-2 bg-purple-50 border border-purple-200 rounded"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
+             <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
+             <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
              <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
              <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div>
              <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span></div>
              <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
-             <div class="p-2 bg-red-50 border border-red-200 rounded col-span-2"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
+             <div class="p-2 bg-red-50 border border-red-200 rounded"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
+        </div>
+        
+        <!-- MODALITÀ VISUALIZZAZIONE -->
+        <div class="mb-4 border-t pt-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Modalità Mappa</label></div>
+            <div class="flex bg-gray-200 rounded p-1">
+                <button id="btnViewPDR" onclick="window.setViewMode('pdr')" class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-blue-600 transition">Marker PDR</button>
+                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition">Marker Via</button>
+            </div>
+        </div>
+
+        <!-- Filtro Stato -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-1"><label class="block text-xs font-bold text-gray-700 uppercase">Stato Lettura</label></div>
+            <select id="filterStato" onchange="window.changeFilterStato(this.value)" class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Mostra Tutti</option>
+                <option value="da_fare">Mostra Solo "DA FARE"</option>
+                <option value="fatti">Mostra Solo "FATTO"</option>
+            </select>
         </div>
 
         <!-- Filtri -->
@@ -85,9 +90,19 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label><button onclick="selectAllAccess()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
-        <div class="mb-6">
+        <div class="mb-4">
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+        
+        <!-- Filtri Speciali -->
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
+            <div class="space-y-1 bg-white border rounded p-2">
+                <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up WA &gt; 2gg</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)"><span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span></div>
+            </div>
         </div>
 
         <!-- Search -->
@@ -105,11 +120,19 @@
          <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
          <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
          <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
-        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV Totale"><i class="fa-solid fa-download"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
         <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
     </div>
 </div>
 <div id="map"></div>
+
+<!-- Photo Modal -->
+<div id="photoModal" class="modal-overlay hidden">
+    <div class="modal-content !max-w-3xl">
+        <img id="photoModalImage" src="" class="w-full h-auto rounded-lg">
+        <button onclick="window.closePhotoModal()" class="absolute top-2 right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg">&times;</button>
+    </div>
+</div>
 
 <!-- Settings Modal -->
 <div id="settingsModal" class="modal-overlay hidden">
@@ -125,414 +148,55 @@
 </div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { registerAll } from './shared/map-utils.js';
+    import { initApp }     from './shared/map-core.js';
+    import { renderMap }   from './shared/map-render.js';
 
-    let db, auth, user, map, markersCluster;
-    let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
-    
-    // --- NOME COLLEZIONE DATI ---
-    let COLLECTION_NAME = 'letture_pdr_riepilogo';
-    const ANAGRAFICHE_COLLECTION = 'pdr_anagrafiche';
-    let anagraficheData = {};
-    let anagraficheMigrationDone = false;
-
-    let selectedPDRs = new Set();
-    let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
-    let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
-
-    const HARDCODED_FIREBASE_CONFIG = {
-        apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
-        authDomain: "letture-asimultiservices.firebaseapp.com",
-        projectId: "letture-asimultiservices",
-        storageBucket: "letture-asimultiservices.firebasestorage.app",
-        messagingSenderId: "412990381286",
-        appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
+    window.MAP = {
+        COLLECTION_NAME: 'letture_pdr_riepilogo',
+        allData: {}, anagraficheData: {}, selectedPDRs: new Set(),
+        activeAccess: new Set(['Accessibile', 'Inaccessibile', 'Altro']),
+        activeComuni: new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']),
+        isCloudMode: false, isEditMode: false, anagraficheMigrationDone: false,
+        filterTerrazzo: false, filterFollowUp: false, filterAvviso: false,
+        activeStato: 'tutti', viewMode: 'pdr',
+        db: null, auth: null, user: null, map: null,
+        markersCluster: null, storage: null, userLocationMarker: null
     };
 
-    async function initApp() {
-        try {
-            renderAccessFilters(); renderComuniFilters();
-            let firebaseConfig = null; let appId = 'default-app-id';
+    window.MAP.updateMapAndUI = () => renderMap(window.MAP);
+    registerAll(window.MAP);
 
-            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-                firebaseConfig = typeof __firebase_config === 'string' ? JSON.parse(__firebase_config) : __firebase_config;
-                if (typeof __app_id !== 'undefined') appId = __app_id;
-            }
-            const localConfigStr = localStorage.getItem('custom_firebase_config');
-            const localAppId = localStorage.getItem('custom_app_id');
-            if (localConfigStr) {
-                try { firebaseConfig = JSON.parse(localConfigStr); if (localAppId) appId = localAppId; } catch (e) {}
-            }
-            if (!firebaseConfig) firebaseConfig = HARDCODED_FIREBASE_CONFIG;
-
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app); db = getFirestore(app);
-            
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-            } catch (err) { try { await signInAnonymously(auth); } catch(e) { throw e; } }
-
-            onAuthStateChanged(auth, (u) => {
-                if (u) { user = u; isCloudMode = true; document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`; startCloudListener(appId); }
-            });
-        } catch (e) {
-            isCloudMode = false;
-            document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer" onclick="toggleSettings()">Locale (Err Auth)</span>`;
-            loadLocalData();
-        }
-    }
-
-    // UI & Settings
-    window.toggleSettings = () => { document.getElementById('settingsModal').classList.toggle('hidden'); if(!document.getElementById('settingsModal').classList.contains('hidden')){ const c = localStorage.getItem('custom_firebase_config'); document.getElementById('firebaseConfigInput').value = c ? c : JSON.stringify(HARDCODED_FIREBASE_CONFIG,null,2); } };
-    window.saveSettings = () => { 
-        const c = document.getElementById('firebaseConfigInput').value.trim(); 
-        if(!c) { localStorage.removeItem('custom_firebase_config'); location.reload(); return;}
-        try { JSON.parse(c); localStorage.setItem('custom_firebase_config', c); localStorage.setItem('custom_app_id', document.getElementById('appIdInput').value.trim()); location.reload(); } catch(e){ alert("JSON non valido"); }
-    };
-    window.toggleEditMode = () => { if(L.Browser.mobile){ alert("No mobile edit"); return; } isEditMode = !isEditMode; const b = document.getElementById('editModeBtn'); isEditMode ? (b.classList.add('bg-yellow-100','text-yellow-700'), showToast("SBLOCCATO")) : (b.classList.remove('bg-yellow-100','text-yellow-700'), showToast("BLOCCATO")); updateMapAndUI(); };
-    window.locateUser = () => { document.getElementById('locateBtn').classList.add('gps-active'); map.locate({setView:true, maxZoom:16}); };
-
-    // Selection
-    window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
-    window.clearSelection = () => { selectedPDRs.clear(); updateSelectionUI(); updateMapAndUI(); };
-    function updateSelectionUI() { const p = document.getElementById('selectionPanel'); document.getElementById('selectedCount').innerText = selectedPDRs.size; selectedPDRs.size > 0 ? p.classList.remove('hidden') : p.classList.add('hidden'); }
-    window.exportSelectedData = () => { if(selectedPDRs.size===0) { alert("Nessun PDR selezionato"); return; } const items=[]; selectedPDRs.forEach(p=>{if(allData[p]) items.push(allData[p])}); generateCSV(items, "PDR_Sel_"); };
-    window.exportData = () => { if(Object.keys(allData).length===0) return; generateCSV(Object.values(allData), "PDR_All_"); };
-
-    function generateCSV(items, prefix) {
-        let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato\n";
-        items.forEach(i => {
-            const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.',','), String(i.lng).replace('.',','), i.fatto?"FATTO":"DA FARE", i.nota_operatore||"", i.evidenziato?"SI":"NO"].map(v => String(v||'').includes(';') ? `"${String(v).replace(/"/g,'""')}"` : v).join(';');
-            content += row + "\n";
+    document.addEventListener('DOMContentLoaded', () => {
+        window.MAP.map = L.map('map').setView([43.30, 12.33], 10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(window.MAP.map);
+        window.MAP.markersCluster = L.markerClusterGroup({
+            maxClusterRadius: 0, spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false, zoomToBoundsOnClick: true
         });
-        const url = URL.createObjectURL(new Blob([content], {type:'text/csv;charset=utf-8;'}));
-        const link = document.createElement("a"); link.href = url; link.download = `${prefix}${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    }
+        window.MAP.map.addLayer(window.MAP.markersCluster);
 
-    // ===== MODULO ANAGRAFICHE CONDIVISE =====
-    function applyAnagrafiche() {
-        Object.keys(anagraficheData).forEach(pdr => {
-            if (allData[pdr]) {
-                const a = anagraficheData[pdr];
-                if (a.lat !== undefined) allData[pdr].lat = a.lat;
-                if (a.lng !== undefined) allData[pdr].lng = a.lng;
-                if (a.indirizzo !== undefined) allData[pdr].indirizzo = a.indirizzo;
-                if (a.nota_accesso !== undefined) allData[pdr].nota_accesso = a.nota_accesso;
-            }
+        window.MAP.map.on('locationfound', e => {
+            if (window.MAP.userLocationMarker) window.MAP.map.removeLayer(window.MAP.userLocationMarker);
+            window.MAP.userLocationMarker = L.circle(e.latlng, e.accuracy / 2).addTo(window.MAP.map);
         });
-    }
-    async function migrateToAnagrafiche(appId) {
-        if (anagraficheMigrationDone) return;
-        const flagKey = `pdr_anag_migrated_${COLLECTION_NAME}`;
-        if (localStorage.getItem(flagKey)) { anagraficheMigrationDone = true; return; }
-        anagraficheMigrationDone = true;
-        const pdrsToMigrate = Object.keys(allData).filter(pdr => !anagraficheData[pdr]);
-        if (pdrsToMigrate.length === 0) { localStorage.setItem(flagKey, '1'); return; }
-        let batchMig = writeBatch(db); let countMig = 0;
-        pdrsToMigrate.forEach(pdr => {
-            const d = allData[pdr];
-            if (!isNaN(d.lat) && !isNaN(d.lng)) {
-                batchMig.set(doc(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
-                    { lat: d.lat, lng: d.lng, indirizzo: d.indirizzo || '', nota_accesso: d.nota_accesso || '' }, { merge: true });
-                countMig++;
-                if (countMig >= 450) { batchMig.commit(); batchMig = writeBatch(db); countMig = 0; }
-            }
-        });
-        if (countMig > 0) await batchMig.commit();
-        localStorage.setItem(flagKey, '1');
-        console.log(`Migrati ${countMig} PDR → pdr_anagrafiche (${COLLECTION_NAME})`);
-    }
+        window.MAP.map.on('locationerror', e => alert(e.message));
 
-    // Data Logic
-    function startCloudListener(appId) {
-        // Listener collection specifica (dati operativi)
-        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), (snap) => {
-            snap.docChanges().forEach(c => {
-                const d = c.doc.data();
-                if (c.type === "removed") { delete allData[c.doc.id]; if(selectedPDRs.has(c.doc.id)) selectedPDRs.delete(c.doc.id); }
-                else allData[c.doc.id] = d;
-            });
-            applyAnagrafiche();
-            migrateToAnagrafiche(appId);
-            updateMapAndUI(); updateSelectionUI();
-        }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
-        // Listener anagrafiche condivise (lat/lng/indirizzo/nota_accesso)
-        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION), (snap) => {
-            snap.docChanges().forEach(c => { c.type === "removed" ? delete anagraficheData[c.doc.id] : anagraficheData[c.doc.id] = c.doc.data(); });
-            applyAnagrafiche();
-            updateMapAndUI(); updateSelectionUI();
-        }, (e) => { console.warn("Anagrafiche listener:", e.code); });
-    }
-    function loadLocalData() {
-        const ana = localStorage.getItem('pdr_anagrafiche'); if(ana) anagraficheData = JSON.parse(ana);
-        const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); applyAnagrafiche(); updateMapAndUI(); }
-    }
+        window.MAP.initSearchBar?.();
 
-    window.importCSVData = async function(csvData, overwrite) {
-        let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
-        let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
-        
-        csvData.forEach(row => {
-            const pdr = String(row['Codice PDR']||row.PDR||row.pdr||Math.random().toString(36).substr(2,9));
-            let lat = parseFloat((row.Lat||row.LAT||row.lat||"").toString().replace(',','.').replace(/"/g,''));
-            let lng = parseFloat((row.Long||row.LON||row.lon||"").toString().replace(',','.').replace(/"/g,''));
-            
-            if(!overwrite && allData[pdr]) { lat = allData[pdr].lat; lng = allData[pdr].lng; }
-            
-            if(!isNaN(lat) && !isNaN(lng)) {
-                const ex = allData[pdr];
-                let status = ex ? (ex.fatto || false) : false;
-                
-                const valLett = (row['Lettura']||row['lettura']||row['Valore lettura importata']||'').toString().trim();
-                const datLett = (row['Data lettura']||row['data lettura']||'').toString().trim();
-                
-                // Logica Fatto/Avviso
-                let isNum = false;
-                if(valLett !== '' && valLett !== '0') {
-                    const chk = parseFloat(valLett.replace(',','.'));
-                    if(!isNaN(chk) && isFinite(chk)) isNum = true;
-                }
-                
-                // Se c'è una lettura numerica valida > diventa FATTO
-                if(isNum) {
-                    status = true;
-                }
-                // Se c'è una data di lettura valida (diversa da default) E non è un avviso testuale -> diventa FATTO
-                else if (datLett !== '' && datLett !== '00/01/1900') {
-                    // Se non è numerico ma c'è scritto qualcosa (es. "Avviso"), allora NON è fatto, rimane avviso (giallo).
-                    // Se invece campo lettura vuoto ma c'è data -> consideriamo Fatto? Di solito sì se c'è data.
-                    // Ma se c'è testo "Avviso", allora status = false.
-                    if(valLett !== '' && !isNum) status = false; 
-                    else status = true;
-                }
-
-                const newData = {
-                    pdr: pdr, nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
-                    indirizzo: row['Indirizzo']||row.INDIRIZZO||'', zona: row['NOME ZONA']||row.Citta||row['Cod. zona']||'',
-                    telefono: (row['Telefono']||row.TELEFONO||'').toString().trim().replace(/^75/,'075'),
-                    matricola: row['Matricola misuratore']||row.MATRICOLA||'N/D',
-                    data_riferimento: row['Data ultima lettura']||row['ULTIMA LETTURA']||"",
-                    anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
-                    nota_accesso: row['Nota_accesso']||row['Note']||'',
-                    nota_operatore: ex ? (ex.nota_operatore||'') : '',
-                    val_lettura: valLett, data_lettura: datLett,
-                    evidenziato: ex ? (ex.evidenziato||false) : false,
-                    lat: lat, lng: lng, fatto: status
-                };
-                const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
-                anagraficheData[pdr] = anaDoc;
-                allData[pdr] = newData;
-                if(isCloudMode) {
-                    const appIdLocal = localStorage.getItem('custom_app_id')||'default-app-id';
-                    const ref = doc(db, 'artifacts', appIdLocal, 'public', 'data', COLLECTION_NAME, pdr);
-                    batch.set(ref, newData); count++;
-                    const anaRef = doc(db, 'artifacts', appIdLocal, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr);
-                    batch.set(anaRef, anaDoc, { merge: true }); count++;
-                    if(count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
-                }
-            }
-        });
-        if(isCloudMode && count>0) await batch.commit();
-        else if(!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); updateMapAndUI(); }
-        showToast(`Importati ${Object.keys(allData).length}`);
-    };
-
-    // Actions
-    window.savePdrNote = async (pdr) => { const txt = document.getElementById('note_'+pdr).value; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {nota_operatore:txt}); else { allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } showToast("Nota salvata"); };
-    window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
-    window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
-    window.savePdrPosition = async (pdr, lat, lng) => {
-        allData[pdr].lat=lat; allData[pdr].lng=lng;
-        if(!anagraficheData[pdr]) anagraficheData[pdr]={};
-        anagraficheData[pdr].lat=lat; anagraficheData[pdr].lng=lng;
-        const appId = localStorage.getItem('custom_app_id')||'default-app-id';
-        if(isCloudMode) await setDoc(doc(db,'artifacts',appId,'public','data',ANAGRAFICHE_COLLECTION,pdr), {lat,lng}, {merge:true});
-        else { localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); }
-    };
-    
-    // Tools
-    window.searchBetterCoords = async (pdr) => {
-        const q = document.getElementById('osm_search_'+pdr).value;
-        if(!q) return;
-        try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, {headers:{'User-Agent':'MappaPDR'}});
-            const d = await res.json();
-            if(d.length>0) { document.getElementById('coord_input_'+pdr).value = `${d[0].lat}, ${d[0].lon}`; showToast("Trovato!"); }
-            else alert("Non trovato");
-        } catch(e) { alert("Err OSM"); }
-    };
-
-    window.clearData = async () => {
-        if(!confirm(`Cancellare lista ${COLLECTION_NAME}?`)) return;
-        if(!isCloudMode) { localStorage.removeItem('pdr_data_riepilogo'); allData={}; updateMapAndUI(); location.reload(); }
-        else {
-            const snap = await getDocs(collection(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME));
-            let b = writeBatch(db), c=0;
-            snap.docs.forEach(d=>{ b.delete(d.ref); c++; if(c>=450){b.commit(); b=writeBatch(db); c=0;} });
-            if(c>0) await b.commit();
-            allData={}; updateMapAndUI();
-        }
-    };
-    
-    // UI Helpers
-    window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
-    window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
-    window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
-    window.toggleSection = (id) => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden'); };
-    window.openWhatsApp = (pdr, ph) => {
-        const item = allData[pdr];
-        const num = (ph || item.telefono).replace(/\s+/g,'').replace(/^([^3])/,'39$1'); 
-        const dt = (item.data_lettura && item.data_lettura.length>5) ? item.data_lettura : new Date().toLocaleDateString('it-IT');
-        const msg = `Salve,\nin data ${dt} è stato effettuato un passaggio per la lettura del contatore gas intestato a ${item.nominativo}\n📍 ${item.indirizzo} ${item.zona}\n🔢 Matricola: ${item.matricola}\n\nGli operatori ASI Multiservices non hanno trovato nessuno.\nPuò inviare la foto a questo numero o chiamare lo 0759417861 (Lun-Ven 09:00-13:30).\n\nGrazie.\nUffici: Via Alberti 29/31`;
-        window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
-    };
-
-    // Render
-    function updateMapAndUI() {
-        if(!markersCluster) return;
-        markersCluster.clearLayers();
-        let vis=0, done=0;
-        
-        Object.values(allData).forEach(item => {
-            let acc = (item.accessibilita||'').toLowerCase();
-            let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
-            if(!activeAccess.has(cat)) return;
-            
-            let search = ((item.zona||'')+' '+(item.indirizzo||'')).toLowerCase();
-            let com = 'Altro';
-            if(search.includes('umbertide')||search.includes('54056')) com='Umbertide';
-            else if(search.includes('san giustino')||search.includes('54044')) com='San Giustino';
-            else if(search.includes('montone')||search.includes('54033')) com='Montone';
-            if(!activeComuni.has(com)) return;
-
-            vis++; if(item.fatto) done++;
-
-            let col = '#dc2626';
-            let warn = false;
-            if(item.val_lettura) { const c = item.val_lettura.replace(',','.').trim(); if(c!=='' && isNaN(c)) warn=true; }
-            
-            if(item.evidenziato) col='#9333ea';
-            else if(selectedPDRs.has(item.pdr)) col='#06b6d4';
-            else if(item.fatto) col='#2563eb';
-            else if(warn) col='#facc15';
-            else if(cat==='Inaccessibile') col='#f97316';
-            else if(cat==='Accessibile') col='#16a34a';
-
-            const icon = L.divIcon({className:'custom-pin', html:`<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize:[14,14]});
-            
-            const m = L.marker([item.lat, item.lng], {icon:icon, draggable:isEditMode, autoPan:true});
-            m.on('dragend', (e) => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
-            
-            // Build Popup
-            let wa = '';
-            const phones = (item.telefono||'').split(/[-/,]+/).map(x=>x.trim()).filter(x=>x.length>4);
-            phones.forEach(p => {
-                let clean = p.replace(/\s+/g,''); if(clean.startsWith('75')) clean='0'+clean;
-                wa += `<button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="w-full mb-1 py-1 text-[10px] font-bold bg-green-500 hover:bg-green-600 text-white rounded"><i class="fa-brands fa-whatsapp"></i> WA ${clean}</button>`;
-            });
-
-            const content = `
-                <div class="font-sans">
-                    <div class="border-b pb-1 mb-2">
-                        <div class="font-bold text-gray-800">${item.nominativo}</div>
-                        <div class="flex justify-between items-center mt-1"><span class="text-[10px] text-gray-500">${item.pdr}</span><span class="px-2 rounded text-[9px] font-bold ${item.fatto?'bg-blue-100 text-blue-800':'bg-red-100 text-red-800'}">${item.fatto?'FATTO':'DA FARE'}</span></div>
-                    </div>
-                    <div class="text-xs text-gray-600 space-y-1 mb-2">
-                        <div>📍 ${item.indirizzo} (${item.zona})</div>
-                        <div>🔢 Matr: ${item.matricola}</div>
-                        <div>🚪 ${item.accessibilita}</div>
-                        ${item.nota_accesso?`<div class="text-orange-600 bg-orange-50 p-1 border border-orange-100">⚠️ ${item.nota_accesso}</div>`:''}
-                        ${(item.val_lettura||item.data_lettura)?`<div class="bg-green-50 p-1 border border-green-200">📥 Lett: ${item.val_lettura||'-'} (${item.data_lettura||'-'})</div>`:''}
-                    </div>
-                    <div class="flex gap-1 mb-1">
-                        <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
-                        <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
-                    </div>
-                    <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-1 rounded text-[10px] font-bold border ${selectedPDRs.has(item.pdr)?'bg-cyan-600 text-white':'bg-white text-cyan-600'}">${selectedPDRs.has(item.pdr)?'Deseleziona':'Seleziona'}</button>
-                    ${wa}
-                    <div class="flex gap-1 mt-2 border-t pt-2">
-                        <button onclick="window.toggleSection('note_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-gray-600"><i class="fa-solid fa-pen-to-square mr-1"></i>Note</button>
-                        <button onclick="window.toggleSection('gps_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-blue-600"><i class="fa-solid fa-location-crosshairs mr-1"></i>GPS</button>
-                    </div>
-                    <div id="note_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
-                        <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="2" placeholder="Note operative...">${item.nota_operatore||''}</textarea>
-                        <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 border rounded">Salva Nota</button>
-                    </div>
-                    <div id="gps_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
-                        <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.indirizzo} ${item.zona}">
-                        <div class="flex gap-1 mb-1">
-                            <button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1 rounded">Cerca OSM</button>
-                            <button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1 rounded">Google</button>
-                        </div>
-                        <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.lat}, ${item.lng}">
-                        <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
-                    </div>
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-2">Naviga qui</a>
-                </div>
-            `;
-            m.bindPopup(content);
-            markersCluster.addLayer(m);
-        });
-        document.getElementById('statVisible').innerText = vis;
-        document.getElementById('statDone').innerText = done;
-    }
-
-    // Filters Init
-    function renderAccessFilters() {
-        const c = document.getElementById('accessFiltersContainer'); if(!c)return; c.innerHTML='';
-        [{id:'Accessibile',c:'text-green-700'},{id:'Inaccessibile',c:'text-orange-700'},{id:'Altro',c:'text-red-700'}].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x.id}" checked> <span class="text-xs font-bold ${x.c}">${x.id}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeAccess.add(x.id):activeAccess.delete(x.id); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    function renderComuniFilters() {
-        const c = document.getElementById('comuniFiltersContainer'); if(!c)return; c.innerHTML='';
-        ['San Giustino','Umbertide','Montone','Altro'].forEach(x=>{
-            const d=document.createElement('div'); d.className='filter-checkbox'; d.innerHTML=`<input type="checkbox" value="${x}" checked> <span class="text-xs font-bold text-gray-700">${x}</span>`;
-            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
-        });
-    }
-    window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
-    window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
-
-    // Search
-    document.getElementById('searchInput').addEventListener('input', (e)=>{
-        const t = e.target.value.toLowerCase(); const c = document.getElementById('searchResults'); c.innerHTML='';
-        if(t.length<3){c.classList.add('hidden');return;}
-        Object.values(allData).filter(x=>(String(x.pdr).includes(t)||x.nominativo.toLowerCase().includes(t)||String(x.matricola).includes(t))).slice(0,5).forEach(x=>{
-            const d=document.createElement('div'); d.className="p-2 hover:bg-blue-50 cursor-pointer border-b text-xs"; d.innerHTML=`<b>${x.nominativo}</b><br>${x.pdr}`;
-            d.onclick=()=>{map.flyTo([x.lat,x.lng],18)}; c.appendChild(d);
-        });
-        c.children.length>0?c.classList.remove('hidden'):c.classList.add('hidden');
-    });
-
-    // Helpers
-    function showToast(m){const d=document.createElement('div');d.className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded shadow-lg z-[3000] text-sm";d.innerText=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3000);}
-
-    // Initial Load
-    document.addEventListener('DOMContentLoaded', ()=>{
-        map = L.map('map').setView([43.30,12.33],10);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-        markersCluster = L.markerClusterGroup({maxClusterRadius:0,spiderfyOnMaxZoom:true,showCoverageOnHover:false,zoomToBoundsOnClick:true});
-        map.addLayer(markersCluster);
-        
-        map.on('locationfound',e=>{if(userLocationMarker)map.removeLayer(userLocationMarker);userLocationMarker=L.circle(e.latlng,e.accuracy/2).addTo(map);});
-        map.on('locationerror',e=>alert(e.message));
-
-        document.getElementById('csvInput').addEventListener('change', (e)=>{
-            const f=e.target.files[0]; if(!f)return;
-            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
-            Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
-                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
-                else window.importCSVData(r.data,ow);
+        document.getElementById('csvInput').addEventListener('change', e => {
+            const f = e.target.files[0]; if (!f) return;
+            const ow = confirm("Sovrascrivere coordinate GPS? OK=Si (File), Annulla=No (Manuali)");
+            Papa.parse(f, { header: true, skipEmptyLines: true, complete: r => {
+                if (r.meta.fields.length < 2)
+                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
+                else window.importCSVData(r.data, ow);
             }});
         });
 
-        initApp();
+        initApp(window.MAP, { useStorage: false });
     });
 </script>
 </body>
 </html>
+

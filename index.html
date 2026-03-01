@@ -3,126 +3,114 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASI Multiservices — Strumenti Mappa</title>
+<title>ASI Multiservices — Gestione Mappe PDR</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    body { background: #f1f5f9; font-family: ui-sans-serif, system-ui, sans-serif; }
-    .card { transition: transform .15s, box-shadow .15s; }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.13); }
+    body { background: #f1f5f9; }
+    .card { transition: box-shadow .2s, transform .2s; }
+    .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.12); transform: translateY(-2px); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
 </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-slate-800 to-slate-700 text-white py-8 px-6 shadow-lg">
-        <div class="max-w-4xl mx-auto flex items-center gap-4">
-            <div class="bg-white/10 rounded-xl p-3">
-                <i class="fa-solid fa-map-location-dot text-3xl text-blue-300"></i>
+<header class="bg-slate-800 text-white px-6 py-4 shadow-lg flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <i class="fa-solid fa-map-location-dot text-2xl text-blue-400"></i>
+        <div>
+            <h1 class="text-xl font-bold leading-tight">ASI Multiservices</h1>
+            <p class="text-xs text-slate-400">Gestione Mappe PDR</p>
+        </div>
+    </div>
+    <button onclick="openNewMapModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition">
+        <i class="fa-solid fa-plus"></i> Nuova Mappa
+    </button>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-8">
+    <h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Mappe Disponibili</h2>
+    <div id="mapList" class="grid gap-4 sm:grid-cols-2"></div>
+</main>
+
+<div id="newMapModal" class="modal-overlay hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div class="flex justify-between items-center mb-5">
+            <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-plus-circle mr-2 text-blue-500"></i>Nuova Mappa Letture</h2>
+            <button onclick="closeNewMapModal()" class="text-slate-400 hover:text-slate-700 text-xl">&times;</button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome visualizzato *</label>
+                <input id="newMapLabel" type="text" placeholder="Es. Marzo 2026" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             </div>
             <div>
-                <h1 class="text-2xl font-extrabold tracking-tight">ASI Multiservices</h1>
-                <p class="text-slate-300 text-sm mt-0.5">Strumenti di gestione letture e interventi — seleziona una pagina</p>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome collection Firestore *</label>
+                <input id="newMapCollection" type="text" placeholder="Es. letture_massive_marzo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <p class="text-[10px] text-slate-400 mt-1">Solo lettere minuscole, numeri e trattini bassi.</p>
             </div>
         </div>
-    </header>
-
-    <!-- Grid -->
-    <main class="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
-
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Letture Gas</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-
-            <a href="Mappa_Letture_Massive_Febbraio.html" class="card block bg-white rounded-2xl shadow p-5 border border-blue-100 hover:border-blue-300 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-                        <i class="fa-solid fa-calendar-days text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Letture Massive</div>
-                        <div class="text-[11px] text-blue-600 font-semibold">Febbraio 2026</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">Mappa PDR campagna letture di febbraio. Filtri accessibilità, stato, follow-up WA, marker GPS e per via.</p>
-            </a>
-
-            <a href="Mappa_Letture_Massive_Gennaio.html" class="card block bg-white rounded-2xl shadow p-5 border border-indigo-100 hover:border-indigo-300 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center">
-                        <i class="fa-solid fa-calendar-days text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Letture Massive</div>
-                        <div class="text-[11px] text-indigo-600 font-semibold">Gennaio 2026</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">Mappa PDR campagna letture di gennaio. Stessa struttura con filtri e selezione multipla.</p>
-            </a>
-
-            <a href="Recupero_Letture_2025.html" class="card block bg-white rounded-2xl shadow p-5 border border-violet-100 hover:border-violet-300 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center">
-                        <i class="fa-solid fa-rotate-left text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Recupero Letture</div>
-                        <div class="text-[11px] text-violet-600 font-semibold">2025</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">PDR da recuperare. Import CSV senza coordinate, geocodifica automatica via OSM, template CSV scaricabile.</p>
-            </a>
-
-            <a href="Mappa Letture v3.html" class="card block bg-white rounded-2xl shadow p-5 border border-slate-200 hover:border-slate-400 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-slate-500 flex items-center justify-center">
-                        <i class="fa-solid fa-map text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Mappa Letture</div>
-                        <div class="text-[11px] text-slate-500 font-semibold">v3</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">Versione precedente della mappa letture gas.</p>
-            </a>
-
+        <div id="newMapError" class="hidden mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+        <div class="flex gap-3 mt-6">
+            <button onclick="closeNewMapModal()" class="flex-1 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 transition">Annulla</button>
+            <button onclick="generateAndDownload()" class="flex-1 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-download"></i> Genera e Scarica
+            </button>
         </div>
+        <p class="text-[10px] text-slate-400 text-center mt-3">Salva il file nella cartella del progetto e fai git push per renderlo disponibile online.</p>
+    </div>
+</div>
 
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Altri Strumenti</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+<script>
+const EXISTING_MAPS = [
+    { label:"Letture Massive — Febbraio 2026", file:"Mappa_Letture_Massive_Febbraio.html", collection:"letture_massive_febbraio", icon:"fa-calendar", color:"blue", desc:"Giro letture mensile feb 2026" },
+    { label:"Letture Massive — Gennaio 2026",  file:"Mappa_Letture_Massive_Gennaio.html",  collection:"letture_pdr_riepilogo",    icon:"fa-calendar", color:"indigo", desc:"Giro letture mensile gen 2026" },
+    { label:"Sostituzione Contatori",          file:"Sostituzione_contatori.html",          collection:"sostituzione_contatori",   icon:"fa-wrench",   color:"orange", desc:"Interventi sostituzione contatori" },
+    { label:"Mappa Riduttori",                 file:"Mappa_riduttori_V1.html",              collection:"riduttori",                icon:"fa-sliders",  color:"green", desc:"Mappa riduttori di pressione" }
+];
+const CLR = { blue:{bg:"bg-blue-50",border:"border-blue-200",badge:"bg-blue-100 text-blue-700",icon:"text-blue-500"}, indigo:{bg:"bg-indigo-50",border:"border-indigo-200",badge:"bg-indigo-100 text-indigo-700",icon:"text-indigo-500"}, orange:{bg:"bg-orange-50",border:"border-orange-200",badge:"bg-orange-100 text-orange-700",icon:"text-orange-500"}, green:{bg:"bg-green-50",border:"border-green-200",badge:"bg-green-100 text-green-700",icon:"text-green-600"} };
 
-            <a href="Sostituzione_contatori.html" class="card block bg-white rounded-2xl shadow p-5 border border-green-100 hover:border-green-300 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center">
-                        <i class="fa-solid fa-wrench text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Sostituzione Contatori</div>
-                        <div class="text-[11px] text-green-700 font-semibold">Interventi</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">Gestione PDR per sostituzione contatori gas. Mappa, stato lavori, WA e note operative.</p>
-            </a>
+function renderMapList() {
+    const el = document.getElementById('mapList'); el.innerHTML = '';
+    EXISTING_MAPS.forEach(m => {
+        const c = CLR[m.color]||CLR.blue;
+        const a = document.createElement('a'); a.href = m.file;
+        a.className = `card block ${c.bg} border ${c.border} rounded-2xl p-5 no-underline`;
+        a.innerHTML = `<div class="flex items-start justify-between"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-white shadow flex items-center justify-center"><i class="fa-solid ${m.icon} ${c.icon} text-lg"></i></div><div><div class="font-bold text-slate-800 text-sm leading-tight">${m.label}</div><div class="text-xs text-slate-500 mt-0.5">${m.desc}</div></div></div><i class="fa-solid fa-chevron-right text-slate-300 mt-1"></i></div><div class="mt-3"><span class="text-[10px] font-mono ${c.badge} px-2 py-0.5 rounded">${m.collection}</span></div>`;
+        el.appendChild(a);
+    });
+}
 
-            <a href="Mappa_riduttori_V1.html" class="card block bg-white rounded-2xl shadow p-5 border border-orange-100 hover:border-orange-300 no-underline">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
-                        <i class="fa-solid fa-gauge text-white"></i>
-                    </div>
-                    <div>
-                        <div class="font-bold text-slate-800 text-sm">Mappa Riduttori</div>
-                        <div class="text-[11px] text-orange-600 font-semibold">v1</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 leading-relaxed">Visualizzazione e gestione riduttori di pressione sulla rete gas.</p>
-            </a>
+function openNewMapModal()  { document.getElementById('newMapModal').classList.remove('hidden'); document.getElementById('newMapLabel').focus(); }
+function closeNewMapModal() { document.getElementById('newMapModal').classList.add('hidden'); clearError(); }
+function clearError() { const e = document.getElementById('newMapError'); e.classList.add('hidden'); e.textContent=''; }
+function showError(msg) { const e = document.getElementById('newMapError'); e.textContent=msg; e.classList.remove('hidden'); }
 
-        </div>
-    </main>
+function generateAndDownload() {
+    clearError();
+    const label = document.getElementById('newMapLabel').value.trim();
+    const coll  = document.getElementById('newMapCollection').value.trim();
+    if (!label) { showError("Inserisci un nome visualizzato."); return; }
+    if (!coll)  { showError("Inserisci il nome collection Firestore."); return; }
+    if (!/^[a-z0-9_]+$/.test(coll)) { showError("Solo lettere minuscole, numeri e _ (no spazi)."); return; }
+    fetch('Mappa_Letture_Massive_Febbraio.html')
+        .then(r => { if (!r.ok) throw new Error('Template non trovato'); return r.text(); })
+        .then(html => {
+            html = html.replace(/COLLECTION_NAME: 'letture_massive_febbraio'/, `COLLECTION_NAME: '${coll}'`);
+            html = html.replace(/<title>.*?<\/title>/, `<title>Mappa PDR ${label} - ASI Multiservices</title>`);
+            const filename = `Mappa_${coll}.html`;
+            const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+            const url  = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href=url; a.download=filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            EXISTING_MAPS.push({label,file:filename,collection:coll,icon:'fa-calendar',color:'blue',desc:'Generata il '+new Date().toLocaleDateString('it-IT')});
+            renderMapList(); closeNewMapModal();
+            setTimeout(()=>alert(`File "${filename}" scaricato!\n\nPer renderla permanente:\n1. Metti il file nella cartella del progetto\n2. Aggiungi la voce in EXISTING_MAPS dentro index.html\n3. git add + commit + push`),200);
+        })
+        .catch(e => showError(`Errore: ${e.message}. Serve un server HTTP (non file://).`));
+}
 
-    <!-- Footer -->
-    <footer class="text-center text-xs text-slate-400 py-4 border-t border-slate-200 bg-white">
-        ASI Multiservices &mdash; Uffici: Via Alberti 29/31, Umbertide &mdash; Tel. 0759417861
-    </footer>
-
+renderMapList();
+</script>
 </body>
 </html>

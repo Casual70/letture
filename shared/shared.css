@@ -1,0 +1,83 @@
+/* =============================================
+   shared/shared.css — ASI Multiservices Mappe
+   Stili comuni a tutte le mappe PDR
+   ============================================= */
+
+/* Base */
+body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:ui-sans-serif,system-ui,sans-serif}
+#map{height:100%;width:100%;z-index:1}
+
+/* Sidebar */
+.sidebar{position:absolute;top:0;left:0;bottom:0;width:350px;background:#fff;z-index:1000;box-shadow:2px 0 10px rgba(0,0,0,0.1);transform:translateX(0);transition:transform .3s ease;display:flex;flex-direction:column}
+.sidebar.collapsed{transform:translateX(-100%)}
+.sidebar-header{padding:1rem;background:#1e293b;color:#fff;display:flex;justify-content:space-between;align-items:center}
+.sidebar-content{flex:1;overflow-y:auto;padding:1rem}
+.sidebar-footer{padding:1rem;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:.5rem}
+.toggle-btn{position:absolute;top:1rem;left:1rem;z-index:1001;background:#fff;padding:.5rem;border-radius:.5rem;box-shadow:0 2px 5px rgba(0,0,0,.2);cursor:pointer}
+
+/* Cluster */
+.marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background-color:rgba(181,181,181,.6)}
+.marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background-color:rgba(110,110,110,.6);color:#fff}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
+.modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
+
+/* Filtri */
+.filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
+.filter-checkbox:hover{background-color:#f3f4f6}
+.filter-checkbox input{margin-right:10px;accent-color:#2563eb;width:16px;height:16px}
+.gps-active{color:#2563eb;border-color:#2563eb;background-color:#eff6ff}
+
+/* Popup responsive mobile */
+.leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.18)!important;overflow:visible!important}
+.leaflet-popup-content{margin:8px!important;width:min(88vw,360px)!important;max-width:360px}
+.popup-pdr,.popup-via{font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px}
+
+/* Popup PDR */
+.popup-pdr .popup-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0}
+.popup-pdr .popup-body{padding:10px 14px 12px}
+.popup-name{font-size:15px;font-weight:700;color:#1e293b;line-height:1.3}
+.popup-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.popup-badge.fatto{background:#dbeafe;color:#1d4ed8}
+.popup-badge.dafare{background:#fee2e2;color:#dc2626}
+.popup-info-row{display:flex;align-items:flex-start;gap:6px;font-size:12px;color:#475569;padding:3px 0}
+.popup-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:7px 10px;font-size:12px;color:#c2410c;font-weight:600}
+.popup-btn{display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;border-radius:8px;font-size:13px;font-weight:700;border:1.5px solid transparent;cursor:pointer;transition:opacity .15s;width:100%}
+.popup-btn-primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.popup-btn-secondary{background:#f1f5f9;color:#334155;border-color:#cbd5e1}
+.popup-btn-purple{background:#9333ea;color:#fff;border-color:#9333ea}
+.popup-btn-sm{min-height:34px;font-size:12px;padding:0 10px;border-radius:7px}
+.popup-input{width:100%;border:1.5px solid #cbd5e1;border-radius:7px;padding:8px 10px;font-size:13px;outline:none;background:#fff;box-sizing:border-box}
+.popup-input:focus{border-color:#2563eb}
+.popup-section{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+.popup-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.popup-nav-link{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:none;font-weight:600;padding:8px;background:#eff6ff;border-radius:7px;margin-top:8px}
+
+/* Popup Vista Via */
+.popup-via{display:flex;flex-direction:column;max-height:75vh;overflow:hidden;border-radius:12px}
+.popup-via-header{padding:12px 14px 10px;border-bottom:1px solid #e5e7eb;background:#f8fafc;border-radius:12px 12px 0 0;flex-shrink:0}
+.popup-via-scroll{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 12px}
+.popup-via-scroll::-webkit-scrollbar{width:5px}
+.popup-via-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+
+/* PDR Card (Vista Via) */
+.pdr-card{border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff}
+.pdr-card.done{background:#eff6ff;border-color:#bfdbfe}
+.pdr-card.selected{outline:2px solid #06b6d4;outline-offset:1px}
+.pdr-card-name{font-size:13px;font-weight:700;color:#1e293b;line-height:1.3}
+.pdr-card-meta{font-size:11px;color:#64748b;margin-top:2px}
+.pdr-card-warn{font-size:11px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:4px 8px;margin-top:5px}
+.pdr-card-actions{display:flex;gap:6px;margin-top:8px}
+.pdr-card-btn{flex:1;min-height:38px;border-radius:7px;font-size:12px;font-weight:700;border:1.5px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.pdr-card-note{display:flex;gap:6px;margin-top:6px}
+.pdr-card-note input{flex:1;border:1.5px solid #e2e8f0;border-radius:7px;padding:6px 10px;font-size:12px;outline:none}
+.pdr-card-note input:focus{border-color:#2563eb}
+.pdr-card-note button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;background:#f1f5f9;color:#334155;border:1.5px solid #cbd5e1;cursor:pointer}
+.pdr-card-followup{display:flex;align-items:center;gap:6px;margin-top:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 8px}
+.pdr-card-followup .label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;white-space:nowrap}
+.pdr-card-followup input{flex:1;border:1.5px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px;outline:none}
+.pdr-card-followup button{min-height:30px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe;cursor:pointer}
+.acc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
+.pdr-photo-row{display:flex;gap:6px;margin-top:6px}
+.pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
