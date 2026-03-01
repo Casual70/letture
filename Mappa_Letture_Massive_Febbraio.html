@@ -155,7 +155,10 @@
 
     let db, auth, user, map, markersCluster, storage;
     let allData = {}, isCloudMode = false, isEditMode = false, userLocationMarker = null;
-    let COLLECTION_NAME = 'letture_massive_febbraio'; 
+    let COLLECTION_NAME = 'letture_massive_febbraio';
+    const ANAGRAFICHE_COLLECTION = 'pdr_anagrafiche';
+    let anagraficheData = {};
+    let anagraficheMigrationDone = false;
     let selectedPDRs = new Set();
     let activeAccess = new Set(['Accessibile', 'Inaccessibile', 'Altro']);
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
@@ -281,14 +284,64 @@
         const link = document.createElement("a"); link.href = url; link.download = `${prefix}${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
+    // ===== MODULO ANAGRAFICHE CONDIVISE =====
+    function applyAnagrafiche() {
+        Object.keys(anagraficheData).forEach(pdr => {
+            if (allData[pdr]) {
+                const a = anagraficheData[pdr];
+                if (a.lat !== undefined) allData[pdr].lat = a.lat;
+                if (a.lng !== undefined) allData[pdr].lng = a.lng;
+                if (a.indirizzo !== undefined) allData[pdr].indirizzo = a.indirizzo;
+                if (a.nota_accesso !== undefined) allData[pdr].nota_accesso = a.nota_accesso;
+            }
+        });
+    }
+    async function migrateToAnagrafiche(appId) {
+        if (anagraficheMigrationDone) return;
+        const flagKey = `pdr_anag_migrated_${COLLECTION_NAME}`;
+        if (localStorage.getItem(flagKey)) { anagraficheMigrationDone = true; return; }
+        anagraficheMigrationDone = true;
+        const pdrsToMigrate = Object.keys(allData).filter(pdr => !anagraficheData[pdr]);
+        if (pdrsToMigrate.length === 0) { localStorage.setItem(flagKey, '1'); return; }
+        let batchMig = writeBatch(db); let countMig = 0;
+        pdrsToMigrate.forEach(pdr => {
+            const d = allData[pdr];
+            if (!isNaN(d.lat) && !isNaN(d.lng)) {
+                batchMig.set(doc(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
+                    { lat: d.lat, lng: d.lng, indirizzo: d.indirizzo || '', nota_accesso: d.nota_accesso || '' }, { merge: true });
+                countMig++;
+                if (countMig >= 450) { batchMig.commit(); batchMig = writeBatch(db); countMig = 0; }
+            }
+        });
+        if (countMig > 0) await batchMig.commit();
+        localStorage.setItem(flagKey, '1');
+        console.log(`Migrati ${countMig} PDR → pdr_anagrafiche (${COLLECTION_NAME})`);
+    }
+
     // Data Logic
     function startCloudListener(appId) {
+        // Listener collection specifica (dati operativi)
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), (snap) => {
-            snap.docChanges().forEach(c => { const d = c.doc.data(); c.type === "removed" ? delete allData[c.doc.id] : allData[c.doc.id] = d; if(c.type==="removed" && selectedPDRs.has(c.doc.id)) selectedPDRs.delete(c.doc.id); });
+            snap.docChanges().forEach(c => {
+                const d = c.doc.data();
+                if (c.type === "removed") { delete allData[c.doc.id]; if(selectedPDRs.has(c.doc.id)) selectedPDRs.delete(c.doc.id); }
+                else allData[c.doc.id] = d;
+            });
+            applyAnagrafiche();
+            migrateToAnagrafiche(appId);
             updateMapAndUI(); updateSelectionUI();
         }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
+        // Listener anagrafiche condivise (lat/lng/indirizzo/nota_accesso)
+        onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION), (snap) => {
+            snap.docChanges().forEach(c => { c.type === "removed" ? delete anagraficheData[c.doc.id] : anagraficheData[c.doc.id] = c.doc.data(); });
+            applyAnagrafiche();
+            updateMapAndUI(); updateSelectionUI();
+        }, (e) => { console.warn("Anagrafiche listener:", e.code); });
     }
-    function loadLocalData() { const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); updateMapAndUI(); } }
+    function loadLocalData() {
+        const ana = localStorage.getItem('pdr_anagrafiche'); if(ana) anagraficheData = JSON.parse(ana);
+        const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); applyAnagrafiche(); updateMapAndUI(); }
+    }
 
     window.importCSVData = async function(csvData, overwrite) {
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
@@ -332,16 +385,21 @@
                     foto_urls: ex ? (ex.foto_urls||[]) : [],
                     lat: lat, lng: lng, fatto: status
                 };
+                const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
+                anagraficheData[pdr] = anaDoc;
                 allData[pdr] = newData;
                 if(isCloudMode) {
-                    const ref = doc(db, 'artifacts', localStorage.getItem('custom_app_id')||'default-app-id', 'public', 'data', COLLECTION_NAME, pdr);
+                    const appIdLocal = localStorage.getItem('custom_app_id')||'default-app-id';
+                    const ref = doc(db, 'artifacts', appIdLocal, 'public', 'data', COLLECTION_NAME, pdr);
                     batch.set(ref, newData); count++;
+                    const anaRef = doc(db, 'artifacts', appIdLocal, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr);
+                    batch.set(anaRef, anaDoc, { merge: true }); count++;
                     if(count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
                 }
             }
         });
         if(isCloudMode && count>0) await batch.commit();
-        else if(!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); }
+        else if(!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); updateMapAndUI(); }
         showToast(`Importati ${Object.keys(allData).length}`);
     };
 
@@ -412,7 +470,14 @@
 
     window.togglePdrStatus = async (pdr) => { const s = !allData[pdr].fatto; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {fatto:s}); else { allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
     window.togglePdrHighlight = async (pdr) => { const s = !allData[pdr].evidenziato; if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {evidenziato:s}); else { allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); updateMapAndUI(); } };
-    window.savePdrPosition = async (pdr, lat, lng) => { if(isCloudMode) await updateDoc(doc(db,'artifacts',localStorage.getItem('custom_app_id')||'default-app-id','public','data',COLLECTION_NAME,pdr), {lat,lng}); else { allData[pdr].lat=lat; allData[pdr].lng=lng; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); } };
+    window.savePdrPosition = async (pdr, lat, lng) => {
+        allData[pdr].lat=lat; allData[pdr].lng=lng;
+        if(!anagraficheData[pdr]) anagraficheData[pdr]={};
+        anagraficheData[pdr].lat=lat; anagraficheData[pdr].lng=lng;
+        const appId = localStorage.getItem('custom_app_id')||'default-app-id';
+        if(isCloudMode) await setDoc(doc(db,'artifacts',appId,'public','data',ANAGRAFICHE_COLLECTION,pdr), {lat,lng}, {merge:true});
+        else { localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); }
+    };
     
     window.updateCoordsWithGPS = (pdr) => {
         if (!navigator.geolocation) {
@@ -462,6 +527,7 @@
     window.saveManualCoords = (pdr) => { const v = document.getElementById('coord_input_'+pdr).value.replace(';',',').split(','); if(v.length===2) window.savePdrPosition(pdr, parseFloat(v[0]), parseFloat(v[1])); };
     window.searchGoogleMaps = (pdr) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(document.getElementById('osm_search_'+pdr).value)}`, '_blank');
     window.toggleCoordInput = (pdr) => document.getElementById('coord_edit_'+pdr).classList.toggle('hidden');
+    window.toggleSection = (id) => { const el = document.getElementById(id); if(el) el.classList.toggle('hidden'); };
     
     // WA Clean
     const cleanStr = (s) => (s||'').replace(/\uFFFD/g,'-').replace(/[^\x20-\x7E\xA0-\xFF]/g,' ').replace(/\s+/g,' ').trim();
@@ -564,46 +630,48 @@
                         <div>🚪 ${item.accessibilita}</div>
                         ${item.nota_accesso?`<div class="text-orange-600 bg-orange-50 p-1 border border-orange-100">⚠️ ${item.nota_accesso}</div>`:''}
                         ${(item.val_lettura||item.data_lettura)?`<div class="bg-green-50 p-1 border border-green-200">📥 Lett: ${item.val_lettura||'-'} (${item.data_lettura||'-'})</div>`:''}
-                        
-                        <div class="border-t pt-1 mt-1">
-                            <div class="flex justify-between cursor-pointer text-blue-600" onclick="window.toggleCoordInput('${item.pdr}')"><span>🌐 Coords</span><i class="fa-solid fa-pen"></i></div>
-                            <div id="coord_edit_${item.pdr}" class="hidden mt-1 p-1 bg-gray-50 border">
-                                <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded" value="${item.indirizzo} ${item.zona}">
-                                <div class="flex gap-1 mb-1"><button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1">Cerca OSM</button><button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1">Google</button></div>
-                                <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded" value="${item.lat}, ${item.lng}">
-                                <div class="flex gap-1 mt-1">
-                                    <button onclick="window.saveManualCoords('${item.pdr}')" class="w-full bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
-                                    <button onclick="window.updateCoordsWithGPS('${item.pdr}')" class="w-full bg-green-500 text-white text-[9px] py-1 rounded flex items-center justify-center gap-1"><i class="fa-solid fa-crosshairs"></i> Usa GPS Attuale</button>
-                                </div>
-                            </div>
-                        </div>
                     </div>
-                    <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="1" placeholder="Note...">${item.nota_operatore||''}</textarea>
-                    <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 mb-2 border rounded">Salva Nota</button>
-                    
-                    <div class="border-t pt-2 mt-2">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Foto</label>
-                        ${photoGallery}
-                        <input type="file" id="photo_input_${item.pdr}" class="hidden" accept="image/*" onchange="window.handlePhotoUpload('${item.pdr}', this.files[0])">
-                        <button onclick="window.triggerPhotoUpload('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-camera mr-1"></i> Aggiungi Foto</button>
-                    </div>
-
-                    <div class="flex gap-1 my-2">
+                    <div class="flex gap-1 mb-1">
                         <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
                         <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.evidenziato?'bg-purple-600 text-white':'bg-white text-purple-600'}">Evidenzia</button>
                     </div>
                     <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-1 rounded text-[10px] font-bold border ${selBtnClass}">${selectedPDRs.has(item.pdr)?'Deseleziona':'Seleziona'}</button>
                     ${wa}
-                    
-                    <div class="mt-2 border-t pt-1">
-                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Ultimo WA</label>
+                    <div class="flex gap-1 mt-2 border-t pt-2">
+                        <button onclick="window.toggleSection('note_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-gray-600"><i class="fa-solid fa-pen-to-square mr-1"></i>Note</button>
+                        <button onclick="window.toggleSection('gps_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-blue-600"><i class="fa-solid fa-location-crosshairs mr-1"></i>GPS</button>
+                        <button onclick="window.toggleSection('wa_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-green-700"><i class="fa-brands fa-whatsapp mr-1"></i>WA</button>
+                    </div>
+                    <div id="note_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="2" placeholder="Note operative...">${item.nota_operatore||''}</textarea>
+                        <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 border rounded">Salva Nota</button>
+                        <div class="mt-2 border-t pt-2">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Foto</label>
+                            ${photoGallery}
+                            <input type="file" id="photo_input_${item.pdr}" class="hidden" accept="image/*" onchange="window.handlePhotoUpload('${item.pdr}', this.files[0])">
+                            <button onclick="window.triggerPhotoUpload('${item.pdr}')" class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded mt-1"><i class="fa-solid fa-camera mr-1"></i> Aggiungi Foto</button>
+                        </div>
+                    </div>
+                    <div id="gps_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.indirizzo} ${item.zona}">
+                        <div class="flex gap-1 mb-1">
+                            <button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1 rounded">Cerca OSM</button>
+                            <button onclick="window.searchGoogleMaps('${item.pdr}')" class="flex-1 bg-white border text-[9px] py-1 rounded">Google</button>
+                        </div>
+                        <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.lat}, ${item.lng}">
+                        <div class="flex gap-1">
+                            <button onclick="window.saveManualCoords('${item.pdr}')" class="flex-1 bg-blue-500 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                            <button onclick="window.updateCoordsWithGPS('${item.pdr}')" class="flex-1 bg-green-500 text-white text-[9px] py-1 rounded"><i class="fa-solid fa-crosshairs"></i> GPS</button>
+                        </div>
+                    </div>
+                    <div id="wa_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Data Ultimo WA</label>
                         <div class="flex gap-1">
                             <input type="date" id="wa_date_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.wa_inviato||''}">
                             <button onclick="window.saveWaDate('${item.pdr}')" class="bg-blue-100 text-blue-600 border border-blue-200 rounded px-2 text-xs font-bold hover:bg-blue-200">OK</button>
                         </div>
                     </div>
-
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-1">Naviga qui</a>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" class="block text-center text-[10px] text-blue-600 underline mt-2">Naviga qui</a>
                 </div>
             `;
             m.bindPopup(content);

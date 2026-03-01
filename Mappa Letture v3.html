@@ -168,7 +168,10 @@
         let activeYears = new Set();
         let availableYears = new Set(); 
         let isCloudMode = false;
-        const COLLECTION_NAME = 'letture_pdr_riepilogo'; 
+        const COLLECTION_NAME = 'letture_pdr_riepilogo';
+        const ANAGRAFICHE_COLLECTION = 'pdr_anagrafiche';
+        let anagraficheData = {};
+        let anagraficheMigrationDone = false;
         
         async function initApp() {
             try {
@@ -205,8 +208,8 @@
         }
 
         function startCloudListener(appId) {
-            const colRef = collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME);
-            onSnapshot(colRef, (snapshot) => {
+            // Listener collection specifica
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME), (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const data = change.doc.data();
                     const pdr = change.doc.id;
@@ -217,17 +220,58 @@
                         if (data.anno) availableYears.add(data.anno);
                     }
                 });
+                applyAnagrafiche();
+                migrateToAnagrafiche(appId);
                 refreshUIComponents();
             });
+            // Listener anagrafiche condivise (lat/lng/indirizzo)
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION), (snap) => {
+                snap.docChanges().forEach(c => { c.type === "removed" ? delete anagraficheData[c.doc.id] : anagraficheData[c.doc.id] = c.doc.data(); });
+                applyAnagrafiche();
+                refreshUIComponents();
+            }, (e) => { console.warn("Anagrafiche listener:", e.code); });
+        }
+        function applyAnagrafiche() {
+            Object.keys(anagraficheData).forEach(pdr => {
+                if (allData[pdr]) {
+                    const a = anagraficheData[pdr];
+                    if (a.lat !== undefined) allData[pdr].lat = a.lat;
+                    if (a.lng !== undefined) allData[pdr].lng = a.lng;
+                    if (a.indirizzo !== undefined) allData[pdr].indirizzo = a.indirizzo;
+                }
+            });
+        }
+        async function migrateToAnagrafiche(appId) {
+            if (anagraficheMigrationDone) return;
+            const flagKey = `pdr_anag_migrated_${COLLECTION_NAME}_v3`;
+            if (localStorage.getItem(flagKey)) { anagraficheMigrationDone = true; return; }
+            anagraficheMigrationDone = true;
+            const pdrsToMigrate = Object.keys(allData).filter(pdr => !anagraficheData[pdr]);
+            if (pdrsToMigrate.length === 0) { localStorage.setItem(flagKey, '1'); return; }
+            let batchMig = writeBatch(db); let countMig = 0;
+            pdrsToMigrate.forEach(pdr => {
+                const d = allData[pdr];
+                if (!isNaN(d.lat) && !isNaN(d.lng)) {
+                    batchMig.set(doc(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
+                        { lat: d.lat, lng: d.lng, indirizzo: d.indirizzo || '' }, { merge: true });
+                    countMig++;
+                    if (countMig >= 450) { batchMig.commit(); batchMig = writeBatch(db); countMig = 0; }
+                }
+            });
+            if (countMig > 0) await batchMig.commit();
+            localStorage.setItem(flagKey, '1');
+            console.log(`Migrati ${countMig} PDR → pdr_anagrafiche`);
         }
 
         function loadLocalData() {
+            const ana = localStorage.getItem('pdr_anagrafiche'); if(ana) anagraficheData = JSON.parse(ana);
             const stored = localStorage.getItem('pdr_data_riepilogo');
             if (stored) {
                 allData = JSON.parse(stored);
                 Object.values(allData).forEach(d => {
                     if (d.anno) availableYears.add(d.anno);
                 });
+                applyAnagrafiche();
                 refreshUIComponents();
             }
         }
@@ -329,11 +373,16 @@
                         lng: lng
                     };
                     
+                    const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo };
+                    anagraficheData[pdr] = anaDoc;
                     allData[pdr] = newData;
 
                     if (isCloudMode) {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', COLLECTION_NAME, pdr);
                         batch.set(docRef, newData);
+                        batchCount++;
+                        const anaRef = doc(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr);
+                        batch.set(anaRef, anaDoc, { merge: true });
                         batchCount++;
                         if (batchCount >= 450) {
                             batch.commit();
@@ -350,6 +399,7 @@
                 await batch.commit();
             } else if (!isCloudMode) {
                 localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData));
+                localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData));
                 refreshUIComponents();
             }
             
