@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recupero Letture 2026 - ASI Multiservices</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<link rel="stylesheet" href="shared/shared.css">
+
+<script>
+    function toggleSidebar() {
+        const sb = document.getElementById('sidebar');
+        const btn = document.getElementById('toggleSidebar');
+        sb.classList.toggle('collapsed');
+        if (sb.classList.contains('collapsed')) setTimeout(() => btn.classList.remove('hidden'), 300);
+        else btn.classList.add('hidden');
+    }
+</script>
+</head>
+<body>
+
+<div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()">
+    <i class="fa-solid fa-bars text-gray-700 text-xl"></i>
+</div>
+
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h1 class="text-lg font-bold"><i class="fa-solid fa-rotate-left mr-2 text-purple-600"></i>Recupero Letture 2026</h1>
+        <button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button>
+    </div>
+
+    <div class="sidebar-content">
+
+        <!-- Import CSV -->
+        <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
+            <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
+            <input type="file" id="csvInput" accept=".csv"
+                class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"/>
+        </div>
+
+        <!-- Selezione Panel -->
+        <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-cyan-800 uppercase">Selezione Multipla</span>
+                <span id="selectedCount" class="bg-cyan-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportSelectedData()" class="flex-1 bg-white text-cyan-700 border border-cyan-300 hover:bg-cyan-100 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-file-export mr-1"></i> Esporta</button>
+                <button onclick="clearSelection()" class="w-1/3 bg-white text-red-500 border border-red-200 hover:bg-red-50 text-xs font-bold py-1.5 rounded"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+
+        <!-- Legenda -->
+        <div class="mb-6 grid grid-cols-2 gap-2 text-center">
+            <div class="p-2 bg-purple-50 border border-purple-200 rounded col-span-2"><div class="w-3 h-3 bg-purple-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-purple-700">EVIDENZIATO</span></div>
+            <div class="p-2 bg-cyan-50 border border-cyan-200 rounded"><div class="w-3 h-3 bg-cyan-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-cyan-700">SELEZIONATO</span></div>
+            <div class="p-2 bg-blue-50 border border-blue-200 rounded"><div class="w-3 h-3 bg-blue-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-blue-700">FATTO</span></div>
+            <div class="p-2 bg-yellow-50 border border-yellow-200 rounded"><div class="w-3 h-3 bg-yellow-400 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-yellow-700">AVVISO</span></div>
+            <div class="p-2 bg-green-50 border border-green-200 rounded"><div class="w-3 h-3 bg-green-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-green-700">ACCESSIBILE</span></div>
+            <div class="p-2 bg-orange-50 border border-orange-200 rounded"><div class="w-3 h-3 bg-orange-500 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-orange-700">INACCESSIBILE</span></div>
+            <div class="p-2 bg-red-50 border border-red-200 rounded"><div class="w-3 h-3 bg-red-600 rounded-full mx-auto mb-1"></div><span class="text-[10px] font-bold text-red-700">ALTRO</span></div>
+        </div>
+
+        <!-- Modalità Visualizzazione -->
+        <div class="mb-4 border-t pt-4">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Modalità Mappa</label>
+            <div class="flex bg-gray-200 rounded p-1">
+                <button id="btnViewPDR"    onclick="window.setViewMode('pdr')"    class="flex-1 text-xs py-1.5 px-2 rounded bg-white shadow font-bold text-purple-600 transition">Marker PDR</button>
+                <button id="btnViewStreet" onclick="window.setViewMode('street')" class="flex-1 text-xs py-1.5 px-2 rounded text-gray-600 font-medium hover:text-gray-800 transition">Marker Via</button>
+            </div>
+        </div>
+
+        <!-- Filtro Stato -->
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Stato Lettura</label>
+            <select id="filterStato" onchange="window.changeFilterStato(this.value)"
+                class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Mostra Tutti</option>
+                <option value="da_fare">Solo "DA FARE"</option>
+                <option value="fatti">Solo "FATTO"</option>
+            </select>
+        </div>
+
+        <!-- ★ Filtro Anno Ultima Lettura -->
+        <div class="mb-4">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Anno Ultima Lettura</label>
+            <select id="filterAnno" onchange="window.changeFilterAnno(this.value)"
+                class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
+                <option value="tutti">Tutti gli anni</option>
+            </select>
+        </div>
+
+        <!-- Filtro Accessibilità -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <label class="block text-xs font-bold text-gray-700 uppercase">Accessibilità</label>
+                <button onclick="selectAllAccess()" class="text-[10px] text-purple-600 hover:underline">Tutti</button>
+            </div>
+            <div id="accessFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+
+        <!-- Filtro Comune -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <label class="block text-xs font-bold text-gray-700 uppercase">Comune</label>
+                <button onclick="selectAllComuni()" class="text-[10px] text-purple-600 hover:underline">Tutti</button>
+            </div>
+            <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
+        </div>
+
+        <!-- Filtri Speciali -->
+        <div class="mb-6">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Filtri Speciali</label>
+            <div class="space-y-1 bg-white border rounded p-2">
+                <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up WA &gt; 2gg</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)"><span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterNoCoord" onchange="window.toggleNoCoord(this)"> <span class="text-xs font-bold text-red-600">Solo senza GPS</span></div>
+            </div>
+        </div>
+
+        <!-- Cerca -->
+        <div class="mb-4">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Cerca nome, PDR, indirizzo..."
+                    class="w-full p-2 pl-8 border rounded text-sm focus:outline-none">
+                <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+            </div>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-40 overflow-y-auto hidden bg-gray-50 border rounded p-1"></div>
+
+        <!-- Statistiche -->
+        <div class="mt-4 p-3 bg-gray-50 rounded text-center border grid grid-cols-2 gap-2">
+            <div><div class="text-[10px] text-gray-500 uppercase">Visibili</div><div id="statVisible" class="text-xl font-bold text-gray-700">0</div></div>
+            <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-purple-600">0</div></div>
+        </div>
+        <div id="noCoordPanel" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center hidden">
+            <span class="text-xs text-red-700 font-bold"><i class="fa-solid fa-location-dot mr-1"></i><span id="noCoordCount">0</span> PDR senza GPS</span>
+        </div>
+        <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
+    </div>
+
+    <div class="sidebar-footer">
+        <button id="locateBtn" onclick="locateUser()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="GPS"><i class="fa-solid fa-crosshairs"></i></button>
+        <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
+        <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
+        <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
+        <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
+    </div>
+</div>
+
+<div id="map"></div>
+
+<!-- Photo Modal -->
+<div id="photoModal" class="modal-overlay hidden">
+    <div class="modal-content !max-w-3xl">
+        <img id="photoModalImage" src="" class="w-full h-auto rounded-lg">
+        <button onclick="window.closePhotoModal()" class="absolute top-2 right-2 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg">&times;</button>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h2 class="text-xl font-bold mb-4 text-gray-800">Configurazione Firebase</h2>
+        <textarea id="firebaseConfigInput" rows="6" class="w-full p-2 border rounded text-xs font-mono bg-gray-50 mb-4"></textarea>
+        <input type="text" id="appIdInput" class="w-full p-2 border rounded text-xs mb-6" placeholder="default-app-id">
+        <div class="flex justify-end gap-2">
+            <button onclick="toggleSettings()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded">Annulla</button>
+            <button onclick="saveSettings()" class="px-4 py-2 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded">Salva</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { registerAll } from './shared/map-utils.js';
+    import { initApp, applyAnagrafiche } from './shared/map-core.js';
+    import { ANAGRAFICHE_COLLECTION } from './shared/firebase-config.js';
+    import { writeBatch, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // ─── Stato globale MAP ──────────────────────────────────────────────────────
+    window.MAP = {
+        COLLECTION_NAME: 'recupero_letture_2026',
+        allData: {}, anagraficheData: {}, selectedPDRs: new Set(),
+        activeAccess:  new Set(['Accessibile', 'Inaccessibile', 'Altro']),
+        activeComuni:  new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']),
+        isCloudMode: false, isEditMode: false, anagraficheMigrationDone: false,
+        filterTerrazzo: false, filterFollowUp: false, filterAvviso: false, filterNoCoord: false,
+        filterAnno: 'tutti',
+        activeStato: 'tutti', viewMode: 'pdr',
+        db: null, auth: null, user: null, map: null,
+        markersCluster: null, storage: null, userLocationMarker: null
+    };
+
+    window.MAP.updateMapAndUI = () => renderRecupero(window.MAP);
+    registerAll(window.MAP);
+
+    // ─── Filtro anno ────────────────────────────────────────────────────────────
+    window.changeFilterAnno = (v) => { window.MAP.filterAnno = v; window.MAP.updateMapAndUI?.(); };
+    window.toggleNoCoord    = (e) => { window.MAP.filterNoCoord = e.checked; window.MAP.updateMapAndUI?.(); };
+
+    function updateAnnoFilter() {
+        const anni = new Set();
+        Object.values(window.MAP.allData).forEach(i => {
+            const parts = (i.data_riferimento || '').split('/');
+            if (parts.length === 3 && parts[2].length === 4) anni.add(parts[2]);
+        });
+        const sel = document.getElementById('filterAnno');
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = '<option value="tutti">Tutti gli anni</option>';
+        [...anni].sort().reverse().forEach(a => {
+            const o = document.createElement('option');
+            o.value = a; o.textContent = a;
+            if (a === cur) o.selected = true;
+            sel.appendChild(o);
+        });
+    }
+
+    // ─── Import CSV personalizzato (nuovi campi) ───────────────────────────────
+    window.importCSVData = async function(csvData, overwrite) {
+        const MAP = window.MAP;
+        let batch = MAP.isCloudMode ? writeBatch(MAP.db) : null;
+        let count = 0;
+        const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
+        let colAcc = Object.keys(csvData[0] || {}).find(k =>
+            k.toLowerCase().includes('ccessibilit') || k.toLowerCase().includes('gruppi misura'));
+        let imported = 0;
+
+        csvData.forEach(row => {
+            const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || '').trim();
+            if (!pdr) return;
+
+            let lat = parseFloat((row.Lat || row.LAT || row.lat || '').toString().replace(',', '.').replace(/"/g, ''));
+            let lng = parseFloat((row.Long || row.LON || row.lon || row.Lng || '').toString().replace(',', '.').replace(/"/g, ''));
+
+            const ex = MAP.allData[pdr];
+            // Recupera coordinate esistenti da anagrafiche o record precedente
+            if (!overwrite && MAP.anagraficheData[pdr]) {
+                const a = MAP.anagraficheData[pdr];
+                if (!isNaN(a.lat) && !isNaN(a.lng)) { lat = a.lat; lng = a.lng; }
+            } else if (!overwrite && ex && !isNaN(ex.lat) && !isNaN(ex.lng)) {
+                lat = ex.lat; lng = ex.lng;
+            }
+            if (isNaN(lat) || isNaN(lng)) { lat = null; lng = null; }
+
+            let status = ex ? (ex.fatto || false) : false;
+            const existingWaDate = ex ? (ex.wa_inviato || '') : '';
+
+            const valLett = (row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '').toString().trim();
+            const datLett = (row['Data lettura'] || row['data lettura'] || '').toString().trim();
+            let isNum = false;
+            if (valLett !== '' && valLett !== '0') {
+                const chk = parseFloat(valLett.replace(',', '.'));
+                if (!isNaN(chk) && isFinite(chk)) isNum = true;
+            }
+            const isDate = (datLett !== '' && datLett !== '00/01/1900');
+            if (isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
+
+            // Costruisce indirizzo da campi strutturati se manca colonna diretta
+            const tipoVia    = (row['Tipo via']        || '').trim();
+            const nomeVia    = (row['Nome via']         || '').trim();
+            const nrCivico   = (row['Nr. civico']       || '').toString().trim();
+            const estCivico  = (row['Est. Nr. civico']  || '').toString().trim();
+            const indCalc    = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
+
+            const newData = {
+                pdr,
+                nominativo:            row['Nome utenza']  || row.NOME || row.Nominativo || row['Descr. utenza'] || 'Utente',
+                indirizzo:             row['Indirizzo']    || row.INDIRIZZO || indCalc  || '',
+                zona:                  row['NOME ZONA']    || row.Citta || row['Descr. zona'] || row['Cod. zona'] || '',
+                telefono:              (row['Telefono']    || row.TELEFONO || '').toString().trim().replace(/^75/, '075'),
+                matricola:             row['Matricola misuratore'] || row['Matr. misuratore'] || row.MATRICOLA || 'N/D',
+                data_riferimento:      row['Data ultima lettura']  || row['ULTIMA LETTURA'] || '',
+                accessibilita:         (colAcc && row[colAcc]) ? row[colAcc] : (row['Accessibilità'] || row['Accessibilit?'] || 'N/D'),
+                nota_accesso:          row['Nota_accesso']  || row['Note'] || '',
+                nota_inaccessibilita:  (row['Note inaccessibilita'] || '').trim(),
+                ultima_lettura_misur:  (row['Ultima lettura misur.'] || row['Ultima lettura misur'] || '').toString().trim(),
+                codice_ultima_lettura: (row['Codice ultima lettura'] || '').toString().trim(),
+                nota_operatore:        ex ? (ex.nota_operatore  || '') : '',
+                wa_inviato:            existingWaDate,
+                val_lettura:           valLett,
+                data_lettura:          datLett,
+                evidenziato:           ex ? (ex.evidenziato || false) : false,
+                foto_urls:             ex ? (ex.foto_urls   || [])   : [],
+                lat, lng, fatto: status
+            };
+
+            const anaDoc = {
+                lat: newData.lat, lng: newData.lng,
+                indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso
+            };
+            MAP.anagraficheData[pdr] = anaDoc;
+            MAP.allData[pdr] = newData;
+            imported++;
+
+            if (MAP.isCloudMode) {
+                batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), newData);
+                count++;
+                if (lat !== null && lng !== null)
+                    batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), anaDoc, { merge: true });
+                count++;
+                if (count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
+            }
+        });
+
+        if (MAP.isCloudMode && count > 0) await batch.commit();
+        else if (!MAP.isCloudMode) {
+            localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
+            localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
+        }
+
+        updateAnnoFilter();
+        MAP.updateMapAndUI?.();
+        const noCoord = Object.values(MAP.allData).filter(i => i.lat === null || isNaN(i.lat)).length;
+        window.showToast?.(`Importati: ${imported} PDR${noCoord > 0 ? ' (' + noCoord + ' senza GPS)' : ''}`);
+    };
+
+    // ─── Render personalizzato ─────────────────────────────────────────────────
+    function renderRecupero(MAP) {
+        if (!MAP.markersCluster) return;
+        MAP.markersCluster.clearLayers();
+        let vis = 0, done = 0;
+
+        const filteredData = Object.values(MAP.allData).filter(item => {
+            // Filtro GPS
+            if (MAP.filterNoCoord) { if (item.lat !== null && !isNaN(item.lat)) return false; }
+            else { if (item.lat === null || isNaN(item.lat)) return false; }
+
+            if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+            if (MAP.filterAvviso) {
+                const v = (item.val_lettura || '').replace(',', '.').trim();
+                if (!(v !== '' && isNaN(v))) return false;
+            }
+            if (MAP.activeStato === 'da_fare' && item.fatto) return false;
+            if (MAP.activeStato === 'fatti'   && !item.fatto) return false;
+            if (MAP.filterFollowUp) {
+                if (!item.wa_inviato) return false;
+                const waDate = new Date(item.wa_inviato), today = new Date();
+                waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                if (Math.ceil((today - waDate) / (1000*60*60*24)) <= 2) return false;
+            }
+            // Filtro anno ultima lettura
+            if (MAP.filterAnno !== 'tutti') {
+                const parts = (item.data_riferimento || '').split('/');
+                const anno = parts.length === 3 ? parts[2] : '';
+                if (anno !== MAP.filterAnno) return false;
+            }
+            const acc = (item.accessibilita || '').toLowerCase();
+            const cat = acc.includes('inaccessibile') ? 'Inaccessibile' : (acc.includes('accessibile') ? 'Accessibile' : 'Altro');
+            if (!MAP.activeAccess.has(cat)) return false;
+            const search = ((item.zona || '') + ' ' + (item.indirizzo || '')).toLowerCase();
+            let com = 'Altro';
+            if (search.includes('umbertide')   || search.includes('54056')) com = 'Umbertide';
+            else if (search.includes('san giustino') || search.includes('54044')) com = 'San Giustino';
+            else if (search.includes('montone')     || search.includes('54033')) com = 'Montone';
+            if (!MAP.activeComuni.has(com)) return false;
+            return true;
+        });
+
+        // Aggiorna contatore senza GPS (su allData, non filtrato)
+        const noCoord = Object.values(MAP.allData).filter(i => i.lat === null || isNaN(i.lat)).length;
+        const noCoordPanel = document.getElementById('noCoordPanel');
+        const noCoordCount = document.getElementById('noCoordCount');
+        if (noCoordCount) noCoordCount.innerText = noCoord;
+        if (noCoordPanel) noCoord > 0 ? noCoordPanel.classList.remove('hidden') : noCoordPanel.classList.add('hidden');
+
+        // ── Modalità PDR ────────────────────────────────────────────────────────
+        if (MAP.viewMode !== 'street') {
+            filteredData.forEach(item => {
+                if (MAP.filterNoCoord) { vis++; } // conta anche senza coord nella modalità filtro
+                else {
+                    if (isNaN(item.lat) || item.lat === null) return;
+                    vis++;
+                }
+                if (item.fatto) done++;
+                if (isNaN(item.lat) || item.lat === null) return; // non disegnare senza coords
+
+                let warn = false;
+                if (item.val_lettura) { const c = item.val_lettura.replace(',', '.').trim(); if (c !== '' && isNaN(c)) warn = true; }
+                const acc = (item.accessibilita || '').toLowerCase();
+                const cat = acc.includes('inaccessibile') ? 'Inaccessibile' : (acc.includes('accessibile') ? 'Accessibile' : 'Altro');
+                let col = '#dc2626';
+                if (item.evidenziato)                  col = '#9333ea';
+                else if (MAP.selectedPDRs.has(item.pdr)) col = '#06b6d4';
+                else if (item.fatto)                   col = '#2563eb';
+                else if (warn)                         col = '#facc15';
+                else if (cat === 'Inaccessibile')      col = '#f97316';
+                else if (cat === 'Accessibile')        col = '#16a34a';
+
+                const icon = L.divIcon({ className: 'custom-pin', html: `<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize: [14, 14] });
+                const m = L.marker([item.lat, item.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
+                m.on('dragend', e => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
+
+                // Bottoni telefono/WA
+                let wa = '';
+                const phones = (item.telefono || '').split(/[-/,]+/).map(x => x.trim()).filter(x => x.length > 4);
+                phones.forEach(p => {
+                    let clean = p.replace(/\s+/g, ''); if (clean.startsWith('75')) clean = '0' + clean;
+                    wa += `<div style="display:flex;gap:6px;margin-bottom:6px">
+                        <a href="tel:${clean}" class="popup-btn popup-btn-secondary popup-btn-sm" style="flex:1;text-decoration:none;justify-content:center"><i class="fa-solid fa-phone"></i>&nbsp;${clean}</a>
+                        <button onclick="window.openWhatsApp('${item.pdr}','${clean}')" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:15px"></i></button>
+                        </div>`;
+                });
+                wa += `<button onclick="(function(el){el.style.display=el.style.display==='none'?'flex':'none'})(document.getElementById('wa_custom_${item.pdr}'))" class="w-full mb-1 py-1 text-[10px] font-bold bg-white text-green-700 border border-green-200 rounded"><i class="fa-brands fa-whatsapp"></i> WA a numero diverso</button>`;
+                wa += `<div id="wa_custom_${item.pdr}" style="display:none;gap:6px;margin-bottom:6px;align-items:center">
+                    <input id="wa_custom_num_${item.pdr}" type="tel" class="w-full border rounded text-xs p-1" placeholder="Es. 3331234567" style="flex:1">
+                    <button onclick="window.openWhatsApp('${item.pdr}',document.getElementById('wa_custom_num_${item.pdr}').value)" class="popup-btn popup-btn-sm" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e;justify-content:center"><i class="fa-brands fa-whatsapp"></i></button>
+                    </div>`;
+
+                const isSel = MAP.selectedPDRs.has(item.pdr);
+
+                // Galleria foto
+                let photoGallery = '<div class="text-[10px] text-gray-400 text-center my-1">Nessuna foto</div>';
+                if (item.foto_urls && item.foto_urls.length > 0) {
+                    photoGallery = '<div class="grid grid-cols-4 gap-1 my-2">';
+                    item.foto_urls.forEach(url => {
+                        photoGallery += `<div class="relative group">
+                            <div onclick="window.openPhotoModal('${url}')" class="w-full h-12 bg-cover bg-center rounded cursor-pointer" style="background-image:url('${url}')"></div>
+                            <button onclick="window.deletePhoto('${item.pdr}','${url}')" class="absolute top-0 right-0 bg-red-600 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+                            </div>`;
+                    });
+                    photoGallery += '</div>';
+                }
+
+                const content = `
+                <div class="font-sans text-[13px]">
+                    <div class="border-b pb-2 mb-2">
+                        <div class="font-bold text-gray-800 text-sm">${item.nominativo}</div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-[10px] text-gray-500">PDR ${item.pdr}</span>
+                            <span class="px-2 rounded text-[9px] font-bold ${item.fatto ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${item.fatto ? '✓ FATTO' : '⏱ DA FARE'}</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-600 space-y-1 mb-2">
+                        <div>📍 ${item.indirizzo}${item.zona ? ' — ' + item.zona : ''}</div>
+                        <div>🔢 Matr: <b>${item.matricola}</b></div>
+                        <div>📅 Ult. lettura: <b>${item.data_riferimento || '—'}</b></div>
+                        <div>🚪 ${item.accessibilita}</div>
+                        ${item.nota_accesso ? `<div class="text-orange-700 bg-orange-50 p-1 border border-orange-200 rounded">⚠️ ${item.nota_accesso}</div>` : ''}
+                        ${item.nota_inaccessibilita ? `<div class="text-red-700 bg-red-50 p-1 border border-red-200 rounded mt-1">🔒 ${item.nota_inaccessibilita}</div>` : ''}
+                        ${(item.ultima_lettura_misur || item.codice_ultima_lettura) ? `<div class="bg-slate-50 p-1 border border-slate-200 rounded mt-1">📋 Lett. precedente: <b>${item.ultima_lettura_misur || '—'}</b>${item.codice_ultima_lettura ? ' <span class="text-gray-400 text-[10px]">(' + item.codice_ultima_lettura + ')</span>' : ''}</div>` : ''}
+                        ${(item.val_lettura || item.data_lettura) ? `<div class="bg-green-50 p-1 border border-green-200 rounded mt-1">📥 Lettura attuale: <b>${item.val_lettura || '—'}</b> (${item.data_lettura || '—'})</div>` : ''}
+                    </div>
+                    <div class="flex gap-1 mb-1">
+                        <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border ${item.fatto ? 'bg-gray-100 text-gray-700' : 'bg-purple-600 text-white border-purple-600'}">${item.fatto ? '↩ Riapri' : '✓ Fatto'}</button>
+                        <button onclick="window.togglePdrHighlight('${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border ${item.evidenziato ? 'bg-purple-600 text-white' : 'bg-white text-purple-600 border-purple-200'}">⭐ ${item.evidenziato ? 'Evid.' : 'Evidenzia'}</button>
+                    </div>
+                    <button onclick="window.togglePdrSelection('${item.pdr}')" class="w-full py-1 mb-2 rounded text-[10px] font-bold border ${isSel ? 'bg-cyan-600 text-white' : 'bg-white text-cyan-600 border-cyan-200'}">${isSel ? '✕ Deseleziona' : '✓✓ Seleziona'}</button>
+                    ${wa}
+                    <div class="flex gap-1 mt-2 border-t pt-2">
+                        <button onclick="window.toggleSection('note_sec_${item.pdr}')" class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-gray-600"><i class="fa-solid fa-pen-to-square mr-1"></i>Note</button>
+                        <button onclick="window.toggleSection('gps_sec_${item.pdr}')"  class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-purple-600"><i class="fa-solid fa-location-crosshairs mr-1"></i>GPS</button>
+                        <button onclick="window.toggleSection('wa_sec_${item.pdr}')"   class="flex-1 py-1.5 rounded text-[10px] font-bold border bg-gray-50 hover:bg-gray-100 text-green-700"><i class="fa-brands fa-whatsapp mr-1"></i>WA</button>
+                    </div>
+
+                    <div id="note_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <textarea id="note_${item.pdr}" class="w-full text-xs border rounded p-1 mb-1" rows="2" placeholder="Note operative...">${item.nota_operatore || ''}</textarea>
+                        <button onclick="window.savePdrNote('${item.pdr}')" class="w-full bg-gray-100 text-gray-600 text-[9px] font-bold py-1 border rounded">Salva Nota</button>
+                        <div class="mt-2 border-t pt-2">
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Foto</label>
+                            ${photoGallery}
+                            <input type="file" id="photo_input_${item.pdr}" class="hidden" accept="image/*" onchange="window.handlePhotoUpload('${item.pdr}', this.files[0])">
+                            <button onclick="window.triggerPhotoUpload('${item.pdr}')" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold py-1.5 rounded mt-1"><i class="fa-solid fa-camera mr-1"></i> Aggiungi Foto</button>
+                        </div>
+                    </div>
+
+                    <div id="gps_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <input id="osm_search_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.indirizzo} ${item.zona}">
+                        <div class="flex gap-1 mb-1">
+                            <button onclick="window.searchBetterCoords('${item.pdr}')" class="flex-1 bg-blue-100 text-[9px] py-1 rounded border">Cerca OSM</button>
+                            <button onclick="window.searchGoogleMaps('${item.pdr}')"   class="flex-1 bg-white border text-[9px] py-1 rounded">Google Maps</button>
+                        </div>
+                        <input id="coord_input_${item.pdr}" class="w-full mb-1 border rounded text-xs p-1" value="${item.lat || ''}, ${item.lng || ''}">
+                        <div class="flex gap-1">
+                            <button onclick="window.saveManualCoords('${item.pdr}')"      class="flex-1 bg-purple-600 text-white text-[9px] py-1 rounded">Aggiorna</button>
+                            <button onclick="window.updateCoordsWithGPS('${item.pdr}')"   class="flex-1 bg-green-500 text-white text-[9px] py-1 rounded"><i class="fa-solid fa-crosshairs"></i> GPS</button>
+                        </div>
+                    </div>
+
+                    <div id="wa_sec_${item.pdr}" class="hidden mt-1 p-2 bg-gray-50 border rounded">
+                        <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Data Ultimo WA</label>
+                        <div class="flex gap-1">
+                            <input type="date" id="wa_date_${item.pdr}" class="w-full text-xs border rounded p-1" value="${item.wa_inviato || ''}">
+                            <button onclick="window.saveWaDate('${item.pdr}')" class="bg-purple-100 text-purple-600 border border-purple-200 rounded px-2 text-xs font-bold hover:bg-purple-200">OK</button>
+                        </div>
+                    </div>
+
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
+                        class="block text-center text-[10px] text-purple-600 underline mt-2">
+                        <i class="fa-solid fa-location-arrow"></i> Naviga con Google Maps
+                    </a>
+                </div>`;
+                m.bindPopup(content, { maxWidth: 320 });
+                MAP.markersCluster.addLayer(m);
+            });
+
+        } else {
+            // ── Modalità STREET ─────────────────────────────────────────────────
+            const validData = filteredData.filter(item => !isNaN(item.lat) && item.lat !== null);
+            validData.forEach(item => { vis++; if (item.fatto) done++; });
+
+            let groups = {};
+            validData.forEach(item => {
+                const addr = (item.indirizzo || '').toUpperCase().trim();
+                const streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
+                const key = `${streetName} (${item.zona || 'N/D'})`;
+                if (!groups[key]) groups[key] = { items: [], lat: item.lat, lng: item.lng, street: streetName };
+                groups[key].items.push(item);
+            });
+
+            Object.keys(groups).forEach(key => {
+                const group = groups[key], items = group.items;
+                let allDone = true, anyEvid = false, anySel = false, anyInacc = false, anyWarn = false;
+                items.forEach(i => {
+                    if (!i.fatto) allDone = false;
+                    if (i.evidenziato) anyEvid = true;
+                    if (MAP.selectedPDRs.has(i.pdr)) anySel = true;
+                    if ((i.accessibilita || '').toLowerCase().includes('inaccessibile')) anyInacc = true;
+                    if (i.val_lettura && isNaN(i.val_lettura.replace(',', '.').trim())) anyWarn = true;
+                });
+                let col = '#dc2626';
+                if (anyEvid) col = '#9333ea'; else if (anySel) col = '#06b6d4';
+                else if (allDone) col = '#2563eb'; else if (anyWarn) col = '#facc15'; else if (anyInacc) col = '#f97316';
+
+                const iconHtml = `<div style="background-color:${col};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:bold">${items.length}</div>`;
+                const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
+                const m = L.marker([group.lat, group.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
+                m.on('dragend', e => {
+                    const { lat, lng } = e.target.getLatLng();
+                    items.forEach(i => window.savePdrPosition(i.pdr, lat, lng));
+                });
+
+                const safeKey = key.replace(/'/g, "\\'");
+                const safeStreetId = group.street.replace(/[^a-zA-Z0-9]/g, '');
+
+                let popupContent = `<div class="popup-via">
+                    <div class="popup-via-header">
+                        <div class="popup-name" style="font-size:14px">${key}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+                            <span style="font-size:12px;color:#64748b;font-weight:600">${items.length} utenze</span>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${group.lat},${group.lng}" target="_blank" style="font-size:12px;color:#7c3aed;font-weight:700;text-decoration:none"><i class="fa-solid fa-location-arrow"></i> Naviga</a>
+                        </div>
+                        <div style="margin-top:8px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:11px;color:#7c3aed;font-weight:700;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:7px;padding:6px 10px" onclick="window.toggleCoordInput('street_${safeStreetId}')">
+                            <i class="fa-solid fa-pen"></i> Riassegna coordinate a tutta la via
+                        </div>
+                        <div id="coord_edit_street_${safeStreetId}" class="hidden" style="margin-top:8px">
+                            <input id="coord_input_street_${safeStreetId}" class="popup-input" style="margin-bottom:6px" value="${group.lat}, ${group.lng}">
+                            <button onclick="window.saveStreetCoords('${safeKey}','coord_input_street_${safeStreetId}')" class="popup-btn popup-btn-primary popup-btn-sm">Applica a tutti i ${items.length} marker</button>
+                        </div>
+                    </div>
+                    <div class="popup-via-scroll">`;
+
+                items.sort((a, b) => {
+                    const ex = (it) => { const civ = it.indirizzo.toUpperCase().replace(group.street, '').trim() || 'SNC'; const mm = civ.match(/^(\d+)/); return mm ? parseInt(mm[1], 10) : Infinity; };
+                    const sf = (it) => it.indirizzo.toUpperCase().replace(group.street, '').trim().replace(/^\d+/, '') || '';
+                    const diff = ex(a) - ex(b); if (diff !== 0) return diff; return sf(a).localeCompare(sf(b));
+                });
+
+                items.forEach(item => {
+                    const isDone = item.fatto, isSel = MAP.selectedPDRs.has(item.pdr), isEvid = !!(item.evidenziato);
+                    const civico = item.indirizzo.toUpperCase().replace(group.street, '').trim() || 'SNC';
+                    let accStr = (item.accessibilita || '').toLowerCase(), accColor = '#94a3b8', accLabel = item.accessibilita || 'N/D';
+                    if (accStr.includes('inaccessibile')) accColor = '#f97316';
+                    else if (accStr.includes('accessibile')) accColor = '#22c55e';
+                    if (item.val_lettura && isNaN(item.val_lettura.replace(',', '.').trim())) { accColor = '#facc15'; accLabel += ' ⚠️'; }
+
+                    let phoneRows = '';
+                    const phones2 = (item.telefono || '').split(/[-/,]+/).map(x => x.trim()).filter(x => x.length > 4);
+                    phoneRows = phones2.map(p => {
+                        let c = p.replace(/\s+/g, ''); if (c.startsWith('75')) c = '0' + c;
+                        let waNum = c.replace(/[^0-9]/g, ''); if (!waNum.startsWith('39') && waNum.length > 5) waNum = '39' + waNum;
+                        return `<div style="display:flex;gap:6px;margin-bottom:5px">
+                            <a href="tel:${c}" style="flex:1;font-size:11px;color:#7c3aed;font-weight:600;display:inline-flex;align-items:center;gap:3px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:5px;padding:4px 8px;text-decoration:none"><i class="fa-solid fa-phone" style="font-size:10px"></i>&nbsp;${c}</a>
+                            <button onclick="window.openWhatsApp('${item.pdr}','${waNum}')" class="pdr-card-btn" style="flex:none;width:44px;background:#22c55e;color:#fff;border-color:#22c55e" title="WhatsApp"><i class="fa-brands fa-whatsapp" style="font-size:16px"></i></button>
+                            </div>`;
+                    }).join('');
+
+                    popupContent += `
+                    <div class="pdr-card ${isDone ? 'done' : ''} ${isSel ? 'selected' : ''}" id="card_${item.pdr}">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                            <div class="pdr-card-name">${item.nominativo}</div>
+                            <span class="popup-badge ${isDone ? 'fatto' : 'dafare'}" style="flex-shrink:0;margin-left:8px">${isDone ? 'FATTO' : 'DA FARE'}</span>
+                        </div>
+                        <div class="pdr-card-meta" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+                            <span class="acc-dot" style="background:${accColor}" title="${accLabel}"></span>
+                            <span>Civico: <b style="color:#1e293b">${civico}</b></span>
+                            <span style="color:#cbd5e1">|</span>
+                            <span>Matr: ${item.matricola}</span>
+                            <span style="color:#cbd5e1">|</span>
+                            <span style="color:${accColor};font-weight:600;font-size:10px">${accLabel}</span>
+                        </div>
+                        <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr} | Ult.lettura: ${item.data_riferimento || '—'}</div>
+                        ${phoneRows ? `<div style="margin-top:6px">${phoneRows}</div>` : ''}
+                        ${item.nota_accesso ? `<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>` : ''}
+                        ${item.nota_inaccessibilita ? `<div class="pdr-card-warn" style="background:#fff1f2;border-color:#fecdd3">🔒 ${item.nota_inaccessibilita}</div>` : ''}
+                        ${(item.ultima_lettura_misur || item.codice_ultima_lettura) ? `<div style="font-size:10px;color:#64748b;margin-top:3px;padding:3px 6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px">📋 Ult.lett: <b style="color:#1e293b">${item.ultima_lettura_misur || '—'}</b>${item.codice_ultima_lettura ? ' (' + item.codice_ultima_lettura + ')' : ''}</div>` : ''}
+                        <div class="pdr-card-actions">
+                            <button onclick="window.togglePdrStatus('${item.pdr}')" class="pdr-card-btn" style="background:${isDone ? '#f1f5f9' : '#7c3aed'};color:${isDone ? '#334155' : '#fff'};border-color:${isDone ? '#cbd5e1' : '#7c3aed'}">${isDone ? '<i class="fa-solid fa-rotate-left"></i> Riapri' : '<i class="fa-solid fa-check"></i> Fatto'}</button>
+                        </div>
+                        <div class="pdr-photo-row">
+                            <button onclick="window.togglePdrSelection('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isSel ? '#06b6d4' : '#e2e8f0'};background:${isSel ? '#06b6d4' : '#f8fafc'};color:${isSel ? '#fff' : '#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid ${isSel ? 'fa-xmark' : 'fa-check-double'}"></i> ${isSel ? 'Desel.' : 'Seleziona'}</button>
+                            <button onclick="window.togglePdrHighlight('${item.pdr}')" style="flex:1;min-height:34px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid ${isEvid ? '#9333ea' : '#e2e8f0'};background:${isEvid ? '#9333ea' : '#f8fafc'};color:${isEvid ? '#fff' : '#64748b'};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><i class="fa-solid fa-star"></i> ${isEvid ? 'Evid.' : 'Evidenzia'}</button>
+                        </div>
+                        <div class="pdr-card-note">
+                            <input type="text" id="note_${item.pdr}" value="${item.nota_operatore || ''}" placeholder="Note operative...">
+                            <button onclick="window.savePdrNote('${item.pdr}')"><i class="fa-solid fa-floppy-disk"></i></button>
+                        </div>
+                        <div class="pdr-card-followup">
+                            <span class="label">Follow-up</span>
+                            <input type="date" id="wa_date_${item.pdr}" value="${item.wa_inviato || ''}">
+                            <button onclick="window.saveWaDate('${item.pdr}')">OK</button>
+                        </div>
+                    </div>`;
+                });
+
+                popupContent += `</div></div>`;
+                m.bindPopup(popupContent, { maxWidth: 380, maxHeight: 520 });
+                MAP.markersCluster.addLayer(m);
+            });
+        }
+
+        const elVis  = document.getElementById('statVisible');
+        const elDone = document.getElementById('statDone');
+        if (elVis)  elVis.innerText  = vis;
+        if (elDone) elDone.innerText = done;
+    }
+
+    // ─── Init ───────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+        window.MAP.map = L.map('map').setView([43.30, 12.33], 10);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(window.MAP.map);
+        window.MAP.markersCluster = L.markerClusterGroup({
+            maxClusterRadius: 0, spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false, zoomToBoundsOnClick: true
+        });
+        window.MAP.map.addLayer(window.MAP.markersCluster);
+
+        window.MAP.map.on('locationfound', e => {
+            if (window.MAP.userLocationMarker) window.MAP.map.removeLayer(window.MAP.userLocationMarker);
+            window.MAP.userLocationMarker = L.circle(e.latlng, e.accuracy / 2).addTo(window.MAP.map);
+        });
+        window.MAP.map.on('locationerror', e => alert(e.message));
+
+        window.MAP.initSearchBar?.();
+
+        document.getElementById('csvInput').addEventListener('change', e => {
+            const f = e.target.files[0]; if (!f) return;
+            const ow = confirm("Sovrascrivere coordinate GPS?\nOK = Sì (prendi le coordinate dal file)\nAnnulla = No (mantieni le coordinate GPS già salvate)");
+            Papa.parse(f, { header: true, skipEmptyLines: true, complete: r => {
+                if (r.meta.fields.length < 2)
+                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
+                else window.importCSVData(r.data, ow);
+            }});
+        });
+
+        initApp(window.MAP, { useStorage: true });
+    });
+</script>
+</body>
+</html>

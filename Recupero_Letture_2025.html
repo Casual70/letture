@@ -573,16 +573,26 @@
             let isDate = (datLett !== '' && datLett !== '00/01/1900');
             if(isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
 
+            // Costruisce indirizzo da campi strutturati se non esiste campo diretto
+            const tipoVia  = (row['Tipo via']||'').trim();
+            const nomeVia  = (row['Nome via']||'').trim();
+            const nrCivico = (row['Nr. civico']||'').toString().trim();
+            const estCivico= (row['Est. Nr. civico']||'').toString().trim();
+            const indirizzoCalcolato = [tipoVia, nomeVia, nrCivico + estCivico].filter(x=>x).join(' ');
+
             const newData = {
                 pdr: pdr,
-                nominativo: row['Nome utenza']||row.NOME||row.Nominativo||'Utente',
-                indirizzo: row['Indirizzo']||row.INDIRIZZO||'',
-                zona: row['NOME ZONA']||row.Citta||row['Cod. zona']||'',
+                nominativo: row['Nome utenza']||row.NOME||row.Nominativo||row['Descr. utenza']||'Utente',
+                indirizzo: row['Indirizzo']||row.INDIRIZZO||indirizzoCalcolato||'',
+                zona: row['NOME ZONA']||row.Citta||row['Descr. zona']||row['Cod. zona']||'',
                 telefono: (row['Telefono']||row.TELEFONO||'').toString().trim().replace(/^75/,'075'),
-                matricola: row['Matricola misuratore']||row.MATRICOLA||'N/D',
-                data_riferimento: row['Data ultima lettura']||row['ULTIMA LETTURA']||'',
-                accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
+                matricola: row['Matricola misuratore']||row['Matr. misuratore']||row.MATRICOLA||'N/D',
+                data_riferimento: row['Data ultima lettura']||row['Data ultima lettura']||row['ULTIMA LETTURA']||'',
+                accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : (row['Accessibilità']||row['Accessibilit?']||'N/D'),
                 nota_accesso: row['Nota_accesso']||row['Note']||'',
+                nota_inaccessibilita: (row['Note inaccessibilita']||'').trim(),
+                ultima_lettura_misur: (row['Ultima lettura misur.']||row['Ultima lettura misur']||'').toString().trim(),
+                codice_ultima_lettura: (row['Codice ultima lettura']||'').toString().trim(),
                 nota_operatore: ex ? (ex.nota_operatore||'') : '',
                 foto_base64: ex ? (ex.foto_base64||'') : '',
                 wa_inviato: existingWaDate,
@@ -773,6 +783,8 @@
                             <div class="popup-info-row"><span class="icon">🔢</span><span>Matr:&nbsp;<b>${item.matricola}</b></span></div>
                             <div class="popup-info-row"><span class="icon">🚪</span><span>${item.accessibilita}</span></div>
                             ${item.nota_accesso?`<div class="popup-warn" style="margin-top:6px">⚠️ ${item.nota_accesso}</div>`:''}
+                            ${item.nota_inaccessibilita?`<div class="popup-warn" style="margin-top:4px;background:#fff1f2;border:1px solid #fecdd3;border-radius:6px;padding:5px 8px">🔒 ${item.nota_inaccessibilita}</div>`:''}
+                            ${(item.ultima_lettura_misur||item.codice_ultima_lettura)?`<div class="popup-info-row" style="margin-top:4px"><span class="icon">📋</span><span>Ult. lettura: <b>${item.ultima_lettura_misur||'—'}</b>${item.codice_ultima_lettura?' &nbsp;<span style=\'font-size:10px;color:#94a3b8\'>('+item.codice_ultima_lettura+')</span>':''}</span></div>`:''}
                             ${(item.val_lettura||item.data_lettura)?`<div class="popup-info-row" style="background:#f0fdf4;border-radius:6px;padding:5px 8px;margin-top:4px"><span class="icon">📥</span><span>Lettura: <b>${item.val_lettura||'—'}</b> (${item.data_lettura||'—'})</span></div>`:''}
 
                             <div class="popup-section">
@@ -925,6 +937,8 @@
                             <div style="font-size:10px;color:#94a3b8;margin-top:1px">PDR: ${item.pdr}</div>
                             ${callBtns?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px">${callBtns}</div>`:''}
                             ${item.nota_accesso?`<div class="pdr-card-warn">⚠️ ${item.nota_accesso}</div>`:''}
+                            ${item.nota_inaccessibilita?`<div class="pdr-card-warn" style="background:#fff1f2;border-color:#fecdd3">🔒 ${item.nota_inaccessibilita}</div>`:''}
+                            ${(item.ultima_lettura_misur||item.codice_ultima_lettura)?`<div style="font-size:10px;color:#64748b;margin-top:3px;padding:3px 6px;background:#f8fafc;border-radius:5px">📋 Ult.lett: <b style="color:#1e293b">${item.ultima_lettura_misur||'—'}</b>${item.codice_ultima_lettura?' ('+item.codice_ultima_lettura+')':''}</div>`:''}
                             ${hasFoto?`<img id="photo_preview_${item.pdr}" class="pdr-photo-preview" src="${item.foto_base64}">`:`<img id="photo_preview_${item.pdr}" class="pdr-photo-preview hidden" src="">`}
                             <input type="file" id="photo_input_${item.pdr}" accept="image/*" capture="environment" class="hidden" onchange="window.handlePhotoUpload('${item.pdr}', this)">
                             <div class="pdr-card-actions">
