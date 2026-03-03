@@ -159,11 +159,112 @@
         <button id="editModeBtn" onclick="toggleEditMode()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Blocco/Sblocco"><i class="fa-solid fa-lock"></i></button>
         <button onclick="toggleSettings()" class="w-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded border transition flex items-center justify-center py-2" title="Settings"><i class="fa-solid fa-gear"></i></button>
         <button onclick="exportData()" class="w-10 bg-green-500 hover:bg-green-600 text-white rounded border transition flex items-center justify-center py-2" title="Export CSV"><i class="fa-solid fa-download"></i></button>
+        <button onclick="window.openPlanModal()" class="w-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded border transition flex items-center justify-center py-2" title="Pianifica passaggi"><i class="fa-solid fa-calendar-days"></i></button>
         <button onclick="clearData()" class="flex-1 bg-white hover:bg-gray-100 text-red-500 text-xs py-2 px-4 rounded border transition"><i class="fa-solid fa-trash mr-1"></i> Reset</button>
     </div>
 </div>
 
 <div id="map"></div>
+
+<!-- ═══ Modal Pianificazione Passaggi ═══ -->
+<div id="planModal" class="modal-overlay hidden" style="align-items:flex-start;padding:16px;z-index:9999">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl mx-auto flex flex-col" style="max-height:94vh">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center p-4 border-b">
+      <h2 class="text-base font-bold text-gray-800"><i class="fa-solid fa-calendar-days mr-2 text-indigo-600"></i>Pianificazione Passaggi</h2>
+      <button onclick="window.closePlanModal()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">&times;</button>
+    </div>
+
+    <!-- Configurazione -->
+    <div class="p-4 border-b bg-indigo-50 grid grid-cols-2 gap-3">
+
+      <!-- col 1: Parametri -->
+      <div class="flex flex-col gap-2">
+        <div>
+          <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Data inizio</label>
+          <input type="date" id="planStartDate" class="w-full border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">PDR/giorno</label>
+            <input type="number" id="planQuota" value="30" min="1" max="200" class="w-full border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Min/lettura</label>
+            <input type="number" id="planMinRead" value="5" min="1" max="60" class="w-full border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-gray-600 uppercase mb-1">Min/sposta.</label>
+            <input type="number" id="planMinTravel" value="2" min="0" max="60" class="w-full border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+          </div>
+        </div>
+      </div>
+
+      <!-- col 2: Filtri esclusione -->
+      <div class="flex flex-col gap-1.5">
+        <span class="text-[10px] font-bold text-gray-600 uppercase">Includi nella pianificazione</span>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planOnlyDaFare" checked class="accent-indigo-600">
+          <span>Solo <b>DA FARE</b> (escludi già fatti)</span>
+        </label>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planExclTerrazzo" class="accent-indigo-600">
+          <span>Escludi <b>Terrazzo</b></span>
+        </label>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planExclInacc" class="accent-indigo-600">
+          <span>Escludi <b>Inaccessibili</b></span>
+        </label>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planExclAcc" class="accent-indigo-600">
+          <span>Escludi <b>Accessibili</b></span>
+        </label>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planUseActiveFilters" class="accent-indigo-600">
+          <span>Applica <b>filtri attivi</b> sulla mappa</span>
+        </label>
+        <label class="flex items-center gap-2 text-xs cursor-pointer">
+          <input type="checkbox" id="planExclNoGps" checked class="accent-indigo-600">
+          <span>Escludi <b>senza GPS</b></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Bottone genera -->
+    <div class="px-4 py-3 border-b flex items-center gap-3">
+      <button onclick="window.generatePlan()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2 rounded-lg flex items-center gap-2">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Genera pianificazione
+      </button>
+      <div id="planSummaryBadge" class="hidden flex gap-3 text-xs">
+        <span class="bg-indigo-100 text-indigo-800 font-bold px-2 py-1 rounded"><span id="planTotPdr">0</span> PDR</span>
+        <span class="bg-green-100 text-green-800 font-bold px-2 py-1 rounded"><span id="planTotDays">0</span> giorni lav.</span>
+        <span class="bg-yellow-100 text-yellow-800 font-bold px-2 py-1 rounded">Entro <span id="planEndDate">—</span></span>
+      </div>
+      <div class="ml-auto flex gap-2">
+        <button onclick="window.planExportCSV()" class="hidden text-[10px] font-bold border rounded px-3 py-1.5 bg-white text-green-700 border-green-300 hover:bg-green-50" id="planBtnExport"><i class="fa-solid fa-file-csv mr-1"></i>Esporta</button>
+        <button onclick="window.planPrint()" class="hidden text-[10px] font-bold border rounded px-3 py-1.5 bg-white text-gray-600 border-gray-300 hover:bg-gray-50" id="planBtnPrint"><i class="fa-solid fa-print mr-1"></i>Stampa</button>
+      </div>
+    </div>
+
+    <!-- Output giorni -->
+    <div id="planOutput" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+  </div>
+</div>
+
+<style>
+  #planOutput .plan-day { border:1px solid #e0e7ff; border-radius:10px; overflow:hidden; }
+  #planOutput .plan-day-header { background:#eef2ff; padding:8px 12px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; }
+  #planOutput .plan-day-header:hover { background:#e0e7ff; }
+  #planOutput .plan-day-body { border-top:1px solid #e0e7ff; background:#fff; }
+  #planOutput .plan-pdr-row { display:flex; align-items:flex-start; gap:8px; padding:6px 12px; border-bottom:1px solid #f1f5f9; font-size:11px; line-height:1.4; }
+  #planOutput .plan-pdr-row:last-child { border-bottom:none; }
+  #planOutput .plan-pdr-num { font-weight:700; color:#6366f1; min-width:22px; }
+  @media print {
+    body > *:not(#planPrintArea) { display:none !important; }
+    #planPrintArea { display:block !important; }
+  }
+</style>
 
 <!-- Photo Modal -->
 <div id="photoModal" class="modal-overlay hidden">
@@ -954,6 +1055,270 @@
         if (elVis)  elVis.innerText  = vis;
         if (elDone) elDone.innerText = done;
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Pianificazione Passaggi ────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    window.openPlanModal = () => {
+        // Imposta data inizio = oggi (skip weekend)
+        const d = new Date();
+        const dow = d.getDay();
+        if (dow === 6) d.setDate(d.getDate() + 2);
+        else if (dow === 0) d.setDate(d.getDate() + 1);
+        document.getElementById('planStartDate').value = d.toISOString().slice(0, 10);
+        document.getElementById('planModal').classList.remove('hidden');
+    };
+    window.closePlanModal = () => document.getElementById('planModal').classList.add('hidden');
+
+    // Distanza euclidea (sufficiente per aree piccole)
+    function dist(a, b) {
+        const dlat = (a.lat - b.lat) * 111.32;
+        const dlng = (a.lng - b.lng) * 111.32 * Math.cos((a.lat + b.lat) / 2 * Math.PI / 180);
+        return Math.sqrt(dlat * dlat + dlng * dlng); // km
+    }
+
+    // Ordinamento nearest-neighbor greedy sull'intero dataset
+    function nearestNeighborSort(items) {
+        if (items.length === 0) return [];
+        const remaining = [...items];
+        const sorted = [remaining.splice(0, 1)[0]];
+        while (remaining.length > 0) {
+            const last = sorted[sorted.length - 1];
+            let bestIdx = 0, bestDist = Infinity;
+            for (let i = 0; i < remaining.length; i++) {
+                const d = dist(last, remaining[i]);
+                if (d < bestDist) { bestDist = d; bestIdx = i; }
+            }
+            sorted.push(remaining.splice(bestIdx, 1)[0]);
+        }
+        return sorted;
+    }
+
+    function addWorkdays(startStr, n) {
+        const d = new Date(startStr + 'T00:00:00');
+        let added = 0;
+        while (added < n) {
+            d.setDate(d.getDate() + 1);
+            const dow = d.getDay();
+            if (dow !== 0 && dow !== 6) added++;
+        }
+        return d;
+    }
+
+    const IT_DAYS  = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+    const IT_MONTHS = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+    function fmtDate(d) { return `${IT_DAYS[d.getDay()]} ${d.getDate()} ${IT_MONTHS[d.getMonth()]} ${d.getFullYear()}`; }
+    function fmtMin(m) {
+        if (m < 60) return `${m} min`;
+        return `${Math.floor(m / 60)}h ${m % 60 > 0 ? (m % 60) + 'min' : ''}`;
+    }
+
+    // Ritorna i PDR filtrati secondo la configurazione del modal
+    function getPlanCandidates() {
+        const MAP = window.MAP;
+        const onlyDaFare     = document.getElementById('planOnlyDaFare').checked;
+        const exclTerrazzo   = document.getElementById('planExclTerrazzo').checked;
+        const exclInacc      = document.getElementById('planExclInacc').checked;
+        const exclAcc        = document.getElementById('planExclAcc').checked;
+        const exclNoGps      = document.getElementById('planExclNoGps').checked;
+        const useActive      = document.getElementById('planUseActiveFilters').checked;
+
+        return Object.values(MAP.allData).filter(item => {
+            // GPS
+            if (exclNoGps && (item.lat === null || isNaN(item.lat))) return false;
+            // Stato
+            if (onlyDaFare && item.fatto) return false;
+            // Terrazzo
+            if (exclTerrazzo && (item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+            // Accessibilità
+            const accLow = (item.accessibilita || '').toLowerCase();
+            if (exclInacc && accLow.includes('inaccessibile')) return false;
+            if (exclAcc  && accLow.includes('accessibile') && !accLow.includes('inaccessibile')) return false;
+
+            // Filtri attivi sulla mappa (riproduce la logica di renderRecupero)
+            if (useActive) {
+                if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+                if (MAP.filterAvviso) {
+                    const v = (item.val_lettura || '').replace(',', '.').trim();
+                    if (!(v !== '' && isNaN(v))) return false;
+                }
+                if (MAP.activeStato === 'da_fare' && item.fatto) return false;
+                if (MAP.activeStato === 'fatti'   && !item.fatto) return false;
+                // Anno
+                if (MAP.activeAnni.size < ANNI_DEFAULT.length) {
+                    const parts = (item.data_riferimento || '').split('/');
+                    const anno = parts.length === 3 ? parts[2] : 'N/D';
+                    if (!MAP.activeAnni.has(anno)) return false;
+                }
+                // Accessibilità attiva
+                const cat = accLow.includes('inaccessibile') ? 'Inaccessibile' : (accLow.includes('accessibile') ? 'Accessibile' : 'Altro');
+                if (!MAP.activeAccess.has(cat)) return false;
+                // Comuni
+                const search = ((item.zona || '') + ' ' + (item.indirizzo || '')).toLowerCase();
+                let com = 'Altro';
+                if (search.includes('umbertide') || search.includes('54056')) com = 'Umbertide';
+                else if (search.includes('san giustino') || search.includes('54044')) com = 'San Giustino';
+                else if (search.includes('montone') || search.includes('54033')) com = 'Montone';
+                if (!MAP.activeComuni.has(com)) return false;
+            }
+            return true;
+        });
+    }
+
+    let _planData = []; // cache ultima pianificazione per export
+
+    window.generatePlan = () => {  
+        const quota     = Math.max(1, parseInt(document.getElementById('planQuota').value) || 30);
+        const minRead   = Math.max(0, parseInt(document.getElementById('planMinRead').value) || 5);
+        const minTravel = Math.max(0, parseInt(document.getElementById('planMinTravel').value) || 2);
+        const startStr  = document.getElementById('planStartDate').value;
+        if (!startStr) { window.showToast?.('Seleziona la data di inizio'); return; }
+
+        // Candidati con GPS
+        const withGps    = getPlanCandidates().filter(i => i.lat !== null && !isNaN(i.lat));
+        const withoutGps = getPlanCandidates().filter(i => i.lat === null || isNaN(i.lat));
+
+        if (withGps.length === 0 && withoutGps.length === 0) {
+            document.getElementById('planOutput').innerHTML =
+                '<div class="text-center text-gray-400 text-sm py-10">Nessun PDR corrisponde ai filtri selezionati.</div>';
+            ['planSummaryBadge','planBtnExport','planBtnPrint'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            return;
+        }
+
+        // Ordina per prossimità
+        const sorted = nearestNeighborSort(withGps);
+
+        // Suddividi in giorni
+        const days = [];
+        for (let i = 0; i < sorted.length; i += quota) {
+            days.push(sorted.slice(i, i + quota));
+        }
+        // PDR senza GPS → giorno extra in coda (se presenti)
+        if (withoutGps.length > 0) {
+            for (let i = 0; i < withoutGps.length; i += quota) {
+                days.push({ noGps: true, items: withoutGps.slice(i, i + quota) });
+            }
+        }
+
+        // Calcola date lavorative
+        _planData = [];
+        {
+            let cur = new Date(startStr + 'T00:00:00');
+            // Se la data di inizio è weekend, avanza
+            while (cur.getDay() === 0 || cur.getDay() === 6) cur.setDate(cur.getDate() + 1);
+
+            days.forEach((group, idx) => {
+                const items = group.noGps ? group.items : group;
+                const minTot = items.length * (minRead + minTravel);
+                _planData.push({ date: new Date(cur), items, noGps: !!group.noGps, mins: minTot });
+                // Avanza al prossimo giorno lavorativo
+                do { cur = new Date(cur); cur.setDate(cur.getDate() + 1); } while (cur.getDay() === 0 || cur.getDay() === 6);
+            });
+        }
+
+        // Summary badge
+        const totalPdr  = withGps.length + withoutGps.length;
+        const totalDays = _planData.filter(d => !d.noGps).length;
+        const lastDate  = _planData.length ? _planData[_planData.length - 1].date : null;
+        document.getElementById('planTotPdr').innerText  = totalPdr;
+        document.getElementById('planTotDays').innerText = totalDays;
+        document.getElementById('planEndDate').innerText = lastDate ? fmtDate(lastDate) : '—';
+        ['planSummaryBadge','planBtnExport','planBtnPrint'].forEach(id => document.getElementById(id)?.classList.remove('hidden'));
+
+        // Render accordion
+        const out = document.getElementById('planOutput');
+        out.innerHTML = _planData.map((day, idx) => {
+            const dateLabel = day.noGps
+                ? `<span class="text-red-600"><i class="fa-solid fa-location-dot-slash mr-1"></i>Senza GPS (da collocare)</span>`
+                : `<span class="font-bold text-indigo-800">${fmtDate(day.date)}</span>`;
+            const badge = `<span class="text-[10px] bg-white border border-indigo-200 text-indigo-700 font-bold px-2 py-0.5 rounded-full">${day.items.length} PDR</span>`;
+            const timeBadge = `<span class="text-[10px] text-gray-500 font-semibold">~${fmtMin(day.mins)}</span>`;
+
+            const rows = day.items.map((item, n) => {
+                const accLow = (item.accessibilita || '').toLowerCase();
+                const accDot = accLow.includes('inaccessibile')
+                    ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#f97316;margin-right:4px;vertical-align:middle"></span>'
+                    : accLow.includes('accessibile')
+                        ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;margin-right:4px;vertical-align:middle"></span>'
+                        : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#94a3b8;margin-right:4px;vertical-align:middle"></span>';
+                const terrTag = (item.nota_accesso || '').toLowerCase().includes('terrazzo')
+                    ? '<span style="font-size:9px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:4px;padding:1px 4px;margin-left:4px">terrazzo</span>' : '';
+                const inacc = accLow.includes('inaccessibile')
+                    ? '<span style="font-size:9px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:4px;padding:1px 4px;margin-left:4px">inacc.</span>' : '';
+                return `<div class="plan-pdr-row">
+                    <span class="plan-pdr-num">${n + 1}.</span>
+                    <div style="flex:1;min-width:0">
+                        <div style="font-weight:600;color:#1e293b">${item.nominativo}${terrTag}${inacc}</div>
+                        <div style="color:#64748b;font-size:10px">${accDot}${item.indirizzo}${item.zona ? ' — ' + item.zona : ''}</div>
+                        <div style="color:#94a3b8;font-size:10px">PDR: ${item.pdr} | Matr: ${item.matricola}</div>
+                    </div>
+                    ${item.lat ? `<a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank" style="font-size:10px;color:#6366f1;white-space:nowrap"><i class="fa-solid fa-location-arrow"></i></a>` : ''}
+                </div>`;
+            }).join('');
+
+            return `<div class="plan-day">
+                <div class="plan-day-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                    <div class="flex items-center gap-2">${dateLabel} ${badge} ${timeBadge}</div>
+                    <i class="fa-solid fa-chevron-down text-indigo-400 text-xs"></i>
+                </div>
+                <div class="plan-day-body hidden">${rows}</div>
+            </div>`;
+        }).join('');
+
+        // Espande il primo giorno di default
+        out.querySelector('.plan-day-body')?.classList.remove('hidden');
+    };
+
+    window.planExportCSV = () => {
+        if (!_planData.length) return;
+        const rows = [['Giorno','Data','N°','PDR','Nominativo','Indirizzo','Zona','Matricola','Accessibilità','Terrazzo','Lat','Lng']];
+        _planData.forEach((day, di) => {
+            day.items.forEach((item, n) => {
+                rows.push([
+                    di + 1,
+                    day.noGps ? 'Senza GPS' : day.date.toISOString().slice(0, 10),
+                    n + 1,
+                    item.pdr,
+                    item.nominativo,
+                    item.indirizzo,
+                    item.zona || '',
+                    item.matricola,
+                    item.accessibilita || '',
+                    (item.nota_accesso || '').toLowerCase().includes('terrazzo') ? 'Sì' : '',
+                    item.lat ?? '',
+                    item.lng ?? ''
+                ]);
+            });
+        });
+        const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+        a.download = 'pianificazione_recupero_' + new Date().toISOString().slice(0,10) + '.csv';
+        a.click();
+    };
+
+    window.planPrint = () => {
+        if (!_planData.length) return;
+        let html = '<html><head><meta charset="UTF-8"><title>Pianificazione</title>';
+        html += '<style>body{font-family:sans-serif;font-size:11px;color:#1e293b}h1{font-size:14px;color:#4f46e5}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#eef2ff;color:#4f46e5;text-align:left;padding:4px 6px;font-size:10px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9}h2{font-size:12px;color:#4f46e5;margin:16px 0 4px}@media print{h2{page-break-before:auto}}</style>';
+        html += '</head><body>';
+        html += `<h1><i>Pianificazione Recupero Letture</i> — generata il ${new Date().toLocaleDateString('it-IT')}</h1>`;
+        _planData.forEach((day, di) => {
+            const dateStr = day.noGps ? 'PDR senza GPS' : day.date.toLocaleDateString('it-IT', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+            html += `<h2>Giorno ${di + 1} — ${dateStr} — ${day.items.length} PDR (~${fmtMin(day.mins)})</h2>`;
+            html += '<table><thead><tr><th>#</th><th>PDR</th><th>Nominativo</th><th>Indirizzo</th><th>Zona</th><th>Matr.</th><th>Access.</th></tr></thead><tbody>';
+            day.items.forEach((item, n) => {
+                html += `<tr><td>${n+1}</td><td>${item.pdr}</td><td>${item.nominativo}</td><td>${item.indirizzo}</td><td>${item.zona||''}</td><td>${item.matricola}</td><td>${item.accessibilita||''}</td></tr>`;
+            });
+            html += '</tbody></table>';
+        });
+        html += '</body></html>';
+        const w = window.open('', '_blank');
+        w.document.write(html);
+        w.document.close();
+        w.print();
+    };
 
     // ─── Init ───────────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
