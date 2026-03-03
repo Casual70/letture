@@ -1189,11 +1189,30 @@
         // Ordina per prossimità
         const sorted = nearestNeighborSort(withGps);
 
-        // Suddividi in giorni
-        const days = [];
-        for (let i = 0; i < sorted.length; i += quota) {
-            days.push(sorted.slice(i, i + quota));
+        // Chiave via: stesso schema del "Marker Via" (indirizzo senza civico + zona)
+        function streetKey(item) {
+            const addr = (item.indirizzo || '').toUpperCase().trim();
+            const street = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || addr;
+            return `${street}|${(item.zona || '').trim().toUpperCase()}`;
         }
+
+        // Suddividi in giorni rispettando la regola: se si inizia una via, la si finisce nello stesso giorno.
+        // La quota è un minimo morbido: il giorno si chiude solo al cambio di via (o alla fine dei dati).
+        const days = [];
+        let dayBuf = [];
+        for (let i = 0; i < sorted.length; i++) {
+            dayBuf.push(sorted[i]);
+            const atQuota = dayBuf.length >= quota;
+            const isLast  = i === sorted.length - 1;
+            const nextSameStreet = !isLast && streetKey(sorted[i + 1]) === streetKey(sorted[i]);
+            // Chiudi il giorno se: abbiamo raggiunto la quota E il prossimo PDR è su via diversa (o non c'è)
+            if (atQuota && !nextSameStreet) {
+                days.push(dayBuf);
+                dayBuf = [];
+            }
+        }
+        if (dayBuf.length > 0) days.push(dayBuf);
+
         // PDR senza GPS → giorno extra in coda (se presenti)
         if (withoutGps.length > 0) {
             for (let i = 0; i < withoutGps.length; i += quota) {
@@ -1272,7 +1291,7 @@
 
     window.planExportCSV = () => {
         if (!_planData.length) return;
-        const rows = [['Giorno','Data','N°','PDR','Nominativo','Indirizzo','Zona','Matricola','Accessibilità','Terrazzo','Lat','Lng']];
+        const rows = [['Giorno','Data','N°','PDR','Nominativo','Indirizzo','Zona','Matricola','Accessibilità','Terrazzo','Note ⚠️ (accesso)','Note 🔒 (inaccessibilità)','Note operatore','Lat','Lng']];
         _planData.forEach((day, di) => {
             day.items.forEach((item, n) => {
                 rows.push([
@@ -1286,6 +1305,9 @@
                     item.matricola,
                     item.accessibilita || '',
                     (item.nota_accesso || '').toLowerCase().includes('terrazzo') ? 'Sì' : '',
+                    item.nota_accesso || '',
+                    item.nota_inaccessibilita || '',
+                    item.nota_operatore || '',
                     item.lat ?? '',
                     item.lng ?? ''
                 ]);
@@ -1301,15 +1323,17 @@
     window.planPrint = () => {
         if (!_planData.length) return;
         let html = '<html><head><meta charset="UTF-8"><title>Pianificazione</title>';
-        html += '<style>body{font-family:sans-serif;font-size:11px;color:#1e293b}h1{font-size:14px;color:#4f46e5}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#eef2ff;color:#4f46e5;text-align:left;padding:4px 6px;font-size:10px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9}h2{font-size:12px;color:#4f46e5;margin:16px 0 4px}@media print{h2{page-break-before:auto}}</style>';
+        html += '<style>body{font-family:sans-serif;font-size:11px;color:#1e293b}h1{font-size:14px;color:#4f46e5}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#eef2ff;color:#4f46e5;text-align:left;padding:4px 6px;font-size:10px}td{padding:4px 6px;border-bottom:1px solid #f1f5f9;vertical-align:top}h2{font-size:12px;color:#4f46e5;margin:16px 0 4px}.nota-acc{background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:4px;padding:2px 5px;display:inline-block;font-size:10px}.nota-inacc{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3;border-radius:4px;padding:2px 5px;display:inline-block;font-size:10px}@media print{h2{page-break-before:auto}}</style>';
         html += '</head><body>';
         html += `<h1><i>Pianificazione Recupero Letture</i> — generata il ${new Date().toLocaleDateString('it-IT')}</h1>`;
         _planData.forEach((day, di) => {
             const dateStr = day.noGps ? 'PDR senza GPS' : day.date.toLocaleDateString('it-IT', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
             html += `<h2>Giorno ${di + 1} — ${dateStr} — ${day.items.length} PDR (~${fmtMin(day.mins)})</h2>`;
-            html += '<table><thead><tr><th>#</th><th>PDR</th><th>Nominativo</th><th>Indirizzo</th><th>Zona</th><th>Matr.</th><th>Access.</th></tr></thead><tbody>';
+            html += '<table><thead><tr><th>#</th><th>Nominativo</th><th>Indirizzo</th><th>Zona</th><th>Matr.</th><th>Access.</th><th>⚠️ Note accesso</th><th>🔒 Note inaccessib.</th><th>Note operatore</th></tr></thead><tbody>';
             day.items.forEach((item, n) => {
-                html += `<tr><td>${n+1}</td><td>${item.pdr}</td><td>${item.nominativo}</td><td>${item.indirizzo}</td><td>${item.zona||''}</td><td>${item.matricola}</td><td>${item.accessibilita||''}</td></tr>`;
+                const noteAcc   = item.nota_accesso       ? `<span class="nota-acc">⚠️ ${item.nota_accesso}</span>`       : '';
+                const noteInacc = item.nota_inaccessibilita ? `<span class="nota-inacc">🔒 ${item.nota_inaccessibilita}</span>` : '';
+                html += `<tr><td>${n+1}</td><td>${item.nominativo}</td><td>${item.indirizzo}</td><td>${item.zona||''}</td><td>${item.matricola}</td><td>${item.accessibilita||''}</td><td>${noteAcc}</td><td>${noteInacc}</td><td>${item.nota_operatore||''}</td></tr>`;
             });
             html += '</tbody></table>';
         });
