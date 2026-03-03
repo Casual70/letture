@@ -581,6 +581,7 @@
                 const m = L.marker([item.lat, item.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
                 m.on('dragend', e => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
 
+                m.bindPopup(function() {
                 // Bottoni telefono/WA
                 let wa = '';
                 const phones = (item.telefono || '').split(/[-/,]+/).map(x => x.trim()).filter(x => x.length > 4);
@@ -680,7 +681,8 @@
                         <i class="fa-solid fa-location-arrow"></i> Naviga con Google Maps
                     </a>
                 </div>`;
-                m.bindPopup(content, { maxWidth: 320 });
+                return content;
+                }, { maxWidth: 320 });
                 MAP.markersCluster.addLayer(m);
             });
 
@@ -723,7 +725,8 @@
                 const safeKey = key.replace(/'/g, "\\'");
                 const safeStreetId = group.street.replace(/[^a-zA-Z0-9]/g, '');
 
-                let popupContent = `<div class="popup-via">
+                m.bindPopup(function() {
+                let popupContent = `<div class="popup-via">`
                     <div class="popup-via-header">
                         <div class="popup-name" style="font-size:14px">${key}</div>
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
@@ -804,7 +807,8 @@
                 });
 
                 popupContent += `</div></div>`;
-                m.bindPopup(popupContent, { maxWidth: 380, maxHeight: 520 });
+                return popupContent;
+                }, { maxWidth: 380, maxHeight: 520 });
                 MAP.markersCluster.addLayer(m);
             });
         }
@@ -820,8 +824,9 @@
         window.MAP.map = L.map('map').setView([43.30, 12.33], 10);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(window.MAP.map);
         window.MAP.markersCluster = L.markerClusterGroup({
-            maxClusterRadius: 0, spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false, zoomToBoundsOnClick: true
+            maxClusterRadius: 60, spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false, zoomToBoundsOnClick: true,
+            chunkedLoading: true, chunkDelay: 50
         });
         window.MAP.map.addLayer(window.MAP.markersCluster);
 

@@ -52,6 +52,17 @@ async function migrateToAnagrafiche(MAP) {
 // ─── Cloud Listener ─────────────────────────────────────────────────────────
 
 function startCloudListener(MAP, appId) {
+    // Debounce: se entrambi i listener sparano quasi in contemporanea
+    // (come al primo avvio), il render avviene una sola volta.
+    let _renderTimer = null;
+    const debouncedRender = () => {
+        clearTimeout(_renderTimer);
+        _renderTimer = setTimeout(() => {
+            MAP.updateMapAndUI?.();
+            MAP.updateSelectionUI?.();
+        }, 150);
+    };
+
     // Listener collection operativa
     onSnapshot(collection(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME), (snap) => {
         snap.docChanges().forEach(c => {
@@ -60,8 +71,7 @@ function startCloudListener(MAP, appId) {
         });
         applyAnagrafiche(MAP);
         migrateToAnagrafiche(MAP);
-        MAP.updateMapAndUI?.();
-        MAP.updateSelectionUI?.();
+        debouncedRender();
     }, e => { if (e.code === 'permission-denied') window.showToast?.("Err Permessi"); });
 
     // Listener anagrafiche condivise
@@ -70,8 +80,7 @@ function startCloudListener(MAP, appId) {
             c.type === "removed" ? delete MAP.anagraficheData[c.doc.id] : MAP.anagraficheData[c.doc.id] = c.doc.data();
         });
         applyAnagrafiche(MAP);
-        MAP.updateMapAndUI?.();
-        MAP.updateSelectionUI?.();
+        debouncedRender();
     }, e => { console.warn("Anagrafiche listener:", e.code); });
 }
 
