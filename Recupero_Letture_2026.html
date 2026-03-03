@@ -283,11 +283,37 @@
         if (parts.length < 2) { window.showToast?.('Coordinate non valide'); return; }
         const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
         if (isNaN(lat) || isNaN(lng)) { window.showToast?.('Coordinate non valide'); return; }
-        for (const pdr of noGpsSelected) { await window.savePdrPosition(pdr, lat, lng); }
-        window.showToast?.(`GPS salvato per ${noGpsSelected.size} PDR`);
+
+        const MAP = window.MAP;
+        const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
+        const pdrs = [...noGpsSelected];
+        const n = pdrs.length;
+
+        // Aggiorna memoria subito
+        pdrs.forEach(pdr => {
+            if (MAP.allData[pdr]) { MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng; }
+            if (!MAP.anagraficheData[pdr]) MAP.anagraficheData[pdr] = {};
+            MAP.anagraficheData[pdr].lat = lat; MAP.anagraficheData[pdr].lng = lng;
+        });
+
+        if (MAP.isCloudMode) {
+            // Batch unico per tutti i PDR → una sola chiamata di rete
+            let batch = writeBatch(MAP.db), count = 0;
+            pdrs.forEach(pdr => {
+                batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), { lat, lng }, { merge: true });
+                count++;
+                if (count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
+            });
+            if (count > 0) await batch.commit();
+        } else {
+            localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
+            localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
+        }
+
+        window.showToast?.(`GPS salvato per ${n} PDR`);
         noGpsSelected.clear();
         renderNoGpsList();
-        window.MAP.updateMapAndUI?.();
+        MAP.updateMapAndUI?.();
     };
 
     window.noGpsSingleOSM = async (pdr) => {
@@ -307,10 +333,19 @@
         if (parts.length < 2) { window.showToast?.('Coordinate non valide'); return; }
         const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
         if (isNaN(lat) || isNaN(lng)) { window.showToast?.('Coordinate non valide'); return; }
-        await window.savePdrPosition(pdr, lat, lng);
+
+        const MAP = window.MAP;
+        // Aggiorna memoria subito → UI reattiva istantaneamente
+        if (MAP.allData[pdr]) { MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng; }
+        if (!MAP.anagraficheData[pdr]) MAP.anagraficheData[pdr] = {};
+        MAP.anagraficheData[pdr].lat = lat; MAP.anagraficheData[pdr].lng = lng;
+
         window.showToast?.('GPS salvato!');
         renderNoGpsList();
-        window.MAP.updateMapAndUI?.();
+        MAP.updateMapAndUI?.();
+
+        // Scrittura Firestore/localStorage in background (non blocca la UI)
+        window.savePdrPosition(pdr, lat, lng).catch(() => {});
     };
 
     window.noGpsUseGPS = (pdr) => {
