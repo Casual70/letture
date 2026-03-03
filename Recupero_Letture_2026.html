@@ -96,11 +96,11 @@
 
         <!-- ★ Filtro Anno Ultima Lettura -->
         <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Anno Ultima Lettura</label>
-            <select id="filterAnno" onchange="window.changeFilterAnno(this.value)"
-                class="w-full p-2 border border-gray-300 rounded text-xs bg-white focus:outline-none">
-                <option value="tutti">Tutti gli anni</option>
-            </select>
+            <div class="flex justify-between items-center mb-2">
+                <label class="block text-xs font-bold text-gray-700 uppercase">Anno Ultima Lettura</label>
+                <button onclick="window.selectAllAnni()" class="text-[10px] text-purple-600 hover:underline">Tutti</button>
+            </div>
+            <div id="annoFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
 
         <!-- Filtro Accessibilità -->
@@ -147,8 +147,8 @@
             <div><div class="text-[10px] text-gray-500 uppercase">Visibili</div><div id="statVisible" class="text-xl font-bold text-gray-700">0</div></div>
             <div><div class="text-[10px] text-gray-500 uppercase">Completati</div><div id="statDone" class="text-xl font-bold text-purple-600">0</div></div>
         </div>
-        <div id="noCoordPanel" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center hidden">
-            <span class="text-xs text-red-700 font-bold"><i class="fa-solid fa-location-dot mr-1"></i><span id="noCoordCount">0</span> PDR senza GPS</span>
+        <div id="noCoordPanel" class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-center hidden cursor-pointer hover:bg-red-100 transition" onclick="window.openNoGpsModal()">
+            <span class="text-xs text-red-700 font-bold"><i class="fa-solid fa-location-dot mr-1"></i><span id="noCoordCount">0</span> PDR senza GPS <i class="fa-solid fa-list ml-1"></i></span>
         </div>
         <div id="statusMessage" class="mt-4 text-xs text-center text-gray-400">Inizializzazione...</div>
     </div>
@@ -172,6 +172,37 @@
     </div>
 </div>
 
+<!-- Modal Lista PDR senza GPS -->
+<div id="noGpsModal" class="modal-overlay hidden" style="align-items:flex-start;padding:16px">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto flex flex-col" style="max-height:92vh">
+        <div class="flex justify-between items-center p-4 border-b">
+            <h2 class="text-base font-bold text-gray-800"><i class="fa-solid fa-location-dot mr-2 text-red-500"></i>PDR senza coordinate GPS</h2>
+            <button onclick="window.closeNoGpsModal()" class="text-gray-400 hover:text-gray-700 text-xl font-bold">&times;</button>
+        </div>
+        <!-- Barra azioni massive -->
+        <div class="p-3 bg-red-50 border-b flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="noGpsSelectAll" onchange="window.noGpsToggleAll(this.checked)" class="w-4 h-4 accent-purple-600">
+                <span class="text-xs font-bold text-gray-700">Seleziona tutti</span>
+                <span id="noGpsSelCount" class="ml-auto text-[10px] bg-purple-100 text-purple-700 font-bold px-2 py-0.5 rounded-full">0 selezionati</span>
+            </div>
+            <div class="flex gap-2 items-center">
+                <input id="noGpsMassiveSearch" type="text" placeholder="Cerca indirizzo per geocodifica massiva..." class="flex-1 border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <button onclick="window.noGpsMassiveOSM()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-blue-700 whitespace-nowrap"><i class="fa-solid fa-magnifying-glass mr-1"></i>OSM</button>
+            </div>
+            <div class="flex gap-2 items-center">
+                <input id="noGpsMassiveCoord" type="text" placeholder="Lat, Lng (es. 43.3612, 12.3391)" class="flex-1 border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                <button onclick="window.noGpsMassiveApply()" class="bg-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-purple-700 whitespace-nowrap"><i class="fa-solid fa-floppy-disk mr-1"></i>Applica ai selezionati</button>
+            </div>
+        </div>
+        <!-- Lista PDR -->
+        <div id="noGpsList" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+        <div class="p-3 border-t flex justify-end">
+            <button onclick="window.closeNoGpsModal()" class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50">Chiudi</button>
+        </div>
+    </div>
+</div>
+
 <!-- Settings Modal -->
 <div id="settingsModal" class="modal-overlay hidden">
     <div class="modal-content">
@@ -192,14 +223,16 @@
     import { writeBatch, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // ─── Stato globale MAP ──────────────────────────────────────────────────────
+    const ANNI_DEFAULT = ['2020','2021','2022','2023','2024','2025','2026'];
+
     window.MAP = {
         COLLECTION_NAME: 'recupero_letture_2026',
         allData: {}, anagraficheData: {}, selectedPDRs: new Set(),
         activeAccess:  new Set(['Accessibile', 'Inaccessibile', 'Altro']),
         activeComuni:  new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']),
+        activeAnni:    new Set(ANNI_DEFAULT),
         isCloudMode: false, isEditMode: false, anagraficheMigrationDone: false,
         filterTerrazzo: false, filterFollowUp: false, filterAvviso: false, filterNoCoord: false,
-        filterAnno: 'tutti',
         activeStato: 'tutti', viewMode: 'pdr',
         db: null, auth: null, user: null, map: null,
         markersCluster: null, storage: null, userLocationMarker: null
@@ -208,27 +241,137 @@
     window.MAP.updateMapAndUI = () => renderRecupero(window.MAP);
     registerAll(window.MAP);
 
-    // ─── Filtro anno ────────────────────────────────────────────────────────────
-    window.changeFilterAnno = (v) => { window.MAP.filterAnno = v; window.MAP.updateMapAndUI?.(); };
-    window.toggleNoCoord    = (e) => { window.MAP.filterNoCoord = e.checked; window.MAP.updateMapAndUI?.(); };
+    // ─── Modal PDR senza GPS ────────────────────────────────────────────────────
+    const noGpsSelected = new Set();
 
-    function updateAnnoFilter() {
-        const anni = new Set();
-        Object.values(window.MAP.allData).forEach(i => {
-            const parts = (i.data_riferimento || '').split('/');
-            if (parts.length === 3 && parts[2].length === 4) anni.add(parts[2]);
+    window.openNoGpsModal = () => {
+        noGpsSelected.clear();
+        renderNoGpsList();
+        document.getElementById('noGpsModal').classList.remove('hidden');
+    };
+    window.closeNoGpsModal = () => document.getElementById('noGpsModal').classList.add('hidden');
+
+    window.noGpsToggleAll = (checked) => {
+        const MAP = window.MAP;
+        Object.values(MAP.allData).filter(i => i.lat === null || isNaN(i.lat)).forEach(i => {
+            checked ? noGpsSelected.add(i.pdr) : noGpsSelected.delete(i.pdr);
         });
-        const sel = document.getElementById('filterAnno');
-        if (!sel) return;
-        const cur = sel.value;
-        sel.innerHTML = '<option value="tutti">Tutti gli anni</option>';
-        [...anni].sort().reverse().forEach(a => {
-            const o = document.createElement('option');
-            o.value = a; o.textContent = a;
-            if (a === cur) o.selected = true;
-            sel.appendChild(o);
+        document.querySelectorAll('.nogps-check').forEach(c => c.checked = checked);
+        document.getElementById('noGpsSelCount').innerText = noGpsSelected.size + ' selezionati';
+    };
+
+    window.noGpsToggleOne = (pdr, checked) => {
+        checked ? noGpsSelected.add(pdr) : noGpsSelected.delete(pdr);
+        document.getElementById('noGpsSelCount').innerText = noGpsSelected.size + ' selezionati';
+    };
+
+    window.noGpsMassiveOSM = async () => {
+        const q = document.getElementById('noGpsMassiveSearch').value.trim();
+        if (!q || noGpsSelected.size === 0) { window.showToast?.('Seleziona PDR e inserisci un indirizzo'); return; }
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, { headers: { 'User-Agent': 'RecuperoLetture2026' } });
+            const d = await res.json();
+            if (d.length === 0) { window.showToast?.('Indirizzo non trovato'); return; }
+            document.getElementById('noGpsMassiveCoord').value = `${d[0].lat}, ${d[0].lon}`;
+            window.showToast?.(`Trovato: ${d[0].display_name.substring(0, 60)}...`);
+        } catch (e) { window.showToast?.('Errore OSM'); }
+    };
+
+    window.noGpsMassiveApply = async () => {
+        if (noGpsSelected.size === 0) { window.showToast?.('Nessun PDR selezionato'); return; }
+        const parts = document.getElementById('noGpsMassiveCoord').value.replace(';', ',').split(',');
+        if (parts.length < 2) { window.showToast?.('Coordinate non valide'); return; }
+        const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
+        if (isNaN(lat) || isNaN(lng)) { window.showToast?.('Coordinate non valide'); return; }
+        for (const pdr of noGpsSelected) { await window.savePdrPosition(pdr, lat, lng); }
+        window.showToast?.(`GPS salvato per ${noGpsSelected.size} PDR`);
+        noGpsSelected.clear();
+        renderNoGpsList();
+        window.MAP.updateMapAndUI?.();
+    };
+
+    window.noGpsSingleOSM = async (pdr) => {
+        const q = document.getElementById(`nogps_search_${pdr}`).value.trim();
+        if (!q) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=it`, { headers: { 'User-Agent': 'RecuperoLetture2026' } });
+            const d = await res.json();
+            if (d.length === 0) { window.showToast?.('Non trovato'); return; }
+            document.getElementById(`nogps_coord_${pdr}`).value = `${d[0].lat}, ${d[0].lon}`;
+            window.showToast?.('Trovato! Clicca Salva.');
+        } catch (e) { window.showToast?.('Errore OSM'); }
+    };
+
+    window.noGpsSingleSave = async (pdr) => {
+        const parts = document.getElementById(`nogps_coord_${pdr}`).value.replace(';', ',').split(',');
+        if (parts.length < 2) { window.showToast?.('Coordinate non valide'); return; }
+        const lat = parseFloat(parts[0].trim()), lng = parseFloat(parts[1].trim());
+        if (isNaN(lat) || isNaN(lng)) { window.showToast?.('Coordinate non valide'); return; }
+        await window.savePdrPosition(pdr, lat, lng);
+        window.showToast?.('GPS salvato!');
+        renderNoGpsList();
+        window.MAP.updateMapAndUI?.();
+    };
+
+    window.noGpsUseGPS = (pdr) => {
+        const MAP = window.MAP;
+        if (!MAP.map) return;
+        MAP.map.locate({ setView: false });
+        MAP.map.once('locationfound', async (e) => {
+            document.getElementById(`nogps_coord_${pdr}`).value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+        });
+    };
+
+    function renderNoGpsList() {
+        const MAP = window.MAP;
+        const list = document.getElementById('noGpsList'); if (!list) return;
+        const items = Object.values(MAP.allData).filter(i => i.lat === null || isNaN(i.lat));
+        document.getElementById('noGpsSelCount').innerText = noGpsSelected.size + ' selezionati';
+        document.getElementById('noGpsSelectAll').checked = items.length > 0 && noGpsSelected.size === items.length;
+        if (items.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 text-sm py-8"><i class="fa-solid fa-check-circle text-green-500 text-2xl mb-2"></i><br>Tutti i PDR hanno coordinate GPS!</div>'; return; }
+        list.innerHTML = items.map(item => `
+            <div class="border rounded-lg p-3 bg-gray-50" id="nogps_card_${item.pdr}">
+                <div class="flex items-start gap-2 mb-2">
+                    <input type="checkbox" class="nogps-check mt-0.5 w-4 h-4 accent-purple-600" ${noGpsSelected.has(item.pdr) ? 'checked' : ''} onchange="window.noGpsToggleOne('${item.pdr}', this.checked)">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-gray-800 text-xs leading-tight">${item.nominativo}</div>
+                        <div class="text-[10px] text-gray-500 truncate">${item.indirizzo}${item.zona ? ' — ' + item.zona : ''}</div>
+                        <div class="text-[10px] text-gray-400">PDR: ${item.pdr} | Matr: ${item.matricola}</div>
+                    </div>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${item.fatto ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'} flex-shrink-0">${item.fatto ? 'FATTO' : 'DA FARE'}</span>
+                </div>
+                <div class="flex gap-1 mb-1">
+                    <input id="nogps_search_${item.pdr}" type="text" value="${item.indirizzo} ${item.zona}" placeholder="Cerca indirizzo OSM..." class="flex-1 border rounded text-[10px] p-1 focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    <button onclick="window.noGpsSingleOSM('${item.pdr}')" class="bg-blue-600 text-white text-[9px] font-bold px-2 rounded hover:bg-blue-700"><i class="fa-solid fa-magnifying-glass"></i></button>
+                </div>
+                <div class="flex gap-1">
+                    <input id="nogps_coord_${item.pdr}" type="text" placeholder="Lat, Lng" class="flex-1 border rounded text-[10px] p-1 focus:outline-none focus:ring-1 focus:ring-purple-400">
+                    <button onclick="window.noGpsUseGPS('${item.pdr}')" class="bg-green-500 text-white text-[9px] font-bold px-2 rounded hover:bg-green-600" title="Usa GPS"><i class="fa-solid fa-crosshairs"></i></button>
+                    <button onclick="window.noGpsSingleSave('${item.pdr}')" class="bg-purple-600 text-white text-[9px] font-bold px-2 rounded hover:bg-purple-700"><i class="fa-solid fa-floppy-disk"></i></button>
+                </div>
+            </div>`).join('');
+    }
+
+    // ─── Filtro anno (checkbox) ────────────────────────────────────────────────
+    window.toggleNoCoord = (e) => { window.MAP.filterNoCoord = e.checked; window.MAP.updateMapAndUI?.(); };
+
+    window.selectAllAnni = () => {
+        document.querySelectorAll('#annoFiltersContainer input').forEach(c => { c.checked = true; window.MAP.activeAnni.add(c.value); });
+        window.MAP.updateMapAndUI?.();
+    };
+
+    function renderAnnoFilters() {
+        const c = document.getElementById('annoFiltersContainer'); if (!c) return;
+        c.innerHTML = '';
+        ANNI_DEFAULT.slice().reverse().forEach(anno => {
+            const d = document.createElement('div'); d.className = 'filter-checkbox';
+            d.innerHTML = `<input type="checkbox" value="${anno}" ${window.MAP.activeAnni.has(anno) ? 'checked' : ''}> <span class="text-xs font-bold text-gray-700">${anno}</span>`;
+            d.querySelector('input').onchange = (e) => { e.target.checked ? window.MAP.activeAnni.add(anno) : window.MAP.activeAnni.delete(anno); window.MAP.updateMapAndUI?.(); };
+            c.appendChild(d);
         });
     }
+
+    function updateAnnoFilter() { /* non più necessario, anni fissi */ }
 
     // ─── Import CSV personalizzato (nuovi campi) ───────────────────────────────
     window.importCSVData = async function(csvData, overwrite) {
@@ -353,11 +496,11 @@
                 waDate.setHours(0,0,0,0); today.setHours(0,0,0,0);
                 if (Math.ceil((today - waDate) / (1000*60*60*24)) <= 2) return false;
             }
-            // Filtro anno ultima lettura
-            if (MAP.filterAnno !== 'tutti') {
+            // Filtro anno ultima lettura (checkbox)
+            if (MAP.activeAnni.size < ANNI_DEFAULT.length) {
                 const parts = (item.data_riferimento || '').split('/');
-                const anno = parts.length === 3 ? parts[2] : '';
-                if (anno !== MAP.filterAnno) return false;
+                const anno = parts.length === 3 ? parts[2] : 'N/D';
+                if (!MAP.activeAnni.has(anno)) return false;
             }
             const acc = (item.accessibilita || '').toLowerCase();
             const cat = acc.includes('inaccessibile') ? 'Inaccessibile' : (acc.includes('accessibile') ? 'Accessibile' : 'Altro');
@@ -656,6 +799,7 @@
         window.MAP.map.on('locationerror', e => alert(e.message));
 
         window.MAP.initSearchBar?.();
+        renderAnnoFilters();
 
         document.getElementById('csvInput').addEventListener('change', e => {
             const f = e.target.files[0]; if (!f) return;
