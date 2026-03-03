@@ -249,7 +249,7 @@
         renderNoGpsList();
         document.getElementById('noGpsModal').classList.remove('hidden');
     };
-    window.closeNoGpsModal = () => document.getElementById('noGpsModal').classList.add('hidden');
+    window.closeNoGpsModal = () => { document.getElementById('noGpsModal').classList.add('hidden'); window.MAP.updateMapAndUI?.(); };
 
     window.noGpsToggleAll = (checked) => {
         const MAP = window.MAP;
@@ -313,7 +313,6 @@
         window.showToast?.(`GPS salvato per ${n} PDR`);
         noGpsSelected.clear();
         renderNoGpsList();
-        MAP.updateMapAndUI?.();
     };
 
     window.noGpsSingleOSM = async (pdr) => {
@@ -342,7 +341,6 @@
 
         window.showToast?.('GPS salvato!');
         renderNoGpsList();
-        MAP.updateMapAndUI?.();
 
         // Scrittura Firestore/localStorage in background (non blocca la UI)
         window.savePdrPosition(pdr, lat, lng).catch(() => {});
