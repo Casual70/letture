@@ -195,6 +195,31 @@
                 <input id="noGpsMassiveCoord" type="text" placeholder="Lat, Lng (es. 43.3612, 12.3391)" class="flex-1 border rounded text-xs p-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400">
                 <button onclick="window.noGpsMassiveApply()" class="bg-purple-600 text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-purple-700 whitespace-nowrap"><i class="fa-solid fa-floppy-disk mr-1"></i>Applica ai selezionati</button>
             </div>
+            <!-- Geocodifica automatica individuale -->
+            <div class="border-t border-red-200 pt-2 mt-1 flex flex-col gap-1.5">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-600 text-[11px]"></i>
+                    <span class="text-[10px] font-bold text-gray-700 flex-1">Geocodifica auto (indirizzo per indirizzo)</span>
+                    <select id="noGpsGeoProvider" onchange="window.noGpsProviderChange()" class="border rounded text-[10px] p-1 bg-white focus:outline-none">
+                        <option value="osm">OSM Nominatim</option>
+                        <option value="google">Google Maps API</option>
+                    </select>
+                </div>
+                <div id="noGpsGoogleKeyRow" class="hidden flex gap-1">
+                    <input id="noGpsGoogleKey" type="text" placeholder="Google Geocoding API Key..." class="flex-1 border rounded text-[10px] p-1 focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                    <button onclick="window.noGpsSaveGKey()" class="bg-gray-200 text-gray-700 text-[9px] font-bold px-2 rounded hover:bg-gray-300" title="Salva key"><i class="fa-solid fa-floppy-disk"></i></button>
+                </div>
+                <div class="flex gap-2">
+                    <button id="noGpsAutoBtn" onclick="window.noGpsMassiveAutoGeocode()" class="flex-1 bg-indigo-600 text-white text-[10px] font-bold py-1.5 rounded hover:bg-indigo-700"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Avvia geocodifica selezionati</button>
+                    <button id="noGpsAutoStopBtn" onclick="window.noGpsStopAuto()" class="hidden bg-red-500 text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-red-600"><i class="fa-solid fa-stop mr-1"></i>Stop</button>
+                </div>
+                <div id="noGpsAutoProgress" class="hidden">
+                    <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="noGpsAutoBar" class="h-full bg-indigo-500 transition-all duration-300" style="width:0%"></div>
+                    </div>
+                    <div id="noGpsAutoMsg" class="text-[10px] text-gray-500 mt-1 text-center"></div>
+                </div>
+            </div>
         </div>
         <!-- Lista PDR -->
         <div id="noGpsList" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
@@ -354,6 +379,116 @@
         MAP.map.once('locationfound', async (e) => {
             document.getElementById(`nogps_coord_${pdr}`).value = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
         });
+    };
+
+    // ─── Geocodifica automatica individuale ────────────────────────────────────
+    let _autoGeocodeRunning = false;
+
+    window.noGpsStopAuto = () => { _autoGeocodeRunning = false; };
+
+    window.noGpsProviderChange = () => {
+        const isGoogle = document.getElementById('noGpsGeoProvider').value === 'google';
+        document.getElementById('noGpsGoogleKeyRow').classList.toggle('hidden', !isGoogle);
+        if (isGoogle) {
+            const saved = localStorage.getItem('google_geocode_key') || '';
+            if (saved) document.getElementById('noGpsGoogleKey').value = saved;
+        }
+    };
+
+    window.noGpsSaveGKey = () => {
+        const k = document.getElementById('noGpsGoogleKey').value.trim();
+        if (k) { localStorage.setItem('google_geocode_key', k); window.showToast?.('API Key salvata'); }
+    };
+
+    window.noGpsMassiveAutoGeocode = async () => {
+        const MAP = window.MAP;
+        const provider = document.getElementById('noGpsGeoProvider').value;
+        let googleKey = document.getElementById('noGpsGoogleKey').value.trim();
+        if (!googleKey) googleKey = localStorage.getItem('google_geocode_key') || '';
+        if (provider === 'google' && !googleKey) { window.showToast?.('Inserisci la Google Geocoding API Key'); return; }
+
+        // PDR da geocodificare: solo quelli selezionati (se presenti) oppure tutti senza GPS
+        const allNoGps = Object.values(MAP.allData).filter(i => i.lat === null || isNaN(i.lat));
+        const targets = noGpsSelected.size > 0
+            ? allNoGps.filter(i => noGpsSelected.has(i.pdr))
+            : allNoGps;
+        if (targets.length === 0) { window.showToast?.('Nessun PDR da geocodificare'); return; }
+
+        _autoGeocodeRunning = true;
+        const autoBtn  = document.getElementById('noGpsAutoBtn');
+        const stopBtn  = document.getElementById('noGpsAutoStopBtn');
+        const progress = document.getElementById('noGpsAutoProgress');
+        const bar      = document.getElementById('noGpsAutoBar');
+        const msgEl    = document.getElementById('noGpsAutoMsg');
+        autoBtn.disabled = true;
+        stopBtn.classList.remove('hidden');
+        progress.classList.remove('hidden');
+
+        let ok = 0, fail = 0, total = targets.length;
+
+        for (let i = 0; i < targets.length; i++) {
+            if (!_autoGeocodeRunning) break;
+            const item = targets[i];
+            // Legge l'indirizzo dall'input della card (se aperta) o dai dati in memoria
+            const searchEl = document.getElementById(`nogps_search_${item.pdr}`);
+            const query = (searchEl ? searchEl.value.trim() : '') || `${item.indirizzo} ${item.zona || ''}`.trim();
+
+            bar.style.width = `${Math.round((i / total) * 100)}%`;
+            msgEl.textContent = `${i + 1}/${total} — ${item.nominativo} (PDR ${item.pdr})`;
+
+            let lat = null, lng = null;
+            try {
+                if (provider === 'osm') {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=it`,
+                        { headers: { 'User-Agent': 'RecuperoLetture2026' } }
+                    );
+                    const d = await res.json();
+                    if (d.length > 0) { lat = parseFloat(d[0].lat); lng = parseFloat(d[0].lon); }
+                } else {
+                    const res = await fetch(
+                        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query + ', Italia')}&key=${googleKey}`
+                    );
+                    const d = await res.json();
+                    if (d.status === 'OK' && d.results.length > 0) {
+                        lat = d.results[0].geometry.location.lat;
+                        lng = d.results[0].geometry.location.lng;
+                    }
+                }
+            } catch (e) { /* skip */ }
+
+            if (lat !== null && !isNaN(lat) && lng !== null && !isNaN(lng)) {
+                // Aggiorna memoria
+                if (MAP.allData[item.pdr]) { MAP.allData[item.pdr].lat = lat; MAP.allData[item.pdr].lng = lng; }
+                if (!MAP.anagraficheData[item.pdr]) MAP.anagraficheData[item.pdr] = {};
+                MAP.anagraficheData[item.pdr].lat = lat; MAP.anagraficheData[item.pdr].lng = lng;
+                // Mostra risultato nella card
+                const coordEl = document.getElementById(`nogps_coord_${item.pdr}`);
+                if (coordEl) coordEl.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                // Evidenzia card come trovata
+                const card = document.getElementById(`nogps_card_${item.pdr}`);
+                if (card) { card.style.borderColor = '#22c55e'; card.style.background = '#f0fdf4'; }
+                // Salva su Firestore / localStorage in background
+                window.savePdrPosition(item.pdr, lat, lng).catch(() => {});
+                ok++;
+            } else {
+                const card = document.getElementById(`nogps_card_${item.pdr}`);
+                if (card) { card.style.borderColor = '#f97316'; card.style.background = '#fff7ed'; }
+                fail++;
+            }
+
+            // Rate limit: OSM richiede almeno 1 req/s (policy ufficiale)
+            await new Promise(r => setTimeout(r, provider === 'osm' ? 1100 : 200));
+        }
+
+        _autoGeocodeRunning = false;
+        bar.style.width = '100%';
+        msgEl.textContent = `Completato: ${ok} trovati, ${fail} non trovati`;
+        autoBtn.disabled = false;
+        stopBtn.classList.add('hidden');
+        window.showToast?.(`Geocodifica: ${ok} trovati, ${fail} non trovati`);
+        noGpsSelected.clear();
+        setTimeout(renderNoGpsList, 600);
     };
 
     function renderNoGpsList() {
