@@ -644,7 +644,7 @@
     function updateAnnoFilter() { /* non più necessario, anni fissi */ }
 
     // ─── Import CSV personalizzato (nuovi campi) ───────────────────────────────
-    window.importCSVData = async function(csvData, overwrite) {
+    window.importCSVData = async function(csvData) {
         const MAP = window.MAP;
         let batch = MAP.isCloudMode ? writeBatch(MAP.db) : null;
         let count = 0;
@@ -657,18 +657,17 @@
             const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || '').trim();
             if (!pdr) return;
 
-            let lat = parseFloat((row.Lat || row.LAT || row.lat || '').toString().replace(',', '.').replace(/"/g, ''));
-            let lng = parseFloat((row.Long || row.LON || row.lon || row.Lng || '').toString().replace(',', '.').replace(/"/g, ''));
-
             const ex = MAP.allData[pdr];
-            // Recupera coordinate esistenti da anagrafiche o record precedente
-            if (!overwrite && MAP.anagraficheData[pdr]) {
+            // Coordinate sempre da anagrafica PDR (il file CSV non contiene coordinate)
+            let lat = null, lng = null;
+            if (MAP.anagraficheData[pdr]) {
                 const a = MAP.anagraficheData[pdr];
-                if (!isNaN(a.lat) && !isNaN(a.lng)) { lat = a.lat; lng = a.lng; }
-            } else if (!overwrite && ex && !isNaN(ex.lat) && !isNaN(ex.lng)) {
+                const aLat = parseFloat(a.lat), aLng = parseFloat(a.lng);
+                if (!isNaN(aLat) && !isNaN(aLng)) { lat = aLat; lng = aLng; }
+            }
+            if (lat === null && ex && !isNaN(parseFloat(ex.lat)) && !isNaN(parseFloat(ex.lng))) {
                 lat = ex.lat; lng = ex.lng;
             }
-            if (isNaN(lat) || isNaN(lng)) { lat = null; lng = null; }
 
             let status = ex ? (ex.fatto || false) : false;
             const existingWaDate = ex ? (ex.wa_inviato || '') : '';
@@ -712,19 +711,18 @@
                 lat, lng, fatto: status
             };
 
-            const anaDoc = {
-                lat: newData.lat, lng: newData.lng,
+            // Durante l'import aggiorna solo i metadati in anagrafica, MAI le coordinate
+            const anaDocMeta = {
                 indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso
             };
-            MAP.anagraficheData[pdr] = anaDoc;
+            MAP.anagraficheData[pdr] = Object.assign({}, MAP.anagraficheData[pdr] || {}, anaDocMeta);
             MAP.allData[pdr] = newData;
             imported++;
 
             if (MAP.isCloudMode) {
                 batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), newData);
                 count++;
-                if (lat !== null && lng !== null)
-                    batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), anaDoc, { merge: true });
+                batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), anaDocMeta, { merge: true });
                 count++;
                 if (count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
             }
@@ -1366,11 +1364,11 @@
 
         document.getElementById('csvInput').addEventListener('change', e => {
             const f = e.target.files[0]; if (!f) return;
-            const ow = confirm("Sovrascrivere coordinate GPS?\nOK = Sì (prendi le coordinate dal file)\nAnnulla = No (mantieni le coordinate GPS già salvate)");
+            // Le coordinate non sono presenti nel file CSV: vengono sempre lette dall'anagrafica PDR
             Papa.parse(f, { header: true, skipEmptyLines: true, complete: r => {
                 if (r.meta.fields.length < 2)
-                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
-                else window.importCSVData(r.data, ow);
+                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data) });
+                else window.importCSVData(r.data);
             }});
         });
 
