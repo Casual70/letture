@@ -348,7 +348,12 @@ export function registerAll(MAP) {
                 const d = document.createElement('div');
                 d.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
                 d.innerHTML = `<b>${x.nominativo}</b><br>${x.pdr}`;
-                d.onclick = () => MAP.map?.flyTo([x.lat, x.lng], 18);
+                d.onclick = () => {
+                    MAP.map?.flyTo([x.lat, x.lng], 18);
+                    MAP.onSearchResultClick?.(x.pdr);
+                    c.classList.add('hidden');
+                    searchInput.value = '';
+                };
                 c.appendChild(d);
             });
             c.children.length > 0 ? c.classList.remove('hidden') : c.classList.add('hidden');

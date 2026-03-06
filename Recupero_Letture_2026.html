@@ -264,6 +264,10 @@
     body > *:not(#planPrintArea) { display:none !important; }
     #planPrintArea { display:block !important; }
   }
+  @keyframes searchPulse {
+    from { box-shadow: 0 0 0 3px #ef4444, 0 4px 14px rgba(0,0,0,.45); transform: scale(1); }
+    to   { box-shadow: 0 0 0 7px rgba(239,68,68,.3), 0 4px 18px rgba(0,0,0,.5); transform: scale(1.18); }
+  }
 </style>
 
 <!-- Photo Modal -->
@@ -744,6 +748,7 @@
     function renderRecupero(MAP) {
         if (!MAP.markersCluster) return;
         MAP.markersCluster.clearLayers();
+        MAP.markersByPdr = {};
         let vis = 0, done = 0;
 
         const filteredData = Object.values(MAP.allData).filter(item => {
@@ -918,6 +923,7 @@
                 </div>`;
                 return content;
                 }, { maxWidth: 320 });
+                MAP.markersByPdr[item.pdr] = m;
                 MAP.markersCluster.addLayer(m);
             });
 
@@ -1361,6 +1367,39 @@
 
         window.MAP.initSearchBar?.();
         renderAnnoFilters();
+
+        // ─── Highlight temporaneo marker dalla ricerca ──────────────────────────
+        window.MAP.onSearchResultClick = (pdr) => {
+            // Cancella highlight precedente
+            if (window.MAP._searchHighlightTimer) {
+                clearTimeout(window.MAP._searchHighlightTimer);
+                window.MAP._searchHighlightTimer = null;
+            }
+            if (window.MAP._searchHighlightMarker && window.MAP._searchHighlightOrigIcon) {
+                window.MAP._searchHighlightMarker.setIcon(window.MAP._searchHighlightOrigIcon);
+                window.MAP._searchHighlightMarker = null;
+                window.MAP._searchHighlightOrigIcon = null;
+            }
+            const m = window.MAP.markersByPdr?.[pdr];
+            if (!m) return; // marker non visibile (filtrato o senza GPS)
+            const origIcon = m.options.icon;
+            const hlIcon = L.divIcon({
+                className: 'custom-pin search-highlight',
+                html: `<div style="background-color:#ef4444;width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 3px #ef4444,0 4px 14px rgba(0,0,0,.45);animation:searchPulse 0.8s infinite alternate"></div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+            m.setIcon(hlIcon);
+            window.MAP._searchHighlightMarker = m;
+            window.MAP._searchHighlightOrigIcon = origIcon;
+            // Ripristina dopo 4 secondi
+            window.MAP._searchHighlightTimer = setTimeout(() => {
+                try { m.setIcon(origIcon); } catch(e) {}
+                window.MAP._searchHighlightMarker = null;
+                window.MAP._searchHighlightOrigIcon = null;
+                window.MAP._searchHighlightTimer = null;
+            }, 4000);
+        };
 
         document.getElementById('csvInput').addEventListener('change', e => {
             const f = e.target.files[0]; if (!f) return;
