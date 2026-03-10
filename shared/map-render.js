@@ -10,6 +10,7 @@ export function renderMap(MAP) {
     // ── Filtro comune ────────────────────────────────────────────────────────
     let filteredData = Object.values(MAP.allData).filter(item => {
         if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+        if (MAP.filterEsclTerrazzo && (item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
         if (MAP.filterAvviso) {
             const v = (item.val_lettura || '').replace(',', '.').trim();
             if (!(v !== '' && isNaN(v))) return false;
@@ -52,7 +53,8 @@ export function renderMap(MAP) {
             else if (cat === 'Inaccessibile')  col = '#f97316';
             else if (cat === 'Accessibile')    col = '#16a34a';
 
-            const icon = L.divIcon({ className: 'custom-pin', html: `<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize: [14, 14] });
+            const waBorder = item.wa_inviato ? '#22c55e' : 'white';
+            const icon = L.divIcon({ className: 'custom-pin', html: `<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid ${waBorder};box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize: [14, 14] });
             const m = L.marker([item.lat, item.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
             m.on('dragend', e => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
 
@@ -156,17 +158,19 @@ export function renderMap(MAP) {
 
         Object.keys(groups).forEach(key => {
             const group = groups[key], items = group.items;
-            let allDone = true, anyEvid = false, anySel = false, anyInacc = false, anyWarn = false;
+            let allDone = true, anyEvid = false, anySel = false, anyInacc = false, anyWarn = false, anyWa = false;
             items.forEach(i => {
                 if (!i.fatto) allDone = false;
                 if (i.evidenziato) anyEvid = true;
                 if (MAP.selectedPDRs.has(i.pdr)) anySel = true;
                 if ((i.accessibilita || '').toLowerCase().includes('inaccessibile')) anyInacc = true;
                 if (i.val_lettura && isNaN(i.val_lettura.replace(',', '.').trim())) anyWarn = true;
+                if (i.wa_inviato) anyWa = true;
             });
             let col = '#dc2626';
             if (anyEvid) col = '#9333ea'; else if (anySel) col = '#06b6d4'; else if (allDone) col = '#2563eb'; else if (anyWarn) col = '#facc15'; else if (anyInacc) col = '#f97316';
-            const iconHtml = `<div style="background-color:${col};width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:bold">${items.length}</div>`;
+            const streetWaBorder = anyWa ? '#22c55e' : 'white';
+            const iconHtml = `<div style="background-color:${col};width:24px;height:24px;border-radius:50%;border:2px solid ${streetWaBorder};box-shadow:0 2px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;font-size:11px;color:white;font-weight:bold">${items.length}</div>`;
             const icon = L.divIcon({ className: 'custom-pin', html: iconHtml, iconSize: [24, 24], iconAnchor: [12, 12] });
             const m = L.marker([group.lat, group.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
             m.on('dragend', e => {

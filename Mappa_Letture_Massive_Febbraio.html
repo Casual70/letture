@@ -100,6 +100,7 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Filtri Speciali</label></div>
             <div class="space-y-1 bg-white border rounded p-2">
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterEsclTerrazzo" onchange="window.toggleEsclTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Escludi "Terrazzo"</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up WA &gt; 2gg</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterAvviso" onchange="window.toggleAvviso(this)"><span class="text-xs font-bold text-yellow-600"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#facc15;margin-right:5px;vertical-align:middle"></span>Solo Avviso</span></div>
             </div>
@@ -158,7 +159,7 @@
         activeAccess: new Set(['Accessibile', 'Inaccessibile', 'Altro']),
         activeComuni: new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']),
         isCloudMode: false, isEditMode: false, anagraficheMigrationDone: false,
-        filterTerrazzo: false, filterFollowUp: false, filterAvviso: false,
+        filterTerrazzo: false, filterEsclTerrazzo: false, filterFollowUp: false, filterAvviso: false,
         activeStato: 'tutti', viewMode: 'pdr',
         db: null, auth: null, user: null, map: null,
         markersCluster: null, storage: null, userLocationMarker: null

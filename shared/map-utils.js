@@ -146,6 +146,7 @@ export function registerAll(MAP) {
         MAP.updateMapAndUI?.();
     };
     window.toggleTerrazzo = (e) => { MAP.filterTerrazzo = e.checked; MAP.updateMapAndUI?.(); };
+    window.toggleEsclTerrazzo = (e) => { MAP.filterEsclTerrazzo = e.checked; MAP.updateMapAndUI?.(); };
     window.toggleFollowUp  = (e) => { MAP.filterFollowUp  = e.checked; MAP.updateMapAndUI?.(); };
     window.toggleAvviso    = (e) => { MAP.filterAvviso    = e.checked; MAP.updateMapAndUI?.(); };
     window.changeFilterStato = (v) => { MAP.activeStato = v; MAP.updateMapAndUI?.(); };
