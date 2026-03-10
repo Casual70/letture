@@ -81,3 +81,10 @@ body,html{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:
 .acc-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:1px}
 .pdr-photo-row{display:flex;gap:6px;margin-top:6px}
 .pdr-photo-row button{min-height:34px;padding:0 12px;border-radius:7px;font-size:11px;font-weight:700;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;cursor:pointer;display:flex;align-items:center;gap:5px}
+
+/* Search highlight pulse */
+.search-highlight-pin{width:26px;height:26px;border-radius:50%;background:rgba(239,68,68,.35);border:3px solid #ef4444;box-sizing:border-box;animation:searchPulse .65s ease-in-out infinite alternate;pointer-events:none}
+@keyframes searchPulse{
+  from{box-shadow:0 0 0 3px rgba(239,68,68,.5),0 4px 14px rgba(0,0,0,.3);transform:scale(1)}
+  to  {box-shadow:0 0 0 11px rgba(239,68,68,.1),0 4px 18px rgba(0,0,0,.3);transform:scale(1.38)}
+}

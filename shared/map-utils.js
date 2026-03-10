@@ -350,10 +350,27 @@ export function registerAll(MAP) {
                 d.className = "p-2 hover:bg-blue-50 cursor-pointer border-b text-xs";
                 d.innerHTML = `<b>${x.nominativo}</b><br>${x.pdr}`;
                 d.onclick = () => {
-                    MAP.map?.flyTo([x.lat, x.lng], 18);
-                    MAP.onSearchResultClick?.(x.pdr);
                     c.classList.add('hidden');
                     searchInput.value = '';
+                    if (!x.lat || isNaN(x.lat)) { showToast('PDR senza coordinate GPS'); return; }
+                    MAP.map?.flyTo([x.lat, x.lng], 18);
+                    MAP.onSearchResultClick?.(x.pdr);
+                    // ── Marker pulsante temporaneo ──
+                    if (MAP.map) {
+                        if (MAP._searchPulseMarker) { try { MAP.map.removeLayer(MAP._searchPulseMarker); } catch(e){} }
+                        clearTimeout(MAP._searchPulseTimeout);
+                        clearTimeout(MAP._searchPulseRemoveTimeout);
+                        const pulseIcon = L.divIcon({ className: '', html: '<div class="search-highlight-pin"></div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+                        MAP._searchPulseMarker = L.marker([x.lat, x.lng], { icon: pulseIcon, zIndexOffset: 9999, interactive: false }).addTo(MAP.map);
+                        // Apre il popup del marker reale dopo la flyTo
+                        MAP._searchPulseTimeout = setTimeout(() => {
+                            MAP.markersByPdr?.[x.pdr]?.openPopup();
+                        }, 1800);
+                        // Rimuove il marker pulsante dopo 4s
+                        MAP._searchPulseRemoveTimeout = setTimeout(() => {
+                            if (MAP._searchPulseMarker) { try { MAP.map?.removeLayer(MAP._searchPulseMarker); } catch(e){} MAP._searchPulseMarker = null; }
+                        }, 4000);
+                    }
                 };
                 c.appendChild(d);
             });

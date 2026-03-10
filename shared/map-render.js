@@ -5,6 +5,7 @@
 export function renderMap(MAP) {
     if (!MAP.markersCluster) return;
     MAP.markersCluster.clearLayers();
+    MAP.markersByPdr = {};
     let vis = 0, done = 0;
 
     // ── Filtro comune ────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ export function renderMap(MAP) {
             const icon = L.divIcon({ className: 'custom-pin', html: `<div style="background-color:${col};width:14px;height:14px;border-radius:50%;border:2px solid ${waBorder};box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>`, iconSize: [14, 14] });
             const m = L.marker([item.lat, item.lng], { icon, draggable: MAP.isEditMode, autoPan: true });
             m.on('dragend', e => window.savePdrPosition(item.pdr, e.target.getLatLng().lat, e.target.getLatLng().lng));
+            MAP.markersByPdr[item.pdr] = m;
 
             // Telefono / WA
             let wa = '';
