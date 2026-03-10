@@ -182,6 +182,7 @@ export async function importCSVData(MAP, csvData, overwrite) {
                 val_lettura: valLett, data_lettura: datLett,
                 evidenziato: ex ? (ex.evidenziato || false) : false,
                 foto_urls: ex ? (ex.foto_urls || []) : [],
+                data_fatto: ex ? (ex.data_fatto || '') : '',
                 lat, lng, fatto: status
             };
             const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };

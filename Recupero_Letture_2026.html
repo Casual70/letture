@@ -713,6 +713,7 @@
                 data_lettura:          datLett,
                 evidenziato:           ex ? (ex.evidenziato || false) : false,
                 foto_urls:             ex ? (ex.foto_urls   || [])   : [],
+                data_fatto:            ex ? (ex.data_fatto  || '')   : '',
                 lat, lng, fatto: status
             };
 
@@ -862,7 +863,7 @@
                         <div class="font-bold text-gray-800 text-sm">${item.nominativo}</div>
                         <div class="flex justify-between items-center mt-1">
                             <span class="text-[10px] text-gray-500">PDR ${item.pdr}</span>
-                            <span class="px-2 rounded text-[9px] font-bold ${item.fatto ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${item.fatto ? '✓ FATTO' : '⏱ DA FARE'}</span>
+                            <span class="px-2 rounded text-[9px] font-bold ${item.fatto ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}">${item.fatto ? '✓ FATTO' + (item.data_fatto ? ' · ' + item.data_fatto : '') : '⏱ DA FARE'}</span>
                         </div>
                     </div>
                     <div class="text-xs text-gray-600 space-y-1 mb-2">
@@ -997,6 +998,7 @@
                 items.forEach(item => {
                     const isDone = item.fatto, isSel = MAP.selectedPDRs.has(item.pdr), isEvid = !!(item.evidenziato);
                     const civico = item.indirizzo.toUpperCase().replace(group.street, '').trim() || 'SNC';
+                    const dataFattoLabel = isDone && item.data_fatto ? `<br><span style="font-size:9px;font-weight:500;opacity:.8">${item.data_fatto}</span>` : '';
                     let accStr = (item.accessibilita || '').toLowerCase(), accColor = '#94a3b8', accLabel = item.accessibilita || 'N/D';
                     if (accStr.includes('inaccessibile')) accColor = '#f97316';
                     else if (accStr.includes('accessibile')) accColor = '#22c55e';

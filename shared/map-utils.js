@@ -19,11 +19,11 @@ function showToast(m) {
 // ─── CSV ─────────────────────────────────────────────────────────────────────
 
 function generateCSV(MAP, items, prefix) {
-    let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Note Op;Evidenziato;Data WA\n";
+    let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Data Fatto;Note Op;Evidenziato;Data WA\n";
     items.forEach(i => {
         const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.data_riferimento,
             i.accessibilita, i.nota_accesso, String(i.lat).replace('.', ','), String(i.lng).replace('.', ','),
-            i.fatto ? "FATTO" : "DA FARE", i.nota_operatore || "", i.evidenziato ? "SI" : "NO", i.wa_inviato || ""]
+            i.fatto ? "FATTO" : "DA FARE", i.data_fatto || "", i.nota_operatore || "", i.evidenziato ? "SI" : "NO", i.wa_inviato || ""]
             .map(v => String(v || '').includes(';') ? `"${String(v).replace(/"/g, '""')}"` : v).join(';');
         content += row + "\n";
     });
@@ -207,9 +207,12 @@ export function registerAll(MAP) {
     };
     window.togglePdrStatus = async (pdr) => {
         const s = !MAP.allData[pdr].fatto;
+        const dataFatto = s ? new Date().toISOString().slice(0, 10) : '';
         const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
-        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { fatto: s });
-        else { MAP.allData[pdr].fatto = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
+        MAP.allData[pdr].fatto = s;
+        MAP.allData[pdr].data_fatto = dataFatto;
+        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { fatto: s, data_fatto: dataFatto });
+        else { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
     };
     window.togglePdrHighlight = async (pdr) => {
         const s = !MAP.allData[pdr].evidenziato;
