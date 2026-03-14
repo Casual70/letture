@@ -23,12 +23,12 @@
             <p class="text-xs text-slate-400">Gestione Mappe PDR</p>
         </div>
     </div>
-    <button onclick="openNewMapModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition">
+    <button id="newMapBtn" onclick="openNewMapModal()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition" style="visibility:hidden;">
         <i class="fa-solid fa-plus"></i> Nuova Mappa
     </button>
 </header>
 
-<main class="max-w-4xl mx-auto px-4 py-8">
+<main id="mainContent" class="max-w-4xl mx-auto px-4 py-8" style="visibility:hidden;">
     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Mappe Disponibili</h2>
     <div id="mapList" class="grid gap-4 sm:grid-cols-2"></div>
 </main>
@@ -113,6 +113,36 @@ function generateAndDownload() {
 }
 
 renderMapList();
+window._renderMapList = renderMapList;
 </script>
-</body>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { HARDCODED_FIREBASE_CONFIG } from './shared/firebase-config.js';
+    import { requireAuth } from './shared/auth.js';
+
+    const app  = initializeApp(HARDCODED_FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const user = await requireAuth(auth);
+
+    // Mostra i contenuti della pagina
+    document.getElementById('mainContent').style.visibility = '';
+    document.getElementById('newMapBtn').style.visibility = '';
+
+    // Badge utente nell'header
+    const headerBadge = document.createElement('div');
+    headerBadge.className = 'flex items-center gap-2 text-xs text-slate-400';
+    headerBadge.innerHTML = `
+        <i class="fa-solid fa-user text-blue-400"></i>
+        <span title="${user.email}">${user.email.split('@')[0]}</span>
+        <button id="logoutBtn" class="ml-1 text-red-400 hover:text-red-300 underline text-[11px]">Esci</button>
+    `;
+    document.querySelector('header .flex.items-center.justify-between').appendChild(headerBadge);
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        if (!confirm('Disconnettersi?')) return;
+        await signOut(auth);
+        location.reload();
+    });
+</script>
 </html>

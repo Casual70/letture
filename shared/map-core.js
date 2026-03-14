@@ -3,10 +3,11 @@
 // Tutte le funzioni ricevono MAP (oggetto stato condiviso) come primo parametro.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { HARDCODED_FIREBASE_CONFIG, ANAGRAFICHE_COLLECTION } from './firebase-config.js';
+import { requireAuth, showUserBadge, logAudit } from './auth.js';
 
 // ─── Helpers interni ────────────────────────────────────────────────────────
 
@@ -113,22 +114,17 @@ export async function initApp(MAP, options = {}) {
         MAP.db = getFirestore(app);
         if (options.useStorage) MAP.storage = getStorage(app);
 
-        try {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token)
-                await signInWithCustomToken(MAP.auth, __initial_auth_token);
-            else await signInAnonymously(MAP.auth);
-        } catch (err) {
-            try { await signInAnonymously(MAP.auth); } catch (e) { throw e; }
-        }
+        // ── Autenticazione Email/Password ────────────────────────────────────
+        const user = await requireAuth(MAP.auth);
+        MAP.user = user;
+        MAP.isCloudMode = true;
 
-        onAuthStateChanged(MAP.auth, (u) => {
-            if (u) {
-                MAP.user = u; MAP.isCloudMode = true;
-                const el = document.getElementById('statusMessage');
-                if (el) el.innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
-                startCloudListener(MAP, appId);
-            }
-        });
+        // Espone helper per audit log su tutte le funzioni di scrittura
+        MAP.logAudit = (action, pdr, extra) =>
+            logAudit(MAP.db, appId, user.email, action, MAP.COLLECTION_NAME, pdr, extra);
+
+        showUserBadge(MAP.auth, user.email);
+        startCloudListener(MAP, appId);
     } catch (e) {
         MAP.isCloudMode = false;
         const el = document.getElementById('statusMessage');
@@ -183,7 +179,9 @@ export async function importCSVData(MAP, csvData, overwrite) {
                 evidenziato: ex ? (ex.evidenziato || false) : false,
                 foto_urls: ex ? (ex.foto_urls || []) : [],
                 data_fatto: ex ? (ex.data_fatto || '') : '',
-                lat, lng, fatto: status
+                lat, lng, fatto: status,
+                updated_by: MAP.user?.email || '',
+                updated_at: new Date().toISOString()
             };
             const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
             MAP.anagraficheData[pdr] = anaDoc;
