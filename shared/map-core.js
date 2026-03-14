@@ -224,15 +224,35 @@ export async function clearData(MAP) {
 }
 
 // ─── savePdrPosition ──────────────────────────────────────────────────────────
+// Aggiorna lat/lng in memoria, nel documento operativo E nell'anagrafica condivisa.
+// La scrittura in entrambe le collection garantisce persistenza cross-mappa e
+// resilienza rispetto a eventuali problemi di timing con applyAnagrafiche.
 
 export async function savePdrPosition(MAP, pdr, lat, lng) {
-    MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng;
+    // Aggiorna in memoria
+    if (MAP.allData[pdr]) { MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng; }
     if (!MAP.anagraficheData[pdr]) MAP.anagraficheData[pdr] = {};
     MAP.anagraficheData[pdr].lat = lat; MAP.anagraficheData[pdr].lng = lng;
+
     const appId = localAppId();
-    if (MAP.isCloudMode)
-        await setDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), { lat, lng }, { merge: true });
-    else {
+    if (MAP.isCloudMode) {
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+        // 1) Anagrafica condivisa (source of truth, cross-mappa)
+        await setDoc(
+            doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
+            { lat, lng }, { merge: true }
+        );
+        // 2) Collection operativa (persistenza diretta per questa mappa)
+        try {
+            await updateDoc(
+                doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr),
+                { lat, lng, ...meta }
+            );
+        } catch (_) {
+            // Il documento non esiste nella collection operativa — nessun problema,
+            // le coordinate sono comunque salvate nell'anagrafica condivisa.
+        }
+    } else {
         localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
         localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
     }
