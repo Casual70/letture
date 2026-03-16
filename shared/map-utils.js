@@ -185,7 +185,7 @@ export function registerAll(MAP) {
     };
 
     // ── Import CSV ───────────────────────────────────────────────────────────
-    window.importCSVData = (data, ow) => importCSVData(MAP, data, ow);
+    window.importCSVData = (data) => importCSVData(MAP, data);
 
     // ── Reset ────────────────────────────────────────────────────────────────
     window.clearData = () => clearData(MAP);

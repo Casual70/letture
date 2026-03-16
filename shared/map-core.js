@@ -135,7 +135,7 @@ export async function initApp(MAP, options = {}) {
 
 // ─── importCSVData ───────────────────────────────────────────────────────────
 
-export async function importCSVData(MAP, csvData, overwrite) {
+export async function importCSVData(MAP, csvData) {
     let batch = MAP.isCloudMode ? writeBatch(MAP.db) : null;
     let count = 0;
     const appId = localAppId();
@@ -143,10 +143,10 @@ export async function importCSVData(MAP, csvData, overwrite) {
 
     csvData.forEach(row => {
         const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
-        let lat = parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
-        let lng = parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
-
-        if (!overwrite && MAP.allData[pdr]) { lat = MAP.allData[pdr].lat; lng = MAP.allData[pdr].lng; }
+        // Coordinate: priorità anagrafica PDR, fallback CSV
+        const ana = MAP.anagraficheData[pdr];
+        let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
+        let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
 
         if (!isNaN(lat) && !isNaN(lng)) {
             const ex = MAP.allData[pdr];
