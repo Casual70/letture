@@ -332,11 +332,10 @@
 
         document.getElementById('csvInput').addEventListener('change', (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const ow = confirm("Sovrascrivere coordinate GPS esistenti?\nOK=Sì (usa file), Annulla=No (mantieni manuali)");
             Papa.parse(file, {
                 header: true, skipEmptyLines: true, complete: r => {
-                    if (r.meta.fields.length < 2) Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
-                    else window.importCSVData(r.data, ow);
+                    if (r.meta.fields.length < 2) Papa.parse(file, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data) });
+                    else window.importCSVData(r.data);
                 }
             });
         });
@@ -544,7 +543,7 @@
     }
     function loadLocalData() { const s = localStorage.getItem(LOCALSTORAGE_KEY); if(s) { allData = JSON.parse(s); updateMapAndUI(); } }
 
-    window.importCSVData = async function(csvData, overwrite) {
+    window.importCSVData = async function(csvData) {
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
         let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
         let imported = 0, skipped = 0;
@@ -553,14 +552,12 @@
             const pdr = String(row['Codice PDR']||row.PDR||row.pdr||'').trim();
             if(!pdr) { skipped++; return; }
 
-            let lat = parseFloat((row.Lat||row.LAT||row.lat||'').toString().replace(',','.').replace(/"/g,''));
-            let lng = parseFloat((row.Long||row.LON||row.lon||row.Lng||'').toString().replace(',','.').replace(/"/g,''));
-
+            // Coordinate: mantieni quelle esistenti (allData), fallback CSV
             const ex = allData[pdr];
-            
-            // Gestione coordinate: mantieni esistenti se no overwrite, null se non presenti
-            if(!overwrite && ex && hasValidCoords(ex)) { lat = ex.lat; lng = ex.lng; }
-            else if(isNaN(lat) || isNaN(lng)) { lat = null; lng = null; }
+            let lat = (ex && hasValidCoords(ex)) ? ex.lat : parseFloat((row.Lat||row.LAT||row.lat||'').toString().replace(',','.').replace(/"/g,''));
+            let lng = (ex && hasValidCoords(ex)) ? ex.lng : parseFloat((row.Long||row.LON||row.lon||row.Lng||'').toString().replace(',','.').replace(/"/g,''));
+
+            if(isNaN(lat) || isNaN(lng)) { lat = null; lng = null; }
 
             let status = ex ? (ex.fatto || false) : false;
             const existingWaDate = ex ? (ex.wa_inviato || '') : '';
