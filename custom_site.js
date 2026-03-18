@@ -96,7 +96,7 @@ function cerca_select(){
                 const itemDate = `${year}-${month}`;
 
                 if (text.includes(textFilter) && (!dateFilter || itemDate === dateFilter)) {
-                    if (visibleCount < 6) {
+                    if (visibleCount < 20) {
                         item.style.display = 'block';
                         visibleCount++;
                     } else {
