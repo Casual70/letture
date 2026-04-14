@@ -696,7 +696,7 @@
             // Costruisce indirizzo da campi strutturati se manca colonna diretta
             const tipoVia    = (row['Tipo via']        || '').trim();
             const nomeVia    = (row['Nome via']         || '').trim();
-            const nrCivico   = (row['Nr. civico']       || '').toString().trim();
+            const nrCivico   = (row['Nr. Civico']       || '').toString().trim();
             const estCivico  = (row['Est. Nr. civico']  || '').toString().trim();
             const indCalc    = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
 
