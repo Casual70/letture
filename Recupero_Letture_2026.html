@@ -758,8 +758,9 @@
             if (MAP.filterNoCoord) { if (item.lat !== null && !isNaN(item.lat)) return false; }
             else { if (item.lat === null || isNaN(item.lat)) return false; }
 
-            if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
-            if (MAP.filterEsclTerrazzo && (item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+            const _terrTxt = ((item.nota_accesso || '') + ' ' + (item.nota_inaccessibilita || '') + ' ' + (item.accessibilita || '')).toLowerCase();
+            if (MAP.filterTerrazzo    && !_terrTxt.includes('terrazzo')) return false;
+            if (MAP.filterEsclTerrazzo &&  _terrTxt.includes('terrazzo')) return false;
             if (MAP.filterAvviso) {
                 const v = (item.val_lettura || '').replace(',', '.').trim();
                 if (!(v !== '' && isNaN(v))) return false;
@@ -1140,7 +1141,8 @@
             // Stato
             if (onlyDaFare && item.fatto) return false;
             // Terrazzo
-            if (exclTerrazzo && (item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+            const _planTerrTxt = ((item.nota_accesso || '') + ' ' + (item.nota_inaccessibilita || '') + ' ' + (item.accessibilita || '')).toLowerCase();
+            if (exclTerrazzo && _planTerrTxt.includes('terrazzo')) return false;
             // Accessibilità
             const accLow = (item.accessibilita || '').toLowerCase();
             if (exclInacc && accLow.includes('inaccessibile')) return false;
@@ -1148,7 +1150,8 @@
 
             // Filtri attivi sulla mappa (riproduce la logica di renderRecupero)
             if (useActive) {
-                if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
+                const _actTerrTxt = ((item.nota_accesso || '') + ' ' + (item.nota_inaccessibilita || '') + ' ' + (item.accessibilita || '')).toLowerCase();
+                if (MAP.filterTerrazzo && !_actTerrTxt.includes('terrazzo')) return false;
                 if (MAP.filterAvviso) {
                     const v = (item.val_lettura || '').replace(',', '.').trim();
                     if (!(v !== '' && isNaN(v))) return false;
