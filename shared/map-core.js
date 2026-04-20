@@ -3,10 +3,11 @@
 // Tutte le funzioni ricevono MAP (oggetto stato condiviso) come primo parametro.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { HARDCODED_FIREBASE_CONFIG, ANAGRAFICHE_COLLECTION } from './firebase-config.js';
+import { requireAuth, showUserBadge, logAudit } from './auth.js';
 
 // ─── Helpers interni ────────────────────────────────────────────────────────
 
@@ -113,22 +114,17 @@ export async function initApp(MAP, options = {}) {
         MAP.db = getFirestore(app);
         if (options.useStorage) MAP.storage = getStorage(app);
 
-        try {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token)
-                await signInWithCustomToken(MAP.auth, __initial_auth_token);
-            else await signInAnonymously(MAP.auth);
-        } catch (err) {
-            try { await signInAnonymously(MAP.auth); } catch (e) { throw e; }
-        }
+        // ── Autenticazione Email/Password ────────────────────────────────────
+        const user = await requireAuth(MAP.auth);
+        MAP.user = user;
+        MAP.isCloudMode = true;
 
-        onAuthStateChanged(MAP.auth, (u) => {
-            if (u) {
-                MAP.user = u; MAP.isCloudMode = true;
-                const el = document.getElementById('statusMessage');
-                if (el) el.innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`;
-                startCloudListener(MAP, appId);
-            }
-        });
+        // Espone helper per audit log su tutte le funzioni di scrittura
+        MAP.logAudit = (action, pdr, extra) =>
+            logAudit(MAP.db, appId, user.email, action, MAP.COLLECTION_NAME, pdr, extra);
+
+        showUserBadge(MAP.auth, user.email);
+        startCloudListener(MAP, appId);
     } catch (e) {
         MAP.isCloudMode = false;
         const el = document.getElementById('statusMessage');
@@ -139,7 +135,7 @@ export async function initApp(MAP, options = {}) {
 
 // ─── importCSVData ───────────────────────────────────────────────────────────
 
-export async function importCSVData(MAP, csvData, overwrite) {
+export async function importCSVData(MAP, csvData) {
     let batch = MAP.isCloudMode ? writeBatch(MAP.db) : null;
     let count = 0;
     const appId = localAppId();
@@ -147,10 +143,10 @@ export async function importCSVData(MAP, csvData, overwrite) {
 
     csvData.forEach(row => {
         const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
-        let lat = parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
-        let lng = parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
-
-        if (!overwrite && MAP.allData[pdr]) { lat = MAP.allData[pdr].lat; lng = MAP.allData[pdr].lng; }
+        // Coordinate: priorità anagrafica PDR, fallback CSV
+        const ana = MAP.anagraficheData[pdr];
+        let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
+        let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
 
         if (!isNaN(lat) && !isNaN(lng)) {
             const ex = MAP.allData[pdr];
@@ -183,7 +179,9 @@ export async function importCSVData(MAP, csvData, overwrite) {
                 evidenziato: ex ? (ex.evidenziato || false) : false,
                 foto_urls: ex ? (ex.foto_urls || []) : [],
                 data_fatto: ex ? (ex.data_fatto || '') : '',
-                lat, lng, fatto: status
+                lat, lng, fatto: status,
+                updated_by: MAP.user?.email || '',
+                updated_at: new Date().toISOString()
             };
             const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
             MAP.anagraficheData[pdr] = anaDoc;
@@ -226,15 +224,35 @@ export async function clearData(MAP) {
 }
 
 // ─── savePdrPosition ──────────────────────────────────────────────────────────
+// Aggiorna lat/lng in memoria, nel documento operativo E nell'anagrafica condivisa.
+// La scrittura in entrambe le collection garantisce persistenza cross-mappa e
+// resilienza rispetto a eventuali problemi di timing con applyAnagrafiche.
 
 export async function savePdrPosition(MAP, pdr, lat, lng) {
-    MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng;
+    // Aggiorna in memoria
+    if (MAP.allData[pdr]) { MAP.allData[pdr].lat = lat; MAP.allData[pdr].lng = lng; }
     if (!MAP.anagraficheData[pdr]) MAP.anagraficheData[pdr] = {};
     MAP.anagraficheData[pdr].lat = lat; MAP.anagraficheData[pdr].lng = lng;
+
     const appId = localAppId();
-    if (MAP.isCloudMode)
-        await setDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), { lat, lng }, { merge: true });
-    else {
+    if (MAP.isCloudMode) {
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+        // 1) Anagrafica condivisa (source of truth, cross-mappa)
+        await setDoc(
+            doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
+            { lat, lng }, { merge: true }
+        );
+        // 2) Collection operativa (persistenza diretta per questa mappa)
+        try {
+            await updateDoc(
+                doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr),
+                { lat, lng, ...meta }
+            );
+        } catch (_) {
+            // Il documento non esiste nella collection operativa — nessun problema,
+            // le coordinate sono comunque salvate nell'anagrafica condivisa.
+        }
+    } else {
         localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
         localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
     }

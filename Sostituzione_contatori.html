@@ -291,7 +291,7 @@
         const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); applyAnagrafiche(); updateMapAndUI(); }
     }
 
-    window.importCSVData = async function(csvData, overwrite) {
+    window.importCSVData = async function(csvData) {
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
         
         csvData.forEach(row => {
@@ -300,10 +300,10 @@
             if (String(commVal).trim() !== '1') return; // Skip if not 1
             
             const pdr = String(row['Nr. PDR']||row['Codice PDR']||Math.random().toString(36).substr(2,9));
-            let lat = parseFloat((row['Latitudine']||row.Lat||"").toString().replace(',','.').replace(/"/g,''));
-            let lng = parseFloat((row['Longitudine']||row.Long||"").toString().replace(',','.').replace(/"/g,''));
-            
-            if(!overwrite && allData[pdr]) { lat = allData[pdr].lat; lng = allData[pdr].lng; }
+            // Coordinate: priorità anagrafica PDR, fallback CSV
+            const ana = anagraficheData[pdr];
+            let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row['Latitudine']||row.Lat||"").toString().replace(',','.').replace(/"/g,''));
+            let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row['Longitudine']||row.Long||"").toString().replace(',','.').replace(/"/g,''));
             
             if(!isNaN(lat) && !isNaN(lng)) {
                 const ex = allData[pdr];
@@ -558,10 +558,9 @@
 
         document.getElementById('csvInput').addEventListener('change', (e)=>{
             const f=e.target.files[0]; if(!f)return;
-            const ow = confirm("Sovrascrivere coordinate GPS? OK=Sì (File), Annulla=No (Manuali)");
             Papa.parse(f,{header:true,skipEmptyLines:true,complete:r=>{
-                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data,ow)});
-                else window.importCSVData(r.data,ow);
+                if(r.meta.fields.length<2) Papa.parse(f,{header:true,delimiter:";",skipEmptyLines:true,complete:res=>window.importCSVData(res.data)});
+                else window.importCSVData(r.data);
             }});
         });
 

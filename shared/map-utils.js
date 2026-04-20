@@ -185,7 +185,7 @@ export function registerAll(MAP) {
     };
 
     // ── Import CSV ───────────────────────────────────────────────────────────
-    window.importCSVData = (data, ow) => importCSVData(MAP, data, ow);
+    window.importCSVData = (data) => importCSVData(MAP, data);
 
     // ── Reset ────────────────────────────────────────────────────────────────
     window.clearData = () => clearData(MAP);
@@ -194,31 +194,43 @@ export function registerAll(MAP) {
     window.savePdrNote = async (pdr) => {
         const txt = document.getElementById('note_' + pdr)?.value || '';
         const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
-        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { nota_operatore: txt });
-        else { MAP.allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); }
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+        if (MAP.isCloudMode) {
+            await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { nota_operatore: txt, ...meta });
+            MAP.logAudit?.('save_note', pdr);
+        } else { MAP.allData[pdr].nota_operatore = txt; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); }
         showToast("Nota salvata");
     };
     window.saveWaDate = async (pdr) => {
         const val = document.getElementById('wa_date_' + pdr)?.value || '';
         const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
-        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { wa_inviato: val });
-        else { MAP.allData[pdr].wa_inviato = val; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); }
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+        if (MAP.isCloudMode) {
+            await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { wa_inviato: val, ...meta });
+            MAP.logAudit?.('save_wa_date', pdr, { wa_inviato: val });
+        } else { MAP.allData[pdr].wa_inviato = val; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); }
         showToast("Data WA salvata");
     };
     window.togglePdrStatus = async (pdr) => {
         const s = !MAP.allData[pdr].fatto;
         const dataFatto = s ? new Date().toISOString().slice(0, 10) : '';
         const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
         MAP.allData[pdr].fatto = s;
         MAP.allData[pdr].data_fatto = dataFatto;
-        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { fatto: s, data_fatto: dataFatto });
-        else { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
+        if (MAP.isCloudMode) {
+            await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { fatto: s, data_fatto: dataFatto, ...meta });
+            MAP.logAudit?.('toggle_status', pdr, { fatto: s });
+        } else { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
     };
     window.togglePdrHighlight = async (pdr) => {
         const s = !MAP.allData[pdr].evidenziato;
         const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
-        if (MAP.isCloudMode) await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { evidenziato: s });
-        else { MAP.allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
+        const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+        if (MAP.isCloudMode) {
+            await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { evidenziato: s, ...meta });
+            MAP.logAudit?.('toggle_highlight', pdr, { evidenziato: s });
+        } else { MAP.allData[pdr].evidenziato = s; localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData)); MAP.updateMapAndUI?.(); }
     };
 
     // ── Coordinate ───────────────────────────────────────────────────────────
@@ -293,7 +305,9 @@ export function registerAll(MAP) {
             const downloadURL = await getDownloadURL(sRef);
             const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
             if (MAP.isCloudMode) {
-                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayUnion(downloadURL) });
+                const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayUnion(downloadURL), ...meta });
+                MAP.logAudit?.('upload_photo', pdr);
             } else {
                 if (!MAP.allData[pdr].foto_urls) MAP.allData[pdr].foto_urls = [];
                 MAP.allData[pdr].foto_urls.push(downloadURL);
@@ -310,7 +324,9 @@ export function registerAll(MAP) {
             const sRef = storageRef(MAP.storage, url);
             await deleteObject(sRef);
             if (MAP.isCloudMode) {
-                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayRemove(url) });
+                const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayRemove(url), ...meta });
+                MAP.logAudit?.('delete_photo', pdr);
             } else {
                 const idx = MAP.allData[pdr].foto_urls?.indexOf(url);
                 if (idx > -1) MAP.allData[pdr].foto_urls.splice(idx, 1);
@@ -319,7 +335,9 @@ export function registerAll(MAP) {
             showToast("Foto eliminata!"); MAP.map?.closePopup();
         } catch (e) {
             if (e.code === 'storage/object-not-found' && MAP.isCloudMode) {
-                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayRemove(url) });
+                const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+                await updateDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), { foto_urls: arrayRemove(url), ...meta });
+                MAP.logAudit?.('delete_photo_ref', pdr);
                 showToast("Riferimento foto rimosso."); MAP.map?.closePopup();
             } else { showToast("Errore eliminazione foto"); }
         }

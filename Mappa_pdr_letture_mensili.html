@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Mappa PDR Gennaio - ASI Multiservices</title>
+<title>Mappa PDR Letture Mensili - ASI Multiservices</title>
 
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -39,7 +39,7 @@
 <div id="toggleSidebar" class="toggle-btn hidden" onclick="toggleSidebar()"><i class="fa-solid fa-bars text-gray-700 text-xl"></i></div>
 
 <div id="sidebar" class="sidebar">
-    <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
+    <div class="sidebar-header"><h1 class="text-lg font-bold"><i class="fa-solid fa-map mr-2"></i>Mappa PDR Letture Mensili</h1><button onclick="toggleSidebar()"><i class="fa-solid fa-chevron-left"></i></button></div>
     <div class="sidebar-content">
         <div class="mb-4 p-4 border border-dashed border-gray-300 rounded-lg bg-gray-50">
             <h3 class="font-semibold text-gray-700 mb-2 text-sm">Importa Dati</h3>
@@ -154,7 +154,7 @@
     import { renderMap }   from './shared/map-render.js';
 
     window.MAP = {
-        COLLECTION_NAME: 'letture_pdr_riepilogo',
+        COLLECTION_NAME: 'pdr_letture_mensili',
         allData: {}, anagraficheData: {}, selectedPDRs: new Set(),
         activeAccess: new Set(['Accessibile', 'Inaccessibile', 'Altro']),
         activeComuni: new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']),
@@ -194,7 +194,7 @@
             }});
         });
 
-        initApp(window.MAP, { useStorage: false });
+        initApp(window.MAP, { useStorage: true });
     });
 </script>
 </body>

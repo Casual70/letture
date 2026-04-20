@@ -475,7 +475,10 @@
         renderNoGpsList();
 
         // Scrittura Firestore/localStorage in background (non blocca la UI)
-        window.savePdrPosition(pdr, lat, lng).catch(() => {});
+        window.savePdrPosition(pdr, lat, lng).catch(e => {
+            console.error('Salvataggio GPS fallito:', e);
+            window.showToast?.('⚠️ GPS NON salvato sul server. Controlla la connessione.');
+        });
     };
 
     window.noGpsUseGPS = (pdr) => {
@@ -575,7 +578,10 @@
                 const card = document.getElementById(`nogps_card_${item.pdr}`);
                 if (card) { card.style.borderColor = '#22c55e'; card.style.background = '#f0fdf4'; }
                 // Salva su Firestore / localStorage in background
-                window.savePdrPosition(item.pdr, lat, lng).catch(() => {});
+                window.savePdrPosition(item.pdr, lat, lng).catch(e => {
+                    console.error(`GPS save fallito per ${item.pdr}:`, e);
+                    window.showToast?.('⚠️ Errore salvataggio GPS — riprova.');
+                });
                 ok++;
             } else {
                 const card = document.getElementById(`nogps_card_${item.pdr}`);
@@ -690,7 +696,7 @@
             // Costruisce indirizzo da campi strutturati se manca colonna diretta
             const tipoVia    = (row['Tipo via']        || '').trim();
             const nomeVia    = (row['Nome via']         || '').trim();
-            const nrCivico   = (row['Nr. civico']       || '').toString().trim();
+            const nrCivico   = (row['Nr. Civico']       || '').toString().trim();
             const estCivico  = (row['Est. Nr. civico']  || '').toString().trim();
             const indCalc    = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
 

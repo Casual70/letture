@@ -1,5 +1,5 @@
 # DEV CONTEXT — ASI Multiservices Mappe PDR
-> Ultimo aggiornamento: 1 marzo 2026 · Commit HEAD: `d24bdc7`
+> Ultimo aggiornamento: 14 marzo 2026 · Commit HEAD: `afdb97b` (origin/main = "d")
 > Leggere questo file per riprendere lo sviluppo senza perdere contesto.
 
 ---
@@ -12,7 +12,7 @@ Cartella locale: `C:\Users\casua\Letture\letture`
 
 Tecnologie:
 - **Frontend puro** (no build step): HTML + Tailwind CDN + Leaflet + MarkerCluster + PapaParse + Font Awesome
-- **Backend**: Firebase (Firestore + Storage + Auth anonima)
+- **Backend**: Firebase (Firestore + Storage + Auth **Email/Password**)
 - **Progetto Firebase**: `letture-asimultiservices`
 - **Hosting**: GitHub Pages (file statici)
 
@@ -22,28 +22,33 @@ Tecnologie:
 
 ```
 letture/
-├── index.html                          ← Home: lista mappe + generatore nuova mappa
-├── Mappa_Letture_Massive_Febbraio.html ← Mappa feb 2026  (203 righe, modulare)
-├── Mappa_Letture_Massive_Gennaio.html  ← Mappa gen 2026  (202 righe, modulare)
-├── Sostituzione_contatori.html         ← Mappa sostituzioni (NON ancora modularizzata)
-├── Mappa_riduttori_V1.html             ← Mappa riduttori   (NON ancora modularizzata)
-├── Mappa_riduttori.js                  ← logica riduttori
+├── index.html                               ← Home: lista mappe + generatore (protetta da login)
+├── Mappa_Letture_Massive_Febbraio.html      ← Mappa feb 2026  (modulare)
+├── Mappa_Letture_Massive_Gennaio.html       ← Mappa gen 2026  (modulare)
+├── Mappa_letture_massive_marzo_2026.html    ← Mappa mar 2026  (modulare)
+├── Recupero_Letture_2026.html               ← Mappa recupero (modulare, render+import CUSTOM inline)
+├── Recupero_Letture_2025.html               ← Mappa recupero 2025
+├── Sostituzione_contatori.html              ← Mappa sostituzioni (NON ancora modularizzata)
+├── Mappa_riduttori_V1.html                  ← Mappa riduttori (NON ancora modularizzata)
+├── Mappa_riduttori.js                       ← logica riduttori
 ├── style_riduttori.css
 ├── custom_riduttori.js
 ├── collection.txt
 ├── cors-config.json
 ├── README.md
-└── shared/                             ← MODULI CONDIVISI (creati in questa sessione)
-    ├── firebase-config.js              ← config Firebase (unica fonte di verità)
-    ├── map-core.js                     ← initApp, listener Firestore, anagrafiche, importCSV, savePdrPosition
-    ├── map-utils.js                    ← tutte le window.X (WA, note, filtri, GPS, foto, selezione...)
-    ├── map-render.js                   ← renderMap(MAP): rendering marker PDR e Vista Via
-    └── shared.css                      ← tutti gli stili comuni (sidebar, popup, card, badge...)
+├── _DEV_CONTEXT.md                          ← QUESTO FILE
+└── shared/
+    ├── firebase-config.js   ← config Firebase (unica fonte di verità)
+    ├── auth.js              ← ★ NUOVO: login overlay, requireAuth, showUserBadge, logAudit
+    ├── map-core.js          ← initApp, listener Firestore, anagrafiche, importCSV, savePdrPosition
+    ├── map-utils.js         ← tutte le window.X (WA, note, filtri, GPS, foto, selezione...)
+    ├── map-render.js        ← renderMap(MAP): rendering marker PDR e Vista Via
+    └── shared.css           ← tutti gli stili comuni
 ```
 
 ---
 
-## 3. Architettura modulare (NUOVA — da questa sessione)
+## 3. Architettura modulare
 
 ### Oggetto MAP (stato condiviso)
 Ogni mappa HTML dichiara un oggetto `window.MAP` con questa struttura:
@@ -61,7 +66,8 @@ window.MAP = {
     activeStato: 'tutti',  // 'tutti' | 'da_fare' | 'fatti'
     viewMode: 'pdr',       // 'pdr' | 'street'
     db: null, auth: null, user: null, map: null,
-    markersCluster: null, storage: null, userLocationMarker: null
+    markersCluster: null, storage: null, userLocationMarker: null,
+    logAudit: null,        // ★ NUOVO: (action, pdr, extra?) → scrive audit_log su Firestore
 };
 ```
 
@@ -77,29 +83,78 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 ```
 
-### Come si differenziano i file HTML
-Solo due cose cambiano:
+`initApp` chiama `requireAuth(MAP.auth)` (da `shared/auth.js`) — **la mappa non si carica senza login**.
+
+### Come si differenziano le mappe HTML
+Solo due cose cambiano tra le mappe modulari:
 1. `COLLECTION_NAME` nell'oggetto MAP
 2. `useStorage: true/false` (solo Febbraio usa Firebase Storage per le foto)
 L'HTML della sidebar è identico.
 
+### ★ Eccezione: Recupero_Letture_2026.html
+Questa mappa ha **render e importCSVData CUSTOM** definiti inline (non usa shared/map-render.js per il render né shared/map-core.js per l'import). Motivo: ha campi extra (`nota_inaccessibilita`, `ultima_lettura_misur`, `codice_ultima_lettura`), filtro anno, filtro "Solo senza GPS" e modal dedicato per geocodifica massiva. Le funzioni condivise `savePdrPosition`, `registerAll`, `initApp`, `auth.js` vengono comunque usate normalmente.
+
 ---
 
-## 4. Firebase — Struttura Firestore
+## 4. ★ AUTENTICAZIONE (aggiunta 14 marzo 2026)
+
+### File: `shared/auth.js`
+Esporta tre funzioni:
+- **`requireAuth(auth)`** — mostra overlay di login (email + password) se nessuna sessione attiva; risolve con `FirebaseUser`. La sessione è persistente (Firebase la mantiene in localStorage).
+- **`showUserBadge(auth, email)`** — mostra nell'elemento `#statusMessage` l'email dell'utente e pulsante "Esci".
+- **`logAudit(db, appId, email, action, mappa, pdr, extra)`** — scrive nella collection `audit_log` in Firestore con `serverTimestamp()`. Non blocca mai il flusso.
+
+### Come funziona in `map-core.js → initApp`
+```js
+const user = await requireAuth(MAP.auth);  // blocca finché non loggato
+MAP.user = user;
+MAP.isCloudMode = true;
+MAP.logAudit = (action, pdr, extra) =>
+    logAudit(MAP.db, appId, user.email, action, MAP.COLLECTION_NAME, pdr, extra);
+showUserBadge(MAP.auth, user.email);
+startCloudListener(MAP, appId);
+```
+
+### Come funziona in `index.html`
+`<main>` e pulsante "Nuova Mappa" sono `visibility:hidden`. Uno `<script type="module">` separato esegue `requireAuth`, poi rende tutto visibile e aggiunge badge+logout nell'header.
+
+### Azioni tracciate in `audit_log`
+`toggle_status`, `toggle_highlight`, `save_note`, `save_wa_date`, `upload_photo`, `delete_photo`, `delete_photo_ref`.  
+Ogni documento Firestore scritto include anche `updated_by` (email) e `updated_at` (ISO string).
+
+### Setup Firebase Console (fare una tantum)
+1. Authentication → Sign-in providers → abilita **Email/Password**
+2. Authentication → Users → aggiungi utenti
+3. (opzionale) Firestore Rules: cambiare da accesso pubblico a `request.auth != null`
+
+---
+
+## 5. Firebase — Struttura Firestore
 
 ```
 artifacts/
 └── default-app-id/
     └── public/data/
-        ├── pdr_anagrafiche/         ← CONDIVISA tra tutte le mappe
+        ├── pdr_anagrafiche/             ← SOURCE OF TRUTH coordinate (condivisa tra tutte le mappe)
         │   └── {pdr}: { lat, lng, indirizzo, nota_accesso }
+        ├── audit_log/                   ← ★ NUOVO: ogni azione utente loggata qui
+        │   └── {docId}: { user, action, mappa, pdr, timestamp, ...extra }
         ├── letture_massive_febbraio/
-        │   └── {pdr}: { pdr, nominativo, indirizzo, zona, telefono, matricola,
-        │                data_riferimento, accessibilita, nota_accesso,
-        │                nota_operatore, wa_inviato, val_lettura, data_lettura,
-        │                evidenziato, foto_urls[], lat, lng, fatto, anno }
-        ├── letture_pdr_riepilogo/   ← collection di Gennaio
+        ├── letture_massive_marzo_2026/
+        ├── letture_pdr_riepilogo/       ← Gennaio
+        ├── recupero_letture_2026/
         └── sostituzione_contatori/
+```
+
+Schema documento operativo (comune a tutte le collection letture):
+```js
+{ pdr, nominativo, indirizzo, zona, telefono, matricola, data_riferimento,
+  accessibilita, nota_accesso, nota_operatore, wa_inviato, val_lettura,
+  data_lettura, evidenziato, foto_urls[], lat, lng, fatto,
+  data_fatto,    // ← data YYYY-MM-DD in cui è stato marcato FATTO
+  updated_by,    // ← email utente ultima modifica
+  updated_at     // ← ISO timestamp ultima modifica
+}
 ```
 
 **Config Firebase** (in `shared/firebase-config.js`):
@@ -110,17 +165,21 @@ storageBucket: "letture-asimultiservices.firebasestorage.app"
 appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
 ```
 
-### logica pdr_anagrafiche
-- `lat`, `lng`, `indirizzo`, `nota_accesso` vengono scritti in `pdr_anagrafiche` (condivisa) e applicati sopra i dati operativi via `applyAnagrafiche(MAP)` ad ogni snapshot.
-- Alla prima importazione CSV, viene eseguita automaticamente `migrateToAnagrafiche()` per popolare la collection condivisa dai dati esistenti.
+### Logica pdr_anagrafiche (coordinate condivise)
+- `applyAnagrafiche(MAP)` sovrascrive lat/lng sui dati operativi ad ogni snapshot.
+- `migrateToAnagrafiche()` viene eseguita automaticamente alla prima importazione CSV.
+- **`savePdrPosition`** (bug risolto 14/03): scrive lat/lng su **entrambe** le collection — `pdr_anagrafiche` (setDoc merge) + `MAP.COLLECTION_NAME` (updateDoc). Prima scriveva solo su `pdr_anagrafiche`, causando perdita coordinate alla ricarica.
 
 ---
 
-## 5. Funzionalità implementate (tutte operative)
+## 6. Funzionalità implementate (tutte operative)
 
-### Mappa Febbraio (+ Gennaio eredita le stesse)
+### Mappa Febbraio (+ Gennaio/Marzo ereditano le stesse)
 | Feature | Dove |
 |---|---|
+| **Login obbligatorio email/password** | `shared/auth.js → requireAuth` |
+| **Badge utente + logout** | `shared/auth.js → showUserBadge` |
+| **Audit log ogni azione** | `shared/auth.js → logAudit`, chiamato da `map-utils.js` |
 | Import CSV (delimitatore auto `,`/`;`) | `map-core.js → importCSVData` |
 | Visualizzazione marker PDR singoli | `map-render.js → renderMap (viewMode='pdr')` |
 | Visualizzazione raggruppata per via | `map-render.js → renderMap (viewMode='street')` |
@@ -138,9 +197,8 @@ appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
 | - GPS → salva coordinate | `updateCoordsWithGPS` |
 | - Foto (upload, galleria, elimina) | Firebase Storage |
 | - Data WA (follow-up) | dateInput → Firestore |
-| Popup Via (marker raggruppato per via) | `map-render.js → renderMap (viewMode='street')` |
-| - Card per ogni utenza (ordinata per civico) | |
-| - Tel + WA per ogni numero in ogni card | |
+| - Data fatto (YYYY-MM-DD) | salvata automaticamente in `togglePdrStatus` |
+| Popup Via (marker raggruppato per via) | `map-render.js` |
 | - Riassegna coordinate a tutta la via | `window.saveStreetCoords` |
 | Selezione multipla PDR + export CSV | `map-utils.js → togglePdrSelection/exportSelectedData` |
 | Evidenziazione PDR (viola) | `togglePdrHighlight` |
@@ -149,14 +207,25 @@ appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
 | GPS locate | `window.locateUser` |
 | Export CSV completo | `window.exportData` |
 | Reset/clear data | `window.clearData` |
-| Settings Firebase custom | modal → localStorage |
 | Toast notifiche | `window.showToast` |
 | Cloud sync realtime | Firestore `onSnapshot` |
 | Fallback locale | `localStorage` se Firebase non disponibile |
 
+### Funzionalità extra di Recupero_Letture_2026.html
+| Feature | Note |
+|---|---|
+| Import CSV con campi extra | `nota_inaccessibilita`, `ultima_lettura_misur`, `codice_ultima_lettura` |
+| Import NON sovrascrive coordinate | lat/lng prese da `MAP.anagraficheData` o dati esistenti, MAI dal CSV |
+| Filtro anno ultima lettura | checkbox per anni |
+| Filtro "Solo senza GPS" | mostra solo PDR con `lat === null \|\| isNaN(lat)` |
+| Panel "N PDR senza GPS" | cliccabile → apre modal geocodifica massiva |
+| Modal geocodifica massiva | lista PDR senza GPS, selezione multipla, geocodifica OSM o Google Geocoding API |
+| Geocodifica automatica sequenziale | rate-limit 1100ms (OSM) o 200ms (Google); interrompibile |
+| Salvataggio GPS singolo/massivo | `window.savePdrPosition` → anagrafiche + operativa (dual-write) |
+
 ---
 
-## 6. Workflow "nuova mappa"
+## 7. Workflow "nuova mappa"
 
 1. Aprire `index.html` nel browser (richiede server HTTP, non `file://`)
 2. Click "+ Nuova Mappa"
@@ -168,7 +237,7 @@ appId: "1:412990381286:web:d7aa7cbf485ead920f6f27"
 
 ---
 
-## 7. Come creare nuova mappa manualmente (alternativa)
+## 8. Come creare nuova mappa manualmente (alternativa)
 Copia `Mappa_Letture_Massive_Febbraio.html`, cambia solo:
 ```js
 COLLECTION_NAME: 'letture_massive_marzo',   // ← collection Firestore
@@ -181,7 +250,7 @@ Se la mappa non necessita di foto: cambia `useStorage: true` in `useStorage: fal
 
 ---
 
-## 8. Come aggiungere funzionalità condivise
+## 9. Come aggiungere funzionalità condivise
 
 **Nuovo stile visuale** → modificare solo `shared/shared.css`  
 **Nuova funzione utente** (es. nuovo tipo di filtro) → aggiungere in `shared/map-utils.js` dentro `registerAll(MAP)`, registrando `window.nuovaFunzione = (...) => { ... }`  
@@ -190,7 +259,7 @@ Se la mappa non necessita di foto: cambia `useStorage: true` in `useStorage: fal
 
 ---
 
-## 9. File non ancora modularizzati
+## 10. File non ancora modularizzati
 
 | File | Note |
 |---|---|
@@ -204,35 +273,57 @@ Quando verranno modularizzati:
 
 ---
 
-## 10. Git log recente
+## 11. Bug risolti (storico)
+
+### 14 marzo 2026 — Coordinate GPS non persistite tra caricamenti (Recupero Letture)
+**Problema**: `savePdrPosition` scriveva lat/lng solo in `pdr_anagrafiche`. Al prossimo caricamento il documento operativo restituiva ancora `lat: null` da Firestore. Se `applyAnagrafiche` non correggeva in tempo (race condition), le coordinate erano perse. Tutti i `.catch(() => {})` erano silenziosi.  
+**Fix**: `savePdrPosition` ora scrive su entrambe le collection. In `Recupero_Letture_2026.html` sostituiti tutti `.catch(() => {})` con toast di errore visibile.
+
+---
+
+## 12. Git log recente
 
 ```
-d24bdc7  Modularizzazione: shared/ CSS+JS + refactoring Febbraio/Gennaio + index.html con generatore mappe
-193ff63  Street view: WA button for all phone numbers in card
-91fae66  Popup: aggiunto padding esterno
-0faa147  Ripristino: visualizzazione per via, chiamata telefonica, WA a numero custom
-072ea15  Risolto conflitto: mantieni versione locale
-df2fe32  Fix big popup
-a4759ea  aggiunta api google
-a990c9b  visualizzazione lista
+afdb97b  d  ← HEAD locale e origin/main (base delle modifiche di questa sessione)
+68d9744  pulse
+473f751  markek Wa
+b473e24  market_evidenti
+8f96f6f  coordinate anarafica fisso
+```
+
+**Modifiche non ancora committate** (al 14 marzo 2026):
+- `shared/auth.js` (file nuovo)
+- `shared/map-core.js`
+- `shared/map-utils.js`
+- `index.html`
+- `Recupero_Letture_2026.html`
+- `_DEV_CONTEXT.md`
+
+Comando per pubblicare:
+```powershell
+cd "C:\Users\casua\Letture\letture"
+git add -A && git commit -m "Auth Email/Password + audit log + fix GPS persistence" && git push origin main
 ```
 
 ---
 
-## 11. Cose da fare / idee per prossimi sviluppi
+## 13. Cose da fare / idee per prossimi sviluppi
 
+- [ ] **Firebase Console**: abilitare Email/Password auth provider + creare account utenti
+- [ ] **Firebase Security Rules**: cambiare da accesso pubblico a `request.auth != null`
+- [ ] **git push** le modifiche di questa sessione (auth + GPS fix)
 - [ ] Modularizzare `Sostituzione_contatori.html` (stesso pattern di Febbraio)
 - [ ] Modularizzare `Mappa_riduttori_V1.html`
-- [ ] Aggiungere conferma "aggiungi voce in index.html" automatica dopo generazione mappa (ora è solo un alert)
+- [ ] Pannello admin per leggere la collection `audit_log` in tabella
 - [ ] index.html: poter editare/rinominare le mappe esistenti dalla UI
-- [ ] Statistica visiva (es. barra avanzamento % fatti per mappa) nell'index
+- [ ] Statistica visiva (% fatti per mappa) nell'index
 - [ ] Filtro per range di date WA
 - [ ] Esportazione PDF/stampa lista utenze filtrate
-- [ ] (opzionale) GitHub API integration per creare il file HTML direttamente nel repo dal browser senza download manuale
+- [ ] Recupero: trattare anche coordinate `0,0` come "senza GPS"
 
 ---
 
-## 12. Snippet utili
+## 14. Snippet utili
 
 ### Aggiungere un filtro speciale (esempio: solo PDR con foto)
 In `shared/map-utils.js`, dentro `registerAll(MAP)`:
@@ -259,4 +350,18 @@ Modificare `importCSVData` in `map-core.js` (oggetto `newData`) per salvare il c
 ```powershell
 cd "C:\Users\casua\Letture\letture"
 git add -A && git commit -m "messaggio" && git push origin main
+```
+
+### Come usare MAP.logAudit in una nuova funzione
+```js
+// In shared/map-utils.js, dentro la nuova funzione:
+await updateDoc(docRef, { mioField: valore, ...meta });
+MAP.logAudit?.('nome_azione', pdr, { mioField: valore });
+// MAP.logAudit è null in modalità locale (no cloud) → l'?. previene errori
+```
+
+### Pattern meta per tutte le scritture Firestore
+```js
+const meta = { updated_by: MAP.user?.email || '', updated_at: new Date().toISOString() };
+await updateDoc(ref, { fieldName: value, ...meta });
 ```

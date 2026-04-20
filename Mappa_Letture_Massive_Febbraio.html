@@ -187,11 +187,10 @@
 
         document.getElementById('csvInput').addEventListener('change', e => {
             const f = e.target.files[0]; if (!f) return;
-            const ow = confirm("Sovrascrivere coordinate GPS? OK=Si (File), Annulla=No (Manuali)");
             Papa.parse(f, { header: true, skipEmptyLines: true, complete: r => {
                 if (r.meta.fields.length < 2)
-                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data, ow) });
-                else window.importCSVData(r.data, ow);
+                    Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data) });
+                else window.importCSVData(r.data);
             }});
         });
 
