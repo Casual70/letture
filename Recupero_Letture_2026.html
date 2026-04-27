@@ -52,6 +52,17 @@
                 class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700"/>
         </div>
 
+        <!-- Import GPS CSV -->
+        <div class="mb-4 p-3 border border-dashed border-green-300 rounded-lg bg-green-50">
+            <h3 class="font-semibold text-gray-700 mb-1 text-xs uppercase tracking-wide"><i class="fa-solid fa-location-dot mr-1 text-green-600"></i>Aggiorna GPS da CSV</h3>
+            <p class="text-[10px] text-gray-500 mb-2">CSV con colonne <b>PDR</b>, <b>Lat</b>, <b>Long</b> — aggiorna solo le coordinate, senza toccare gli altri dati</p>
+            <input type="file" id="gpsImportInput" accept=".csv" class="hidden">
+            <button onclick="document.getElementById('gpsImportInput').click()"
+                class="w-full text-xs bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded flex items-center justify-center gap-2">
+                <i class="fa-solid fa-file-import"></i> Importa GPS
+            </button>
+        </div>
+
         <!-- Selezione Panel -->
         <div id="selectionPanel" class="mb-4 p-3 bg-cyan-50 border border-cyan-200 rounded-lg hidden">
             <div class="flex justify-between items-center mb-2">
@@ -752,6 +763,67 @@
         window.showToast?.(`Importati: ${imported} PDR${noCoord > 0 ? ' (' + noCoord + ' senza GPS)' : ''}`);
     };
 
+    // ─── Import GPS da CSV ─────────────────────────────────────────────────────
+    // Aggiorna SOLO lat/lng dei PDR già presenti nel DB.
+    // Skipped: righe senza PDR valido, PDR non trovati, coordinate non numeriche.
+    window.importGPSFromCSV = async function(csvData) {
+        if (!csvData || csvData.length === 0) { window.showToast?.('File CSV vuoto'); return; }
+        const MAP = window.MAP;
+        const appId = localStorage.getItem('custom_app_id') || 'default-app-id';
+        let updated = 0, skipped = 0, notFound = 0;
+        const pdrUpdates = [];
+
+        csvData.forEach(row => {
+            const pdr = String(row['Codice PDR'] || row['PDR'] || row['pdr'] || '').trim();
+            if (!pdr) { skipped++; return; }
+            if (!MAP.allData[pdr]) { notFound++; return; }
+
+            // Supporta virgola o punto come separatore decimale
+            const latRaw = (row['Lat'] || row['LAT'] || row['lat'] || row['Latitude'] || row['latitude'] || '').toString().replace(',', '.').replace(/"/g, '').trim();
+            const lngRaw = (row['Long'] || row['Lng'] || row['LON'] || row['lng'] || row['lon'] || row['Longitude'] || row['longitude'] || '').toString().replace(',', '.').replace(/"/g, '').trim();
+
+            const lat = parseFloat(latRaw);
+            const lng = parseFloat(lngRaw);
+
+            if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) { skipped++; return; }
+
+            // Aggiorna in memoria
+            MAP.allData[pdr].lat = lat;
+            MAP.allData[pdr].lng = lng;
+            if (!MAP.anagraficheData[pdr]) MAP.anagraficheData[pdr] = {};
+            MAP.anagraficheData[pdr].lat = lat;
+            MAP.anagraficheData[pdr].lng = lng;
+
+            pdrUpdates.push({ pdr, lat, lng });
+            updated++;
+        });
+
+        // Persiste le modifiche
+        if (pdrUpdates.length > 0) {
+            if (MAP.isCloudMode) {
+                let batch = writeBatch(MAP.db), count = 0;
+                pdrUpdates.forEach(({ pdr, lat, lng }) => {
+                    batch.set(
+                        doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
+                        { lat, lng }, { merge: true }
+                    );
+                    count++;
+                    if (count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
+                });
+                if (count > 0) await batch.commit();
+            } else {
+                localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
+                localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
+            }
+        }
+
+        MAP.updateMapAndUI?.();
+        let msg = `GPS aggiornati: ${updated}`;
+        if (skipped > 0) msg += ` | Saltati (coord. non valide): ${skipped}`;
+        if (notFound > 0) msg += ` | PDR non in archivio: ${notFound}`;
+        window.showToast?.(msg);
+    };
+
     // ─── Render personalizzato ─────────────────────────────────────────────────
     function renderRecupero(MAP) {
         if (!MAP.markersCluster) return;
@@ -1423,6 +1495,17 @@
                 if (r.meta.fields.length < 2)
                     Papa.parse(f, { header: true, delimiter: ";", skipEmptyLines: true, complete: res => window.importCSVData(res.data) });
                 else window.importCSVData(r.data);
+            }});
+        });
+
+        document.getElementById('gpsImportInput').addEventListener('change', e => {
+            const f = e.target.files[0]; if (!f) return;
+            e.target.value = ''; // reset per permettere il ri-caricamento dello stesso file
+            Papa.parse(f, { header: true, skipEmptyLines: true, complete: r => {
+                if (!r.data.length || r.meta.fields.length < 2)
+                    Papa.parse(f, { header: true, delimiter: ';', skipEmptyLines: true, complete: res => window.importGPSFromCSV(res.data) });
+                else
+                    window.importGPSFromCSV(r.data);
             }});
         });
 
