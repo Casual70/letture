@@ -97,6 +97,13 @@ export function loadLocalData(MAP) {
 // ─── initApp ────────────────────────────────────────────────────────────────
 
 export async function initApp(MAP, options = {}) {
+    // Su mobile (< 640px) la sidebar da 100% larghezza ostruisce la mappa: la chiudiamo subito.
+    // Il tasto toggle (class="toggle-btn hidden") viene reso visibile rimuovendo "hidden".
+    if (window.innerWidth < 640) {
+        document.getElementById('sidebar')?.classList.add('collapsed');
+        document.getElementById('toggleSidebar')?.classList.remove('hidden');
+    }
+
     // options.useStorage: boolean — abilita Firebase Storage
     try {
         MAP.onFiltersReady?.();

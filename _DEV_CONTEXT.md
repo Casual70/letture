@@ -1,5 +1,5 @@
 # DEV CONTEXT — ASI Multiservices Mappe PDR
-> Ultimo aggiornamento: 14 marzo 2026 · Commit HEAD: `afdb97b` (origin/main = "d")
+> Ultimo aggiornamento: 14 maggio 2026 · Commit HEAD: `420cdf3`
 > Leggere questo file per riprendere lo sviluppo senza perdere contesto.
 
 ---
@@ -22,28 +22,32 @@ Tecnologie:
 
 ```
 letture/
-├── index.html                               ← Home: lista mappe + generatore (protetta da login)
-├── Mappa_Letture_Massive_Febbraio.html      ← Mappa feb 2026  (modulare)
-├── Mappa_Letture_Massive_Gennaio.html       ← Mappa gen 2026  (modulare)
-├── Mappa_letture_massive_marzo_2026.html    ← Mappa mar 2026  (modulare)
-├── Recupero_Letture_2026.html               ← Mappa recupero (modulare, render+import CUSTOM inline)
-├── Recupero_Letture_2025.html               ← Mappa recupero 2025
-├── Sostituzione_contatori.html              ← Mappa sostituzioni (NON ancora modularizzata)
-├── Mappa_riduttori_V1.html                  ← Mappa riduttori (NON ancora modularizzata)
-├── Mappa_riduttori.js                       ← logica riduttori
+├── index.html                                        ← Home: lista mappe + generatore (protetta da login)
+├── Mappa_Letture_Massive_Gennaio.html                ← Mappa gen 2026  (modulare)
+├── Mappa_Letture_Massive_Febbraio.html               ← Mappa feb 2026  (modulare)
+├── Mappa_letture_massive_marzo_2026.html             ← Mappa mar 2026  (modulare)
+├── Mappa_letture_massive_aprile_2026.html            ← Mappa apr 2026  (modulare)  ★ AGGIUNTA 24/04
+├── Mappa_pdr_letture_mensili.html                    ← Letture mensili ricorrenti (modulare)  ★ AGGIUNTA 24/03
+├── Mappa_letture_massive_marzo_2026_acc_neg.html     ← Recupero negativi/eccessivi mar 2026 (modulare)  ★ AGGIUNTA 24/03
+├── Recupero_Letture_2026.html                        ← Mappa recupero (render+import CUSTOM inline)
+├── Recupero_Letture_2025.html                        ← Mappa recupero 2025
+├── Sostituzione_contatori.html                       ← Mappa sostituzioni (NON ancora modularizzata)
+├── Mappa_riduttori_V1.html                           ← Mappa riduttori (NON ancora modularizzata)
+├── Mappa_riduttori.js                                ← logica riduttori
 ├── style_riduttori.css
 ├── custom_riduttori.js
+├── custom_site.js                                    ← jQuery helpers per sito esterno (lista download, filtri)  ★ AGGIUNTO 18/03
 ├── collection.txt
 ├── cors-config.json
 ├── README.md
-├── _DEV_CONTEXT.md                          ← QUESTO FILE
+├── _DEV_CONTEXT.md                                   ← QUESTO FILE
 └── shared/
     ├── firebase-config.js   ← config Firebase (unica fonte di verità)
-    ├── auth.js              ← ★ NUOVO: login overlay, requireAuth, showUserBadge, logAudit
+    ├── auth.js              ← login overlay, requireAuth, showUserBadge, logAudit
     ├── map-core.js          ← initApp, listener Firestore, anagrafiche, importCSV, savePdrPosition
     ├── map-utils.js         ← tutte le window.X (WA, note, filtri, GPS, foto, selezione...)
     ├── map-render.js        ← renderMap(MAP): rendering marker PDR e Vista Via
-    └── shared.css           ← tutti gli stili comuni
+    └── shared.css           ← tutti gli stili comuni (caricato con cache-busting ?v=...)
 ```
 
 ---
@@ -91,8 +95,21 @@ Solo due cose cambiano tra le mappe modulari:
 2. `useStorage: true/false` (solo Febbraio usa Firebase Storage per le foto)
 L'HTML della sidebar è identico.
 
+### Elenco COLLECTION_NAME attivi
+| File HTML | COLLECTION_NAME | Note |
+|---|---|---|
+| Mappa_Letture_Massive_Gennaio.html | `letture_pdr_riepilogo` | |
+| Mappa_Letture_Massive_Febbraio.html | `letture_massive_febbraio` | unica con foto (Storage) |
+| Mappa_letture_massive_marzo_2026.html | `letture_massive_marzo_2026` | |
+| Mappa_letture_massive_aprile_2026.html | `letture_massive_aprile_2026` | ★ apr 2026 |
+| Mappa_pdr_letture_mensili.html | `pdr_letture_mensili` | letture mensili ricorrenti |
+| Mappa_letture_massive_marzo_2026_acc_neg.html | `letture_massive_marzo_2026_acc_neg` | recupero negativi/eccessivi |
+| Recupero_Letture_2026.html | `recupero_letture_2026` | custom render/import |
+
 ### ★ Eccezione: Recupero_Letture_2026.html
 Questa mappa ha **render e importCSVData CUSTOM** definiti inline (non usa shared/map-render.js per il render né shared/map-core.js per l'import). Motivo: ha campi extra (`nota_inaccessibilita`, `ultima_lettura_misur`, `codice_ultima_lettura`), filtro anno, filtro "Solo senza GPS" e modal dedicato per geocodifica massiva. Le funzioni condivise `savePdrPosition`, `registerAll`, `initApp`, `auth.js` vengono comunque usate normalmente.
+
+Nota (14/05/2026): incluso **Eruda** (debugger mobile) per troubleshooting da smartphone. Rimuovere prima di andare in produzione stabile se non necessario.
 
 ---
 
@@ -279,39 +296,42 @@ Quando verranno modularizzati:
 **Problema**: `savePdrPosition` scriveva lat/lng solo in `pdr_anagrafiche`. Al prossimo caricamento il documento operativo restituiva ancora `lat: null` da Firestore. Se `applyAnagrafiche` non correggeva in tempo (race condition), le coordinate erano perse. Tutti i `.catch(() => {})` erano silenziosi.  
 **Fix**: `savePdrPosition` ora scrive su entrambe le collection. In `Recupero_Letture_2026.html` sostituiti tutti `.catch(() => {})` con toast di errore visibile.
 
+### ~24 marzo 2026 — Rimosso popup conferma sovrascrittura GPS (commit `e52ad03`)
+**Problema**: al salvataggio coordinate GPS veniva mostrato un popup di conferma che chiedeva se sovrascrivere. Questo bloccava i salvataggi rapidi sul campo.
+**Fix**: rimosso il popup. `pdr_anagrafiche` è ora usata come source of truth senza chiedere conferma. Le coordinate vengono sempre sovrascritte al salvataggio.
+
 ---
 
 ## 12. Git log recente
 
 ```
-afdb97b  d  ← HEAD locale e origin/main (base delle modifiche di questa sessione)
-68d9744  pulse
-473f751  markek Wa
-b473e24  market_evidenti
-8f96f6f  coordinate anarafica fisso
+420cdf3  Fix HTML formatting and structure                  ← HEAD (14/05/2026)
+abad57b  Update shared.css link with versioning             (14/05/2026)
+53e9a39  Add Eruda for debugging in Recupero_Letture_2026   (14/05/2026)
+86d46aa  aggiung inport lat long                            (27/04/2026)
+e6a7d6e  Add files via upload (aprile 2026)                 (24/04/2026)
+e548ed2  Add new map entry for Letture Massive April 2026   (24/04/2026)
+24df381  terrazzi recupero fix                              (20/04/2026)
+d940043  Add 'Letture Recupero Marzo 2026' entry to index   (24/03/2026)
+4460009  Add files via upload (mensili + acc_neg)           (24/03/2026)
+e52ad03  Remove GPS confirm popup; use anagrafica as truth  (24/03/2026)
+58b535b  Add custom_site.js                                 (18/03/2026)
+afdb97b  d  ← base sessione precedente (14/03/2026)
 ```
-
-**Modifiche non ancora committate** (al 14 marzo 2026):
-- `shared/auth.js` (file nuovo)
-- `shared/map-core.js`
-- `shared/map-utils.js`
-- `index.html`
-- `Recupero_Letture_2026.html`
-- `_DEV_CONTEXT.md`
 
 Comando per pubblicare:
 ```powershell
 cd "C:\Users\casua\Letture\letture"
-git add -A && git commit -m "Auth Email/Password + audit log + fix GPS persistence" && git push origin main
+git add -A && git commit -m "messaggio" && git push origin main
 ```
 
 ---
 
 ## 13. Cose da fare / idee per prossimi sviluppi
 
-- [ ] **Firebase Console**: abilitare Email/Password auth provider + creare account utenti
+- [x] ~~**Firebase Console**: abilitare Email/Password auth provider + creare account utenti~~
 - [ ] **Firebase Security Rules**: cambiare da accesso pubblico a `request.auth != null`
-- [ ] **git push** le modifiche di questa sessione (auth + GPS fix)
+- [x] ~~**git push** le modifiche di sessione (auth + GPS fix)~~ (fatto, commit `1747084`)
 - [ ] Modularizzare `Sostituzione_contatori.html` (stesso pattern di Febbraio)
 - [ ] Modularizzare `Mappa_riduttori_V1.html`
 - [ ] Pannello admin per leggere la collection `audit_log` in tabella
@@ -320,6 +340,7 @@ git add -A && git commit -m "Auth Email/Password + audit log + fix GPS persisten
 - [ ] Filtro per range di date WA
 - [ ] Esportazione PDF/stampa lista utenze filtrate
 - [ ] Recupero: trattare anche coordinate `0,0` come "senza GPS"
+- [ ] Rimuovere Eruda da `Recupero_Letture_2026.html` se non più necessario per debug mobile
 
 ---
 
