@@ -24,7 +24,6 @@ body{margin:0;padding:0;height:100%;height:-webkit-fill-available;width:100%;ove
 /* Modal */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;border-radius:12px;width:90%;max-width:500px;box-shadow:0 10px 25px rgba(0,0,0,.2)}
-
 /* Filtri */
 .filter-checkbox{display:flex;align-items:center;padding:8px;border-radius:6px;cursor:pointer;transition:background .2s}
 .filter-checkbox:hover{background-color:#f3f4f6}

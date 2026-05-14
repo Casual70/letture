@@ -101,14 +101,22 @@ export function registerAll(MAP) {
     // Toast
     window.showToast = showToast;
 
+    // ── Chiude tutti i modal aperti (prevenzione sovrapposizioni su mobile) ───
+    window.closeAllModals = () => {
+        ['settingsModal','photoModal','noGpsModal','planModal'].forEach(id => {
+            document.getElementById(id)?.classList.add('hidden');
+        });
+    };
+
     // ── Settings ────────────────────────────────────────────────────────────
     window.toggleSettings = () => {
         const m = document.getElementById('settingsModal'); if (!m) return;
-        m.classList.toggle('hidden');
-        if (!m.classList.contains('hidden')) {
-            const c = localStorage.getItem('custom_firebase_config');
-            document.getElementById('firebaseConfigInput').value = c ? c : JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2);
-        }
+        const isOpen = !m.classList.contains('hidden');
+        window.closeAllModals();
+        if (isOpen) return; // era aperto → lo chiudiamo e basta
+        m.classList.remove('hidden');
+        const c = localStorage.getItem('custom_firebase_config');
+        document.getElementById('firebaseConfigInput').value = c ? c : JSON.stringify(HARDCODED_FIREBASE_CONFIG, null, 2);
     };
     window.saveSettings = () => {
         const c = document.getElementById('firebaseConfigInput').value.trim();
@@ -290,7 +298,7 @@ export function registerAll(MAP) {
     window.toggleSection    = (id)  => document.getElementById(id)?.classList.toggle('hidden');
 
     // ── Foto ─────────────────────────────────────────────────────────────────
-    window.openPhotoModal  = (url) => { document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
+    window.openPhotoModal  = (url) => { window.closeAllModals?.(); document.getElementById('photoModalImage').src = url; document.getElementById('photoModal').classList.remove('hidden'); };
     window.closePhotoModal = ()    => { document.getElementById('photoModal').classList.add('hidden'); document.getElementById('photoModalImage').src = ''; };
     window.triggerPhotoUpload = (pdr) => document.getElementById('photo_input_' + pdr)?.click();
     window.handlePhotoUpload = async (pdr, file) => {
