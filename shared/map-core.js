@@ -177,6 +177,7 @@ export async function importCSVData(MAP, csvData) {
                 zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
                 telefono: (row['Telefono'] || row.TELEFONO || '').toString().trim().replace(/^75/, '075'),
                 matricola: row['Matricola misuratore'] || row.MATRICOLA || 'N/D',
+                ubicazione_misuratore: row['Ubicazione Misuratore'] || '',
                 data_riferimento: row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "",
                 anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
                 nota_accesso: row['Nota_accesso'] || row['Note'] || '',
