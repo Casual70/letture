@@ -98,6 +98,10 @@
             <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Comune</label><button onclick="selectAllComuni()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
             <div id="comuniFiltersContainer" class="space-y-1 bg-white border rounded p-2"></div>
         </div>
+        <div class="mb-4">
+            <div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-gray-700 uppercase">Venditore</label><button onclick="selectAllVenditori()" class="text-[10px] text-blue-600 hover:underline">Tutti</button></div>
+            <div id="venditoriFiltersContainer" class="space-y-1 bg-white border rounded p-2"><span class="text-[10px] text-gray-400 italic">Importa CSV per popolare</span></div>
+        </div>
         
         <!-- Filtri Speciali -->
         <div class="mb-6">
@@ -160,6 +164,7 @@
     let activeComuni = new Set(['San Giustino', 'Umbertide', 'Montone', 'Altro']);
     let filterTerrazzo = false;
     let filterFollowUp = false;
+    let activeVenditori = new Set();
 
     const HARDCODED_FIREBASE_CONFIG = {
         apiKey: "AIzaSyBvw9MiDb84WCGkP3XZUX3QnrFyypjw97g",
@@ -301,9 +306,13 @@
                 classe:        row['Classe misuratore'] || '',
                 accessibilita: row['Accessibilit\u00e0  PdR'] || row["Accessibilita' PDR"] || row['Accessibilit\u00e0 gruppi misura'] || 'N/D',
                 nota_accesso:  '',
-                nota_operatore: ex ? (ex.nota_operatore || '') : '',
-                wa_inviato:    existingWaDate,
-                evidenziato:   ex ? (ex.evidenziato || false) : false,
+                nota_operatore:    ex ? (ex.nota_operatore || '') : '',
+                wa_inviato:        existingWaDate,
+                evidenziato:       ex ? (ex.evidenziato || false) : false,
+                venditore:         row['Venditore'] || '',
+                comunicato:        String(row['Comunicato']).trim() === '1',
+                avviso_consegnato: String(row['Avviso Consegnato']).trim() === '1',
+                avviso_stampato:   String(row['Avviso Stampato']).trim() === '1',
                 lat, lng, fatto: status
             };
 
@@ -320,6 +329,7 @@
         else if (!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); updateMapAndUI(); }
         const tot = Object.keys(allData).length;
         showToast(noGps > 0 ? `Importati ${tot} (${noGps} senza GPS)` : `Importati ${tot}`);
+        renderVenditoriFilters();
     };
 
     // Actions
@@ -413,6 +423,7 @@
             else if(search.includes('san giustino')||search.includes('54044')) com='San Giustino';
             else if(search.includes('montone')||search.includes('54033')) com='Montone';
             if(!activeComuni.has(com)) return;
+            if(activeVenditori.size > 0 && !activeVenditori.has(item.venditore || '')) return;
 
             vis++; if(item.fatto) done++;
 
@@ -450,6 +461,12 @@
                         <div>🔢 Matr: ${item.matricola} (Anno: ${item.anno_fabb||'-'})</div>
                         <div>🚪 ${item.accessibilita}</div>
                         ${item.telefono ? `<div><i class="fa-solid fa-phone w-4 text-center mr-1"></i> ${item.telefono}</div>` : ''}
+                        ${item.venditore ? `<div>🏪 ${item.venditore}</div>` : ''}
+                        <div class="flex gap-1 flex-wrap mt-1">
+                            ${item.comunicato ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-100 text-green-700">Comunicato</span>' : ''}
+                            ${item.avviso_consegnato ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700">Avviso Cons.</span>' : ''}
+                            ${item.avviso_stampato ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-yellow-100 text-yellow-700">Avviso Stamp.</span>' : ''}
+                        </div>
                     </div>
                     <div class="flex gap-1 mb-1">
                         <button onclick="window.togglePdrStatus('${item.pdr}')" class="flex-1 py-1 rounded text-[10px] font-bold border ${item.fatto?'bg-gray-100':'bg-blue-600 text-white'}">${item.fatto?'Riapri':'Fatto'}</button>
@@ -507,8 +524,24 @@
             d.querySelector('input').onchange=(e)=>{ e.target.checked?activeComuni.add(x):activeComuni.delete(x); updateMapAndUI(); }; c.appendChild(d);
         });
     }
+    function renderVenditoriFilters() {
+        const c = document.getElementById('venditoriFiltersContainer'); if(!c) return; c.innerHTML='';
+        const venditori = [...new Set(Object.values(allData).map(d => d.venditore || '').filter(Boolean))].sort();
+        if (venditori.length === 0) { c.innerHTML='<span class="text-[10px] text-gray-400 italic">Nessun dato</span>'; return; }
+        const prevSel = activeVenditori.size > 0 ? activeVenditori : null;
+        activeVenditori = new Set(venditori);
+        venditori.forEach(v => {
+            const checked = prevSel ? prevSel.has(v) : true;
+            if (!checked) activeVenditori.delete(v);
+            const d = document.createElement('div'); d.className='filter-checkbox';
+            d.innerHTML=`<input type="checkbox" value="${v}" ${checked?'checked':''}> <span class="text-[10px] text-gray-700">${v}</span>`;
+            d.querySelector('input').onchange=(e)=>{ e.target.checked?activeVenditori.add(v):activeVenditori.delete(v); updateMapAndUI(); };
+            c.appendChild(d);
+        });
+    }
     window.selectAllAccess = () => { document.querySelectorAll('#accessFiltersContainer input').forEach(c=>{c.checked=true; activeAccess.add(c.value)}); updateMapAndUI(); };
     window.selectAllComuni = () => { document.querySelectorAll('#comuniFiltersContainer input').forEach(c=>{c.checked=true; activeComuni.add(c.value)}); updateMapAndUI(); };
+    window.selectAllVenditori = () => { document.querySelectorAll('#venditoriFiltersContainer input').forEach(c=>{c.checked=true; activeVenditori.add(c.value)}); updateMapAndUI(); };
 
     // Search
     document.getElementById('searchInput').addEventListener('input', (e)=>{
