@@ -145,7 +145,8 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { requireAuth, showUserBadge } from './shared/auth.js';
     import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     let db, auth, user, map, markersCluster;
@@ -187,15 +188,11 @@
 
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app); db = getFirestore(app);
-            
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-            } catch (err) { try { await signInAnonymously(auth); } catch(e) { throw e; } }
 
-            onAuthStateChanged(auth, (u) => {
-                if (u) { user = u; isCloudMode = true; document.getElementById('statusMessage').innerHTML = `<span class="text-green-600 cursor-pointer" onclick="toggleSettings()"><i class="fa-solid fa-cloud"></i> Cloud Attivo</span>`; startCloudListener(appId); }
-            });
+            user = await requireAuth(auth);
+            isCloudMode = true;
+            showUserBadge(auth, user.email);
+            startCloudListener(appId);
         } catch (e) {
             isCloudMode = false;
             document.getElementById('statusMessage').innerHTML = `<span class="text-red-500 cursor-pointer" onclick="toggleSettings()">Locale (Err Auth)</span>`;
