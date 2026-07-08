@@ -263,8 +263,7 @@
                 else allData[c.doc.id] = d;
             });
             applyAnagrafiche();
-            updateMapAndUI(); updateSelectionUI();
-        }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
+            renderVenditoriFilters(); updateMapAndUI(); updateSelectionUI();
         // Listener anagrafiche condivise (lat/lng/indirizzo/nota_accesso)
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION), (snap) => {
             snap.docChanges().forEach(c => { c.type === "removed" ? delete anagraficheData[c.doc.id] : anagraficheData[c.doc.id] = c.doc.data(); });
@@ -274,7 +273,7 @@
     }
     function loadLocalData() {
         const ana = localStorage.getItem('pdr_anagrafiche'); if(ana) anagraficheData = JSON.parse(ana);
-        const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); applyAnagrafiche(); updateMapAndUI(); }
+        const s = localStorage.getItem('pdr_data_riepilogo'); if(s) { allData = JSON.parse(s); applyAnagrafiche(); renderVenditoriFilters(); updateMapAndUI(); }
     }
 
     window.importCSVData = async function(csvData) {
