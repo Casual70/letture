@@ -293,56 +293,56 @@
 
     window.importCSVData = async function(csvData) {
         let batch = isCloudMode ? writeBatch(db) : null; let count = 0;
-        
+        let noGps = 0;
+        const appIdLocal = localStorage.getItem('custom_app_id')||'default-app-id';
+
         csvData.forEach(row => {
-            // --- FILTRO: IMPORTA SOLO SE COMUNICATI == 1 ---
-            const commVal = row['Comunicati'] || row['Comunicazione'];
-            if (String(commVal).trim() !== '1') return; // Skip if not 1
-            
+            // --- FILTRO: IMPORTA SOLO SE COMUNICATO == 1 ---
+            const commVal = row['Comunicato'] || row['Comunicati'] || row['Comunicazione'];
+            if (String(commVal).trim() !== '1') return;
+
             const pdr = String(row['Nr. PDR']||row['Codice PDR']||Math.random().toString(36).substr(2,9));
-            // Coordinate: priorità anagrafica PDR, fallback CSV
+            // Coordinate: SOLO da anagrafiche condivise (raccordo PDR) — il CSV GDM non ha lat/lng
             const ana = anagraficheData[pdr];
-            let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row['Latitudine']||row.Lat||"").toString().replace(',','.').replace(/"/g,''));
-            let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row['Longitudine']||row.Long||"").toString().replace(',','.').replace(/"/g,''));
-            
-            if(!isNaN(lat) && !isNaN(lng)) {
-                const ex = allData[pdr];
-                let status = ex ? (ex.fatto || false) : false; // Default: Maintains existing status
-                const existingWaDate = ex ? (ex.wa_inviato || '') : '';
-                
-                // MAPPING PER GDM CSV
-                const newData = {
-                    pdr: pdr, 
-                    nominativo: row['Nome utenza']||'Utente',
-                    indirizzo: row['Indirizzo']||'', 
-                    zona: row['Nome zona']||row['Zona']||'',
-                    telefono: (row['Telefono']||'').toString().trim().replace(/^75/,'075'),
-                    matricola: row['Matricola misuratore']||'N/D',
-                    anno_fabb: row['Anno fabbricazione misuratore']||'',
-                    classe: row['Classe misuratore']||'',
-                    accessibilita: row["Accessibilita' PDR"]||row['Accessibilità gruppi misura']||'N/D',
-                    nota_accesso: '', 
-                    nota_operatore: ex ? (ex.nota_operatore||'') : '',
-                    wa_inviato: existingWaDate,
-                    evidenziato: ex ? (ex.evidenziato||false) : false,
-                    lat: lat, lng: lng, fatto: status
-                };
-                const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
-                anagraficheData[pdr] = anaDoc;
-                allData[pdr] = newData;
-                if(isCloudMode) {
-                    const appIdLocal = localStorage.getItem('custom_app_id')||'default-app-id';
-                    const ref = doc(db, 'artifacts', appIdLocal, 'public', 'data', COLLECTION_NAME, pdr);
-                    batch.set(ref, newData); count++;
-                    const anaRef = doc(db, 'artifacts', appIdLocal, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr);
-                    batch.set(anaRef, anaDoc, { merge: true }); count++;
-                    if(count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
-                }
+            const lat = (ana && !isNaN(ana.lat)) ? ana.lat : NaN;
+            const lng = (ana && !isNaN(ana.lng)) ? ana.lng : NaN;
+            if (isNaN(lat) || isNaN(lng)) noGps++;
+
+            const ex = allData[pdr];
+            const status = ex ? (ex.fatto || false) : false;
+            const existingWaDate = ex ? (ex.wa_inviato || '') : '';
+
+            // MAPPING PER GDM CSV (tracciato investimenti 2026)
+            const newData = {
+                pdr,
+                nominativo:    row['Nome utenza'] || 'Utente',
+                indirizzo:     row['Indirizzo'] || '',
+                zona:          row['Nome zona'] || row['Zona'] || '',
+                telefono:      (row['Nr. telefonico'] || row['Telefono'] || '').toString().trim().replace(/^75/, '075'),
+                matricola:     row['Matricola misuratore'] || 'N/D',
+                anno_fabb:     row['Anno fabbricazione misuratore'] || '',
+                classe:        row['Classe misuratore'] || '',
+                accessibilita: row['Accessibilit\u00e0  PdR'] || row["Accessibilita' PDR"] || row['Accessibilit\u00e0 gruppi misura'] || 'N/D',
+                nota_accesso:  '',
+                nota_operatore: ex ? (ex.nota_operatore || '') : '',
+                wa_inviato:    existingWaDate,
+                evidenziato:   ex ? (ex.evidenziato || false) : false,
+                lat, lng, fatto: status
+            };
+
+            allData[pdr] = newData;
+
+            if (isCloudMode) {
+                batch.set(doc(db, 'artifacts', appIdLocal, 'public', 'data', COLLECTION_NAME, pdr), newData);
+                count++;
+                if (count >= 450) { batch.commit(); batch = writeBatch(db); count = 0; }
             }
         });
-        if(isCloudMode && count>0) await batch.commit();
-        else if(!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); updateMapAndUI(); }
-        showToast(`Importati ${Object.keys(allData).length}`);
+
+        if (isCloudMode && count > 0) await batch.commit();
+        else if (!isCloudMode) { localStorage.setItem('pdr_data_riepilogo', JSON.stringify(allData)); localStorage.setItem('pdr_anagrafiche', JSON.stringify(anagraficheData)); updateMapAndUI(); }
+        const tot = Object.keys(allData).length;
+        showToast(noGps > 0 ? `Importati ${tot} (${noGps} senza GPS)` : `Importati ${tot}`);
     };
 
     // Actions
@@ -412,6 +412,7 @@
         let vis=0, done=0;
         
         Object.values(allData).forEach(item => {
+            if (isNaN(item.lat) || isNaN(item.lng)) return; // nessuna coordinata
             if(filterTerrazzo && !(item.nota_accesso||'').toLowerCase().includes('terrazzo')) return;
 
             // FILTER FOLLOWUP
