@@ -241,27 +241,8 @@
             }
         });
     }
-    async function migrateToAnagrafiche(appId) {
-        if (anagraficheMigrationDone) return;
-        const flagKey = `pdr_anag_migrated_${COLLECTION_NAME}`;
-        if (localStorage.getItem(flagKey)) { anagraficheMigrationDone = true; return; }
-        anagraficheMigrationDone = true;
-        const pdrsToMigrate = Object.keys(allData).filter(pdr => !anagraficheData[pdr]);
-        if (pdrsToMigrate.length === 0) { localStorage.setItem(flagKey, '1'); return; }
-        let batchMig = writeBatch(db); let countMig = 0;
-        pdrsToMigrate.forEach(pdr => {
-            const d = allData[pdr];
-            if (!isNaN(d.lat) && !isNaN(d.lng)) {
-                batchMig.set(doc(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
-                    { lat: d.lat, lng: d.lng, indirizzo: d.indirizzo || '', nota_accesso: d.nota_accesso || '' }, { merge: true });
-                countMig++;
-                if (countMig >= 450) { batchMig.commit(); batchMig = writeBatch(db); countMig = 0; }
-            }
-        });
-        if (countMig > 0) await batchMig.commit();
-        localStorage.setItem(flagKey, '1');
-        console.log(`Migrati ${countMig} PDR → pdr_anagrafiche (${COLLECTION_NAME})`);
-    }
+    // migrateToAnagrafiche NON usata in questa mappa:
+    // le coordinate vengono LETTE dall'anagrafica, mai scritte automaticamente.
 
     // Data Logic
     function startCloudListener(appId) {
@@ -273,7 +254,6 @@
                 else allData[c.doc.id] = d;
             });
             applyAnagrafiche();
-            migrateToAnagrafiche(appId);
             updateMapAndUI(); updateSelectionUI();
         }, (e) => { if(e.code==='permission-denied') showToast("Err Permessi"); });
         // Listener anagrafiche condivise (lat/lng/indirizzo/nota_accesso)
