@@ -264,6 +264,7 @@
             });
             applyAnagrafiche();
             renderVenditoriFilters(); updateMapAndUI(); updateSelectionUI();
+        });
         // Listener anagrafiche condivise (lat/lng/indirizzo/nota_accesso)
         onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION), (snap) => {
             snap.docChanges().forEach(c => { c.type === "removed" ? delete anagraficheData[c.doc.id] : anagraficheData[c.doc.id] = c.doc.data(); });
