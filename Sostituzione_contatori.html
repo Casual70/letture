@@ -111,6 +111,7 @@
                 <div class="filter-checkbox"><input type="checkbox" id="filterTerrazzo" onchange="window.toggleTerrazzo(this)"> <span class="text-xs font-bold text-gray-700">Solo "Terrazzo"</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up > 2gg</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterEvidenziati" onchange="window.toggleEvidenziato(this)"> <span class="text-xs font-bold text-purple-700">Solo Evidenziati</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterSenzaAvviso" onchange="window.toggleSenzaAvviso(this)"> <span class="text-xs font-bold text-yellow-700">Senza data consegna avviso</span></div>
             </div>
         </div>
 
@@ -167,6 +168,7 @@
     let filterTerrazzo = false;
     let filterFollowUp = false;
     let filterEvidenziato = false;
+    let filterSenzaAvviso = false;
     let activeVenditori = new Set();
 
     const HARDCODED_FIREBASE_CONFIG = {
@@ -220,6 +222,7 @@
     window.toggleTerrazzo = (e) => { filterTerrazzo = e.checked; updateMapAndUI(); };
     window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
     window.toggleEvidenziato = (e) => { filterEvidenziato = e.checked; updateMapAndUI(); };
+    window.toggleSenzaAvviso = (e) => { filterSenzaAvviso = e.checked; updateMapAndUI(); };
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -422,6 +425,7 @@
                 if (diffDays <= 2) return; 
             }
             if (filterEvidenziato && !item.evidenziato) return;
+            if (filterSenzaAvviso && (item.data_consegna_avviso||'').trim() !== '') return;
 
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
