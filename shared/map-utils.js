@@ -19,11 +19,11 @@ function showToast(m) {
 // ─── CSV ─────────────────────────────────────────────────────────────────────
 
 function generateCSV(MAP, items, prefix) {
-    let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Ubicazione Misuratore;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Data Fatto;Note Op;Evidenziato;Data WA\n";
+    let content = "\uFEFFCodice PDR;Nome;Indirizzo;Città;Telefono;Matricola;Ubicazione Misuratore;Data Ultima;Accessibilità;Nota;Lat;Long;Stato;Data Fatto;Note Op;Evidenziato;Data WA;Note Inaccessibilità\n";
     items.forEach(i => {
         const row = [i.pdr, i.nominativo, i.indirizzo, i.zona, i.telefono, i.matricola, i.ubicazione_misuratore || '',
             i.data_riferimento, i.accessibilita, i.nota_accesso, String(i.lat).replace('.', ','), String(i.lng).replace('.', ','),
-            i.fatto ? "FATTO" : "DA FARE", i.data_fatto || "", i.nota_operatore || "", i.evidenziato ? "SI" : "NO", i.wa_inviato || ""]
+            i.fatto ? "FATTO" : "DA FARE", i.data_fatto || "", i.nota_operatore || "", i.evidenziato ? "SI" : "NO", i.wa_inviato || "", i.nota_inaccessibilita || ""]
             .map(v => String(v || '').includes(';') ? `"${String(v).replace(/"/g, '""')}"` : v).join(';');
         content += row + "\n";
     });
