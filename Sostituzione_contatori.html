@@ -112,6 +112,7 @@
                 <div class="filter-checkbox"><input type="checkbox" id="filterFollowUp" onchange="window.toggleFollowUp(this)"> <span class="text-xs font-bold text-gray-700">Follow-up > 2gg</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterEvidenziati" onchange="window.toggleEvidenziato(this)"> <span class="text-xs font-bold text-purple-700">Solo Evidenziati</span></div>
                 <div class="filter-checkbox"><input type="checkbox" id="filterSenzaAvviso" onchange="window.toggleSenzaAvviso(this)"> <span class="text-xs font-bold text-yellow-700">Senza data consegna avviso</span></div>
+                <div class="filter-checkbox"><input type="checkbox" id="filterNascondiFatto" onchange="window.toggleNascondiFatto(this)"> <span class="text-xs font-bold text-blue-700">Nascondi Fatti</span></div>
             </div>
         </div>
 
@@ -169,6 +170,7 @@
     let filterFollowUp = false;
     let filterEvidenziato = false;
     let filterSenzaAvviso = false;
+    let filterNascondiFatto = false;
     let activeVenditori = new Set();
 
     const HARDCODED_FIREBASE_CONFIG = {
@@ -223,6 +225,7 @@
     window.toggleFollowUp = (e) => { filterFollowUp = e.checked; updateMapAndUI(); };
     window.toggleEvidenziato = (e) => { filterEvidenziato = e.checked; updateMapAndUI(); };
     window.toggleSenzaAvviso = (e) => { filterSenzaAvviso = e.checked; updateMapAndUI(); };
+    window.toggleNascondiFatto = (e) => { filterNascondiFatto = e.checked; updateMapAndUI(); };
 
     // Selection
     window.togglePdrSelection = (pdr) => { selectedPDRs.has(pdr) ? selectedPDRs.delete(pdr) : selectedPDRs.add(pdr); updateSelectionUI(); updateMapAndUI(); };
@@ -426,6 +429,7 @@
             }
             if (filterEvidenziato && !item.evidenziato) return;
             if (filterSenzaAvviso && (item.data_consegna_avviso||'').trim() !== '') return;
+            if (filterNascondiFatto && item.fatto) return;
 
             let acc = (item.accessibilita||'').toLowerCase();
             let cat = acc.includes('inaccessibile')?'Inaccessibile':(acc.includes('accessibile')?'Accessibile':'Altro');
