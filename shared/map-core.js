@@ -171,16 +171,25 @@ export async function importCSVData(MAP, csvData) {
             let isDate = (datLett !== '' && datLett !== '00/01/1900');
             if (isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
 
+            // Costruisce indirizzo da campi strutturati se manca colonna diretta
+            const tipoVia   = (row['Tipo via'] || '').trim();
+            const nomeVia   = (row['Nome via'] || '').trim();
+            const nrCivico  = (row['Nr. Civico'] || '').toString().trim();
+            const estCivico = (row['Est. Nr. civico'] || '').toString().trim();
+            const indCalc   = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
+
+            const noteAccesso = row['Nota_accesso'] || row['Note inaccessibilita'] || row['Note'] || '';
+
             const newData = {
-                pdr, nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || 'Utente',
-                indirizzo: row['Indirizzo'] || row.INDIRIZZO || '',
-                zona: row['NOME ZONA'] || row.Citta || row['Cod. zona'] || '',
+                pdr, nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || row['Descr. utenza'] || 'Utente',
+                indirizzo: row['Indirizzo'] || row.INDIRIZZO || indCalc || '',
+                zona: row['NOME ZONA'] || row.Citta || row['Descr. zona'] || row['Cod. zona'] || '',
                 telefono: (row['Telefono'] || row.TELEFONO || '').toString().trim().replace(/^75/, '075'),
-                matricola: row['Matricola misuratore'] || row.MATRICOLA || 'N/D',
+                matricola: row['Matricola misuratore'] || row['Matr. misuratore'] || row.MATRICOLA || 'N/D',
                 ubicazione_misuratore: row['Ubicazione Misuratore'] || '',
                 data_riferimento: row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "",
-                anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : 'N/D',
-                nota_accesso: row['Nota_accesso'] || row['Note'] || '',
+                anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : (row['Accessibilità'] || row['Accessibilit?'] || 'N/D'),
+                nota_accesso: noteAccesso,
                 nota_operatore: ex ? (ex.nota_operatore || '') : '',
                 wa_inviato: existingWaDate,
                 val_lettura: valLett, data_lettura: datLett,
