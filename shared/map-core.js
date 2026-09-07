@@ -18,11 +18,12 @@ function localAppId() {
 export function applyAnagrafiche(MAP) {
     Object.keys(MAP.anagraficheData).forEach(pdr => {
         if (MAP.allData[pdr]) {
+            // Se nell'anagrafica comune sono presenti dati più completi, non sovrascrivere con campi vuoti
             const a = MAP.anagraficheData[pdr];
             if (a.lat !== undefined)          MAP.allData[pdr].lat = a.lat;
             if (a.lng !== undefined)          MAP.allData[pdr].lng = a.lng;
-            if (a.indirizzo !== undefined)    MAP.allData[pdr].indirizzo = a.indirizzo;
-            if (a.nota_accesso !== undefined) MAP.allData[pdr].nota_accesso = a.nota_accesso;
+            if (a.indirizzo && !MAP.allData[pdr].indirizzo)    MAP.allData[pdr].indirizzo = a.indirizzo;
+            if (a.nota_accesso && !MAP.allData[pdr].nota_accesso) MAP.allData[pdr].nota_accesso = a.nota_accesso;
         }
     });
 }
