@@ -33,7 +33,7 @@ export function renderMap(MAP) {
         if (!MAP.activeComuni.has(com)) return false;
         return true;
     };
-    // Filtro Stato Lettura: applicato solo ai marker mostrati, non al conteggio "Completati"
+    // Filtro Stato Lettura
     const passesStatoFilter = item => {
         if (MAP.activeStato === 'da_fare' && item.fatto) return false;
         if (MAP.activeStato === 'fatti' && !item.fatto) return false;
@@ -42,12 +42,8 @@ export function renderMap(MAP) {
 
     let filteredData = Object.values(MAP.allData).filter(item => passesBaseFilters(item) && passesStatoFilter(item));
 
-    // "Completati" conta i letti reali sull'intero set (a prescindere dal filtro Stato Lettura scelto e dalla presenza di GPS)
-    let done = 0;
-    Object.values(MAP.allData).forEach(item => {
-        if (!passesBaseFilters(item)) return;
-        if (item.fatto) done++;
-    });
+    // "Completati" conta i letti reali dentro il set filtrato corrente (si aggiorna con ogni filtro, Stato incluso)
+    let done = filteredData.filter(item => item.fatto).length;
 
     // ── Modalità PDR (marker singoli) ────────────────────────────────────────
     if (MAP.viewMode !== 'street') {
