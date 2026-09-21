@@ -42,10 +42,9 @@ export function renderMap(MAP) {
 
     let filteredData = Object.values(MAP.allData).filter(item => passesBaseFilters(item) && passesStatoFilter(item));
 
-    // "Completati" conta i letti reali sull'intero set (a prescindere dal filtro Stato Lettura scelto)
+    // "Completati" conta i letti reali sull'intero set (a prescindere dal filtro Stato Lettura scelto e dalla presenza di GPS)
     let done = 0;
     Object.values(MAP.allData).forEach(item => {
-        if (isNaN(item.lat) || isNaN(item.lng)) return;
         if (!passesBaseFilters(item)) return;
         if (item.fatto) done++;
     });
@@ -53,8 +52,9 @@ export function renderMap(MAP) {
     // ── Modalità PDR (marker singoli) ────────────────────────────────────────
     if (MAP.viewMode !== 'street') {
         filteredData.forEach(item => {
-            if (isNaN(item.lat) || isNaN(item.lng)) return;
             vis++;
+            // Senza coordinate valide il PDR resta conteggiato ma senza marker sulla mappa
+            if (isNaN(item.lat) || isNaN(item.lng)) return;
             let warn = false;
             if (item.val_lettura) { const c = item.val_lettura.replace(',', '.').trim(); if (c !== '' && isNaN(c)) warn = true; }
 
@@ -163,8 +163,8 @@ export function renderMap(MAP) {
         // ── Modalità STREET (raggruppamento per via) ─────────────────────────
         let groups = {};
         filteredData.forEach(item => {
-            if (isNaN(item.lat) || isNaN(item.lng)) return;
             vis++;
+            if (isNaN(item.lat) || isNaN(item.lng)) return;
             let addr = (item.indirizzo || '').toUpperCase().trim();
             let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
             let key = `${streetName} (${item.zona || 'N/D'})`;

@@ -149,70 +149,81 @@ export async function importCSVData(MAP, csvData) {
     const appId = localAppId();
     let colAcc = Object.keys(csvData[0]).find(k => k.toLowerCase().includes("ccessibilit") || k.toLowerCase().includes("gruppi misura"));
 
+    let noCoordCount = 0;
+
     csvData.forEach(row => {
         const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
         // Coordinate: priorità anagrafica PDR, fallback CSV
         const ana = MAP.anagraficheData[pdr];
         let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
         let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
+        // Un PDR senza coordinate note (nuovo, mai geolocalizzato prima) va comunque importato:
+        // resterà "senza coordinate GPS" (niente marker) finché non lo si posiziona manualmente.
+        const hasCoords = !isNaN(lat) && !isNaN(lng);
+        if (!hasCoords) noCoordCount++;
 
-        if (!isNaN(lat) && !isNaN(lng)) {
-            const ex = MAP.allData[pdr];
-            let status = ex ? (ex.fatto || false) : false;
-            const existingWaDate = ex ? (ex.wa_inviato || '') : '';
+        const ex = MAP.allData[pdr];
+        let status = ex ? (ex.fatto || false) : false;
+        const existingWaDate = ex ? (ex.wa_inviato || '') : '';
 
-            const valLett = (row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || row['Lettura attuale misur.'] || '').toString().trim();
-            const datLett = (row['Data lettura'] || row['data lettura'] || row['Data lettura attuale'] || '').toString().trim();
+        const valLett = (row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || row['Lettura attuale misur.'] || '').toString().trim();
+        const datLett = (row['Data lettura'] || row['data lettura'] || row['Data lettura attuale'] || '').toString().trim();
 
-            let isNum = false;
-            if (valLett !== '' && valLett !== '0') {
-                const chk = parseFloat(valLett.replace(',', '.'));
-                if (!isNaN(chk) && isFinite(chk)) isNum = true;
-            }
-            let isDate = (datLett !== '' && datLett !== '00/01/1900');
-            if (isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
+        let isNum = false;
+        if (valLett !== '' && valLett !== '0') {
+            const chk = parseFloat(valLett.replace(',', '.'));
+            if (!isNaN(chk) && isFinite(chk)) isNum = true;
+        }
+        let isDate = (datLett !== '' && datLett !== '00/01/1900');
+        if (isNum || (isDate && !(!isNum && valLett !== ''))) status = true;
 
-            // Costruisce indirizzo da campi strutturati se manca colonna diretta
-            const tipoVia   = (row['Tipo via'] || '').trim();
-            const nomeVia   = (row['Nome via'] || '').trim();
-            const nrCivico  = (row['Nr. Civico'] || '').toString().trim();
-            const estCivico = (row['Est. Nr. civico'] || '').toString().trim();
-            const indCalc   = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
+        // Costruisce indirizzo da campi strutturati se manca colonna diretta
+        const tipoVia   = (row['Tipo via'] || '').trim();
+        const nomeVia   = (row['Nome via'] || '').trim();
+        const nrCivico  = (row['Nr. Civico'] || '').toString().trim();
+        const estCivico = (row['Est. Nr. civico'] || '').toString().trim();
+        const indCalc   = [tipoVia, nomeVia, (nrCivico + estCivico) || 'SNC'].filter(x => x).join(' ');
 
-            const noteAccesso = row['Nota_accesso'] || row['Note inaccessibilita'] || row['Note'] || '';
+        const noteAccesso = row['Nota_accesso'] || row['Note inaccessibilita'] || row['Note'] || '';
 
-            const newData = {
-                pdr, nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || row['Descr. utenza'] || 'Utente',
-                indirizzo: row['Indirizzo'] || row.INDIRIZZO || indCalc || '',
-                zona: row['NOME ZONA'] || row.Citta || row['Descr. zona'] || row['Cod. zona'] || '',
-                telefono: (row['Telefono'] || row.TELEFONO || '').toString().trim().replace(/^75/, '075'),
-                matricola: row['Matricola misuratore'] || row['Matr. misuratore'] || row.MATRICOLA || 'N/D',
-                ubicazione_misuratore: row['Ubicazione Misuratore'] || '',
-                data_riferimento: row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "",
-                anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : (row['Accessibilità'] || row['Accessibilit?'] || 'N/D'),
-                nota_accesso: noteAccesso,
-                nota_operatore: ex ? (ex.nota_operatore || '') : '',
-                wa_inviato: existingWaDate,
-                val_lettura: valLett, data_lettura: datLett,
-                evidenziato: ex ? (ex.evidenziato || false) : false,
-                foto_urls: ex ? (ex.foto_urls || []) : [],
-                data_fatto: ex ? (ex.data_fatto || '') : '',
-                lat, lng, fatto: status,
-                updated_by: MAP.user?.email || '',
-                updated_at: new Date().toISOString()
-            };
+        const newData = {
+            pdr, nominativo: row['Nome utenza'] || row.NOME || row.Nominativo || row['Descr. utenza'] || 'Utente',
+            indirizzo: row['Indirizzo'] || row.INDIRIZZO || indCalc || '',
+            zona: row['NOME ZONA'] || row.Citta || row['Descr. zona'] || row['Cod. zona'] || '',
+            telefono: (row['Telefono'] || row.TELEFONO || '').toString().trim().replace(/^75/, '075'),
+            matricola: row['Matricola misuratore'] || row['Matr. misuratore'] || row.MATRICOLA || 'N/D',
+            ubicazione_misuratore: row['Ubicazione Misuratore'] || '',
+            data_riferimento: row['Data ultima lettura'] || row['ULTIMA LETTURA'] || "",
+            anno: 'N/D', accessibilita: (colAcc && row[colAcc]) ? row[colAcc] : (row['Accessibilità'] || row['Accessibilit?'] || 'N/D'),
+            nota_accesso: noteAccesso,
+            nota_operatore: ex ? (ex.nota_operatore || '') : '',
+            wa_inviato: existingWaDate,
+            val_lettura: valLett, data_lettura: datLett,
+            evidenziato: ex ? (ex.evidenziato || false) : false,
+            foto_urls: ex ? (ex.foto_urls || []) : [],
+            data_fatto: ex ? (ex.data_fatto || '') : '',
+            lat, lng, fatto: status,
+            updated_by: MAP.user?.email || '',
+            updated_at: new Date().toISOString()
+        };
+        MAP.allData[pdr] = newData;
+
+        if (MAP.isCloudMode) {
+            batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), newData);
+            count++;
+        }
+
+        // L'anagrafica condivisa (coordinate) si aggiorna solo se le coordinate sono valide
+        if (hasCoords) {
             const anaDoc = { lat: newData.lat, lng: newData.lng, indirizzo: newData.indirizzo, nota_accesso: newData.nota_accesso };
             MAP.anagraficheData[pdr] = anaDoc;
-            MAP.allData[pdr] = newData;
-
             if (MAP.isCloudMode) {
-                batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), newData);
-                count++;
                 batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr), anaDoc, { merge: true });
                 count++;
-                if (count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
             }
         }
+
+        if (MAP.isCloudMode && count >= 450) { batch.commit(); batch = writeBatch(MAP.db); count = 0; }
     });
 
     if (MAP.isCloudMode && count > 0) await batch.commit();
@@ -221,7 +232,7 @@ export async function importCSVData(MAP, csvData) {
         localStorage.setItem('pdr_anagrafiche', JSON.stringify(MAP.anagraficheData));
         MAP.updateMapAndUI?.();
     }
-    window.showToast?.(`Importati ${Object.keys(MAP.allData).length}`);
+    window.showToast?.(`Importati ${Object.keys(MAP.allData).length}` + (noCoordCount > 0 ? ` (${noCoordCount} senza coordinate GPS)` : ''));
 }
 
 // ─── clearData ───────────────────────────────────────────────────────────────
