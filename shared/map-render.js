@@ -46,11 +46,15 @@ export function renderMap(MAP) {
     let done = filteredData.filter(item => item.fatto).length;
 
     // ── Modalità PDR (marker singoli) ────────────────────────────────────────
+    // Tutto il rendering è in try/finally: un errore su un singolo PDR non deve
+    // impedire l'aggiornamento dei contatori Visibili/Completati.
+    try {
     if (MAP.viewMode !== 'street') {
         filteredData.forEach(item => {
             vis++;
             // Senza coordinate valide il PDR resta conteggiato ma senza marker sulla mappa
             if (isNaN(item.lat) || isNaN(item.lng)) return;
+            try {
             let warn = false;
             if (item.val_lettura) { const c = item.val_lettura.replace(',', '.').trim(); if (c !== '' && isNaN(c)) warn = true; }
 
@@ -153,6 +157,7 @@ export function renderMap(MAP) {
                 </div>`;
             m.bindPopup(content);
             MAP.markersCluster.addLayer(m);
+            } catch (err) { console.error('Errore rendering marker PDR', item?.pdr, err); }
         });
 
     } else {
@@ -161,14 +166,17 @@ export function renderMap(MAP) {
         filteredData.forEach(item => {
             vis++;
             if (isNaN(item.lat) || isNaN(item.lng)) return;
+            try {
             let addr = (item.indirizzo || '').toUpperCase().trim();
             let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
             let key = `${streetName} (${item.zona || 'N/D'})`;
             if (!groups[key]) groups[key] = { items: [], lat: item.lat, lng: item.lng, street: streetName };
             groups[key].items.push(item);
+            } catch (err) { console.error('Errore raggruppamento via PDR', item?.pdr, err); }
         });
 
         Object.keys(groups).forEach(key => {
+          try {
             const group = groups[key], items = group.items;
             let allDone = true, anyEvid = false, anySel = false, anyInacc = false, anyWarn = false, anyWa = false;
             items.forEach(i => {
@@ -223,11 +231,15 @@ export function renderMap(MAP) {
             popupContent += `</div></div>`;
             m.bindPopup(popupContent);
             MAP.markersCluster.addLayer(m);
+          } catch (err) { console.error('Errore rendering gruppo via', key, err); }
         });
     }
-
-    const elVis  = document.getElementById('statVisible');
-    const elDone = document.getElementById('statDone');
-    if (elVis)  elVis.innerText  = vis;
-    if (elDone) elDone.innerText = done;
+    } catch (err) {
+        console.error('Errore renderMap:', err);
+    } finally {
+        const elVis  = document.getElementById('statVisible');
+        const elDone = document.getElementById('statDone');
+        if (elVis)  elVis.innerText  = vis;
+        if (elDone) elDone.innerText = done;
+    }
 }
