@@ -6,18 +6,16 @@ export function renderMap(MAP) {
     if (!MAP.markersCluster) return;
     MAP.markersCluster.clearLayers();
     MAP.markersByPdr = {};
-    let vis = 0, done = 0;
+    let vis = 0;
 
-    // ── Filtro comune ────────────────────────────────────────────────────────
-    let filteredData = Object.values(MAP.allData).filter(item => {
+    // ── Filtri comuni a Visibili/Completati (tutto tranne lo Stato Lettura) ───
+    const passesBaseFilters = item => {
         if (MAP.filterTerrazzo && !(item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
         if (MAP.filterEsclTerrazzo && (item.nota_accesso || '').toLowerCase().includes('terrazzo')) return false;
         if (MAP.filterAvviso) {
             const v = (item.val_lettura || '').replace(',', '.').trim();
             if (!(v !== '' && isNaN(v))) return false;
         }
-        if (MAP.activeStato === 'da_fare' && item.fatto) return false;
-        if (MAP.activeStato === 'fatti' && !item.fatto) return false;
         if (MAP.filterFollowUp) {
             if (!item.wa_inviato) return false;
             const waDate = new Date(item.wa_inviato), today = new Date();
@@ -34,13 +32,29 @@ export function renderMap(MAP) {
         else if (search.includes('montone') || search.includes('54033')) com = 'Montone';
         if (!MAP.activeComuni.has(com)) return false;
         return true;
+    };
+    // Filtro Stato Lettura: applicato solo ai marker mostrati, non al conteggio "Completati"
+    const passesStatoFilter = item => {
+        if (MAP.activeStato === 'da_fare' && item.fatto) return false;
+        if (MAP.activeStato === 'fatti' && !item.fatto) return false;
+        return true;
+    };
+
+    let filteredData = Object.values(MAP.allData).filter(item => passesBaseFilters(item) && passesStatoFilter(item));
+
+    // "Completati" conta i letti reali sull'intero set (a prescindere dal filtro Stato Lettura scelto)
+    let done = 0;
+    Object.values(MAP.allData).forEach(item => {
+        if (isNaN(item.lat) || isNaN(item.lng)) return;
+        if (!passesBaseFilters(item)) return;
+        if (item.fatto) done++;
     });
 
     // ── Modalità PDR (marker singoli) ────────────────────────────────────────
     if (MAP.viewMode !== 'street') {
         filteredData.forEach(item => {
             if (isNaN(item.lat) || isNaN(item.lng)) return;
-            vis++; if (item.fatto) done++;
+            vis++;
             let warn = false;
             if (item.val_lettura) { const c = item.val_lettura.replace(',', '.').trim(); if (c !== '' && isNaN(c)) warn = true; }
 
@@ -150,7 +164,7 @@ export function renderMap(MAP) {
         let groups = {};
         filteredData.forEach(item => {
             if (isNaN(item.lat) || isNaN(item.lng)) return;
-            vis++; if (item.fatto) done++;
+            vis++;
             let addr = (item.indirizzo || '').toUpperCase().trim();
             let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';
             let key = `${streetName} (${item.zona || 'N/D'})`;
