@@ -2,6 +2,11 @@
 // Logica di rendering mappa condivisa: marker PDR e Vista Via.
 // Esporta renderMap(MAP) da chiamare come MAP.updateMapAndUI.
 
+// isNaN(null) === false: serve un controllo di tipo esplicito per non trattare coordinate null/undefined come valide
+function isValidCoord(v) {
+    return typeof v === 'number' && !isNaN(v);
+}
+
 export function renderMap(MAP) {
     if (!MAP.markersCluster) return;
     MAP.markersCluster.clearLayers();
@@ -53,7 +58,7 @@ export function renderMap(MAP) {
         filteredData.forEach(item => {
             vis++;
             // Senza coordinate valide il PDR resta conteggiato ma senza marker sulla mappa
-            if (isNaN(item.lat) || isNaN(item.lng)) return;
+            if (!isValidCoord(item.lat) || !isValidCoord(item.lng)) return;
             try {
             let warn = false;
             if (item.val_lettura) { const c = item.val_lettura.replace(',', '.').trim(); if (c !== '' && isNaN(c)) warn = true; }
@@ -165,7 +170,7 @@ export function renderMap(MAP) {
         let groups = {};
         filteredData.forEach(item => {
             vis++;
-            if (isNaN(item.lat) || isNaN(item.lng)) return;
+            if (!isValidCoord(item.lat) || !isValidCoord(item.lng)) return;
             try {
             let addr = (item.indirizzo || '').toUpperCase().trim();
             let streetName = addr.replace(/\s+(?:SNC|\d+.*)$/i, '').trim() || 'Indirizzo Non Valido';

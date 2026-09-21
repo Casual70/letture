@@ -15,13 +15,18 @@ function localAppId() {
     return localStorage.getItem('custom_app_id') || 'default-app-id';
 }
 
+// isNaN(null) === false: serve un controllo di tipo esplicito per non trattare coordinate null/undefined come valide
+function isValidCoord(v) {
+    return typeof v === 'number' && !isNaN(v);
+}
+
 export function applyAnagrafiche(MAP) {
     Object.keys(MAP.anagraficheData).forEach(pdr => {
         if (MAP.allData[pdr]) {
             // Se nell'anagrafica comune sono presenti dati più completi, non sovrascrivere con campi vuoti
             const a = MAP.anagraficheData[pdr];
-            if (a.lat !== undefined)          MAP.allData[pdr].lat = a.lat;
-            if (a.lng !== undefined)          MAP.allData[pdr].lng = a.lng;
+            if (isValidCoord(a.lat))          MAP.allData[pdr].lat = a.lat;
+            if (isValidCoord(a.lng))          MAP.allData[pdr].lng = a.lng;
             if (a.indirizzo && !MAP.allData[pdr].indirizzo)    MAP.allData[pdr].indirizzo = a.indirizzo;
             if (a.nota_accesso && !MAP.allData[pdr].nota_accesso) MAP.allData[pdr].nota_accesso = a.nota_accesso;
         }
@@ -39,7 +44,7 @@ async function migrateToAnagrafiche(MAP) {
     let batch = writeBatch(MAP.db), count = 0;
     pdrsToMigrate.forEach(pdr => {
         const d = MAP.allData[pdr];
-        if (!isNaN(d.lat) && !isNaN(d.lng)) {
+        if (isValidCoord(d.lat) && isValidCoord(d.lng)) {
             batch.set(doc(MAP.db, 'artifacts', appId, 'public', 'data', ANAGRAFICHE_COLLECTION, pdr),
                 { lat: d.lat, lng: d.lng, indirizzo: d.indirizzo || '', nota_accesso: d.nota_accesso || '' }, { merge: true });
             count++;
@@ -155,11 +160,11 @@ export async function importCSVData(MAP, csvData) {
         const pdr = String(row['Codice PDR'] || row.PDR || row.pdr || Math.random().toString(36).substr(2, 9));
         // Coordinate: priorità anagrafica PDR, fallback CSV
         const ana = MAP.anagraficheData[pdr];
-        let lat = (ana && !isNaN(ana.lat)) ? ana.lat : parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
-        let lng = (ana && !isNaN(ana.lng)) ? ana.lng : parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
+        let lat = isValidCoord(ana && ana.lat) ? ana.lat : parseFloat((row.Lat || row.LAT || row.lat || "").toString().replace(',', '.').replace(/"/g, ''));
+        let lng = isValidCoord(ana && ana.lng) ? ana.lng : parseFloat((row.Long || row.LON || row.lon || "").toString().replace(',', '.').replace(/"/g, ''));
         // Un PDR senza coordinate note (nuovo, mai geolocalizzato prima) va comunque importato:
         // resterà "senza coordinate GPS" (niente marker) finché non lo si posiziona manualmente.
-        const hasCoords = !isNaN(lat) && !isNaN(lng);
+        const hasCoords = isValidCoord(lat) && isValidCoord(lng);
         if (!hasCoords) noCoordCount++;
 
         const ex = MAP.allData[pdr];
