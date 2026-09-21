@@ -161,8 +161,8 @@ export async function importCSVData(MAP, csvData) {
             let status = ex ? (ex.fatto || false) : false;
             const existingWaDate = ex ? (ex.wa_inviato || '') : '';
 
-            const valLett = (row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || '').toString().trim();
-            const datLett = (row['Data lettura'] || row['data lettura'] || '').toString().trim();
+            const valLett = (row['Lettura'] || row['lettura'] || row['Valore lettura importata'] || row['Lettura attuale misur.'] || '').toString().trim();
+            const datLett = (row['Data lettura'] || row['data lettura'] || row['Data lettura attuale'] || '').toString().trim();
 
             let isNum = false;
             if (valLett !== '' && valLett !== '0') {
