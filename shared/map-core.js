@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { HARDCODED_FIREBASE_CONFIG, ANAGRAFICHE_COLLECTION } from './firebase-config.js';
 import { requireAuth, showUserBadge, logAudit } from './auth.js';
@@ -286,6 +286,23 @@ export async function addPdrFromAnagrafica(MAP, rawPdr) {
     }
     MAP.updateMapAndUI?.();
     return newData;
+}
+
+export async function removePdrFromMap(MAP, rawPdr) {
+    const pdr = String(rawPdr || '').trim();
+    if (!pdr) throw new Error('Inserire un PDR.');
+    if (!MAP.allData[pdr]) throw new Error('PDR non presente nella mappa.');
+
+    const appId = localAppId();
+    if (MAP.isCloudMode) {
+        await deleteDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr));
+        MAP.logAudit?.('remove_from_map', pdr);
+    } else {
+        delete MAP.allData[pdr];
+        localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
+        MAP.selectedPDRs.delete(pdr);
+        MAP.updateMapAndUI?.();
+    }
 }
 
 // ─── clearData ───────────────────────────────────────────────────────────────
