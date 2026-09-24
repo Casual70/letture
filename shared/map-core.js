@@ -9,6 +9,13 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-s
 import { HARDCODED_FIREBASE_CONFIG, ANAGRAFICHE_COLLECTION } from './firebase-config.js';
 import { requireAuth, showUserBadge, logAudit } from './auth.js';
 
+const PDR_DATA_COLLECTIONS = [
+    'recupero_letture_2026', 'letture_pdr_riepilogo', 'recupero_letture_2025',
+    'sostituzione_contatori', 'pdr_letture_mensili', 'letture_massive_ott_2026',
+    'letture_massive_aprile_2026', 'letture_massive_marzo_2026',
+    'letture_massive_marzo_2026_acc_neg', 'letture_massive_febbraio'
+];
+
 // ─── Helpers interni ────────────────────────────────────────────────────────
 
 function localAppId() {
@@ -248,9 +255,19 @@ export async function addPdrFromAnagrafica(MAP, rawPdr) {
     let source = {};
     if (MAP.isCloudMode) {
         const appId = localAppId();
-        const sourceRef = doc(MAP.db, 'artifacts', appId, 'public', 'data', 'letture_pdr_riepilogo', pdr);
-        const sourceSnap = await getDoc(sourceRef);
-        if (sourceSnap.exists()) source = sourceSnap.data();
+        for (const collectionName of PDR_DATA_COLLECTIONS) {
+            try {
+                const sourceRef = doc(MAP.db, 'artifacts', appId, 'public', 'data', collectionName, pdr);
+                const sourceSnap = await getDoc(sourceRef);
+                if (!sourceSnap.exists()) continue;
+                const data = sourceSnap.data();
+                Object.entries(data).forEach(([key, value]) => {
+                    if (source[key] === undefined || source[key] === '' || source[key] === 'N/D') source[key] = value;
+                });
+            } catch (e) {
+                console.warn(`Archivio ${collectionName} non disponibile:`, e.code || e.message);
+            }
+        }
     }
     if (!MAP.anagraficheData[pdr] && !Object.keys(source).length) {
         throw new Error('PDR non trovato nelle anagrafiche generali.');
