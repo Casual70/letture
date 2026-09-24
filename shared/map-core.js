@@ -240,6 +240,39 @@ export async function importCSVData(MAP, csvData) {
     window.showToast?.(`Importati ${Object.keys(MAP.allData).length}` + (noCoordCount > 0 ? ` (${noCoordCount} senza coordinate GPS)` : ''));
 }
 
+export async function addPdrFromAnagrafica(MAP, rawPdr) {
+    const pdr = String(rawPdr || '').trim();
+    if (!pdr) throw new Error('Inserire un PDR.');
+    if (MAP.allData[pdr]) throw new Error('Questo PDR è già presente nella mappa.');
+    const ana = MAP.anagraficheData[pdr];
+    if (!ana) throw new Error('PDR non trovato nelle anagrafiche generali.');
+
+    const newData = {
+        pdr,
+        nominativo: ana.nominativo || ana.nome || 'Utente',
+        indirizzo: ana.indirizzo || '', zona: ana.zona || ana.comune || '',
+        telefono: ana.telefono || '', matricola: ana.matricola || 'N/D',
+        ubicazione_misuratore: ana.ubicazione_misuratore || '',
+        data_riferimento: ana.data_riferimento || '', anno: ana.anno || 'N/D',
+        accessibilita: ana.accessibilita || 'N/D', nota_accesso: ana.nota_accesso || '',
+        nota_operatore: '', wa_inviato: '', val_lettura: '', data_lettura: '',
+        evidenziato: false, foto_urls: [], data_fatto: '',
+        lat: isValidCoord(ana.lat) ? ana.lat : null, lng: isValidCoord(ana.lng) ? ana.lng : null,
+        fatto: false, updated_by: MAP.user?.email || '', updated_at: new Date().toISOString()
+    };
+
+    MAP.allData[pdr] = newData;
+    const appId = localAppId();
+    if (MAP.isCloudMode) {
+        await setDoc(doc(MAP.db, 'artifacts', appId, 'public', 'data', MAP.COLLECTION_NAME, pdr), newData);
+        MAP.logAudit?.('add_from_anagrafica', pdr);
+    } else {
+        localStorage.setItem('pdr_data_riepilogo', JSON.stringify(MAP.allData));
+    }
+    MAP.updateMapAndUI?.();
+    return newData;
+}
+
 // ─── clearData ───────────────────────────────────────────────────────────────
 
 export async function clearData(MAP) {

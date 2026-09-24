@@ -5,7 +5,7 @@
 import { updateDoc, doc, getFirestore, writeBatch, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { deleteObject, ref as storageRef } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { importCSVData, clearData, savePdrPosition, applyAnagrafiche } from './map-core.js';
+import { importCSVData, addPdrFromAnagrafica, clearData, savePdrPosition, applyAnagrafiche } from './map-core.js';
 import { HARDCODED_FIREBASE_CONFIG } from './firebase-config.js';
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
@@ -194,6 +194,16 @@ export function registerAll(MAP) {
 
     // ── Import CSV ───────────────────────────────────────────────────────────
     window.importCSVData = (data) => importCSVData(MAP, data);
+    window.addPdrFromAnagrafica = async () => {
+        const input = document.getElementById('addPdrInput');
+        const pdr = input?.value.trim();
+        if (!pdr) { showToast('Inserire un PDR.'); return; }
+        try {
+            await addPdrFromAnagrafica(MAP, pdr);
+            input.value = '';
+            showToast(`PDR ${pdr} aggiunto alla mappa.`);
+        } catch (e) { showToast(e.message || 'Impossibile aggiungere il PDR.'); }
+    };
 
     // ── Reset ────────────────────────────────────────────────────────────────
     window.clearData = () => clearData(MAP);
