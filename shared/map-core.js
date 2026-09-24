@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, writeBatch, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { HARDCODED_FIREBASE_CONFIG, ANAGRAFICHE_COLLECTION } from './firebase-config.js';
 import { requireAuth, showUserBadge, logAudit } from './auth.js';
@@ -244,20 +244,35 @@ export async function addPdrFromAnagrafica(MAP, rawPdr) {
     const pdr = String(rawPdr || '').trim();
     if (!pdr) throw new Error('Inserire un PDR.');
     if (MAP.allData[pdr]) throw new Error('Questo PDR è già presente nella mappa.');
-    const ana = MAP.anagraficheData[pdr];
-    if (!ana) throw new Error('PDR non trovato nelle anagrafiche generali.');
+    const ana = MAP.anagraficheData[pdr] || {};
+    let source = {};
+    if (MAP.isCloudMode) {
+        const appId = localAppId();
+        const sourceRef = doc(MAP.db, 'artifacts', appId, 'public', 'data', 'letture_pdr_riepilogo', pdr);
+        const sourceSnap = await getDoc(sourceRef);
+        if (sourceSnap.exists()) source = sourceSnap.data();
+    }
+    if (!MAP.anagraficheData[pdr] && !Object.keys(source).length) {
+        throw new Error('PDR non trovato nelle anagrafiche generali.');
+    }
 
     const newData = {
+        ...source,
         pdr,
-        nominativo: ana.nominativo || ana.nome || 'Utente',
-        indirizzo: ana.indirizzo || '', zona: ana.zona || ana.comune || '',
-        telefono: ana.telefono || '', matricola: ana.matricola || 'N/D',
-        ubicazione_misuratore: ana.ubicazione_misuratore || '',
-        data_riferimento: ana.data_riferimento || '', anno: ana.anno || 'N/D',
-        accessibilita: ana.accessibilita || 'N/D', nota_accesso: ana.nota_accesso || '',
+        nominativo: source.nominativo || ana.nominativo || ana.nome || 'Utente',
+        indirizzo: source.indirizzo || ana.indirizzo || '',
+        zona: source.zona || ana.zona || ana.comune || '',
+        telefono: source.telefono || ana.telefono || '',
+        matricola: source.matricola || ana.matricola || 'N/D',
+        ubicazione_misuratore: source.ubicazione_misuratore || ana.ubicazione_misuratore || '',
+        data_riferimento: source.data_riferimento || ana.data_riferimento || '',
+        anno: source.anno || ana.anno || 'N/D',
+        accessibilita: source.accessibilita || ana.accessibilita || 'N/D',
+        nota_accesso: source.nota_accesso || ana.nota_accesso || '',
         nota_operatore: '', wa_inviato: '', val_lettura: '', data_lettura: '',
         evidenziato: false, foto_urls: [], data_fatto: '',
-        lat: isValidCoord(ana.lat) ? ana.lat : null, lng: isValidCoord(ana.lng) ? ana.lng : null,
+        lat: isValidCoord(ana.lat) ? ana.lat : (isValidCoord(source.lat) ? source.lat : null),
+        lng: isValidCoord(ana.lng) ? ana.lng : (isValidCoord(source.lng) ? source.lng : null),
         fatto: false, updated_by: MAP.user?.email || '', updated_at: new Date().toISOString()
     };
 

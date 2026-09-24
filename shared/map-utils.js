@@ -5,7 +5,7 @@
 import { updateDoc, doc, getFirestore, writeBatch, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { deleteObject, ref as storageRef } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { importCSVData, addPdrFromAnagrafica, clearData, savePdrPosition, applyAnagrafiche } from './map-core.js?v=20260924-1';
+import { importCSVData, addPdrFromAnagrafica, clearData, savePdrPosition, applyAnagrafiche } from './map-core.js?v=20260924-2';
 import { HARDCODED_FIREBASE_CONFIG } from './firebase-config.js';
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
